@@ -99,7 +99,7 @@ Plan list:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Setup & Infrastructure | 1/3 | In Progress|  |
+| 1. Setup & Infrastructure | 2/3 | In Progress|  |
 | 2. Database & Schema | 0/3 | Not started | - |
 | 3. Git Parser & calcDay | 0/3 | Not started | - |
 | 4. Pipeline CLI & sumDay | 0/3 | Not started | - |

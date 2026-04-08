@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-08T19:04:48.815Z"
+last_updated: "2026-04-08T19:08:55.667Z"
 progress:
   total_phases: 7
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # STATE
@@ -25,7 +25,7 @@ progress:
 ## Current Position
 
 Phase: 1 (setup-infrastructure) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 | Field | Value |
 |-------|-------|
 | Phase | 1 |
@@ -43,6 +43,7 @@ Plan: 2 of 3
 | Success criteria met | 0 / 22 |
 | Blockers | 0 |
 | Phase 01-setup-infrastructure P01 | 0 | 3 tasks | 4 files |
+| Phase 01-setup-infrastructure P02 | 10min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -54,6 +55,8 @@ Plan: 2 of 3
 - **Tailwind v4**: CSS-first native configuration.
 - **Dev tooling**: husky + lint-staged for pre-commit linting.
 - **Frontend bootstrap**: Use `npm create nuxt@latest` template for `apps/web`.
+- [Phase 01-setup-infrastructure]: CSS-first Tailwind v4: use @import 'tailwindcss' in main.css instead of a JS config.
+- [Phase 01-setup-infrastructure]: SPA mode (ssr: false) selected for D3 integration simplicity.
 
 ### TODOs
 

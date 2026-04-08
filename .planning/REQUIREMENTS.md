@@ -4,7 +4,7 @@
 
 ### Infrastructure
 - [x] **INFRA-01**: Initialize monorepo with pnpm workspace. Set up pnpm `--filter` scripts for `build`, `dev`, `lint` across packages.
-- [ ] **INFRA-02**: Bootstrap `apps/web` with Nuxt v4, Nuxt UI v4, Tailwind CSS v4, and VueUse
+- [x] **INFRA-02**: Bootstrap `apps/web` with Nuxt v4, Nuxt UI v4, Tailwind CSS v4, and VueUse
 
 ### Database
 - [ ] **DB-01**: Define PostgreSQL schema for `projects`, `commits`, `commit_files`, `daily_stats`, and `sum_day` tables
@@ -51,7 +51,7 @@
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
 | INFRA-01 | Phase 1 | Complete |
-| INFRA-02 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Complete |
 | DB-01 | Phase 2 | Pending |
 | DB-02 | Phase 2 | Pending |
 | DB-03 | Phase 2 | Pending |
