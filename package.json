@@ -1,0 +1,11 @@
+{
+  "name": "@project-river/root",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @project-river/web dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "lint:fix": "pnpm -r lint:fix"
+  },
+  "devDependencies": {}
+}
