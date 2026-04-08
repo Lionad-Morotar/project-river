@@ -15,5 +15,10 @@
     "nuxt": "^4.4.2",
     "vue": "^3.5.32",
     "vue-router": "^5.0.4"
+  },
+  "devDependencies": {
+    "@nuxt/ui": "^3.1.0",
+    "@vueuse/nuxt": "^13.0.0",
+    "typescript": "^5.8.3"
   }
 }
