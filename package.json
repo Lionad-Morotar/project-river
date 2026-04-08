@@ -5,7 +5,19 @@
     "dev": "pnpm --filter @project-river/web dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "lint:fix": "pnpm -r lint:fix"
+    "lint:fix": "pnpm -r lint:fix",
+    "prepare": "husky",
+    "test": "vitest run"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@antfu/eslint-config": "^4.0.0",
+    "@vue/test-utils": "^2.4.0",
+    "eslint": "^9.0.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "vitest": "^3.0.0"
+  },
+  "lint-staged": {
+    "*.{js,ts,mjs,cjs,vue,json,md}": "eslint --fix"
+  }
 }
