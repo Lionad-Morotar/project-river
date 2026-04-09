@@ -11,7 +11,7 @@ project-river — interactive Git history Streamgraph visualization.
 - [x] **Phase 3: Git Parser & calcDay** — Streaming Git log parser and daily contributor stats (completed 2026-04-09)
 - [x] **Phase 4: Pipeline CLI & sumDay** — Rolling cumulative stats and CLI entrypoint (completed 2026-04-09)
 - [x] **Phase 5: API Routes** — Daily and monthly aggregation endpoints (completed 2026-04-09)
-- [ ] **Phase 6: Streamgraph Visualization** — D3 Streamgraph, month selector, and hover tooltips
+- [x] **Phase 6: Streamgraph Visualization** — D3 Streamgraph, month selector, and hover tooltips (completed 2026-04-09)
 - [ ] **Phase 7: Detail Panel & Export** — Month detail panel and SVG export
 - [ ] **Phase 8: Documentation** — Smart docs, understand docs, and codebase planning updates
 
@@ -119,15 +119,20 @@ Plan list:
   1. User sees a detail panel showing current vs cumulative metrics for selected month
   2. Detail panel displays top contributors list for the selected month
   3. User can click an export button to download the Streamgraph as an SVG file
-**Plans**: TBD
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plan list:
+- [ ] `07-01-PLAN.md` — Month detail panel: helper utilities and draggable `MonthDetailPanel.vue`
+- [ ] `07-02-PLAN.md` — SVG export: expose D3 SVG node, serialization utility, and unit tests
+- [ ] `07-03-PLAN.md` — Page integration: wire panel, bidirectional month sync, auto-select, and build verification
 
 ### Phase 07.1: 审查及自动修复: 1. 使用子代理对各个模块进行 /qa-only 生成文档 2. 审视审查文档并对关键问题自动修复 (INSERTED)
 
 **Goal:** [Urgent work - to be planned]
 **Requirements**: TBD
 **Depends on:** Phase 7
-**Plans:** 2/3 plans complete
+**Plans:** 1/3 plans executed
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 07.1 to break down)
@@ -156,6 +161,6 @@ Plan list:
 | 3. Git Parser & calcDay | 3/3 | Complete    | 2026-04-09 |
 | 4. Pipeline CLI & sumDay | 1/3 | Complete    | 2026-04-09 |
 | 5. API Routes | 2/3 | Complete    | 2026-04-09 |
-| 6. Streamgraph Visualization | 3/3 | Ready       | - |
+| 6. Streamgraph Visualization | 3/3 | Complete    | 2026-04-09 |
 | 7. Detail Panel & Export | 0/3 | Not started | - |
 | 8. Documentation | 0/3 | Not started | - |

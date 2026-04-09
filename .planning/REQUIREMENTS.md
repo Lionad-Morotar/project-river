@@ -25,7 +25,7 @@
 - [x] **UI-01**: Render interactive Streamgraph with D3 (`d3.stack` + `d3.area` + `wiggle` offset), day-level x-axis, unrestricted contributor layers
 - [x] **UI-02**: Implement month selector/brushing that highlights the selected month on the Streamgraph
 - [x] **UI-03**: Show tooltip on hover over contributor layer (contributor name, date, commits)
-- [ ] **UI-04**: Build month detail panel with Current vs Cumulative metrics and top contributors list
+- [x] **UI-04**: Build month detail panel with Current vs Cumulative metrics and top contributors list
 
 ### Export
 - [ ] **EXPORT-01**: Add SVG export button that serializes the D3-generated SVG and triggers download
@@ -64,5 +64,5 @@
 | UI-01 | Phase 6 | Complete |
 | UI-02 | Phase 6 | Complete |
 | UI-03 | Phase 6 | Complete |
-| UI-04 | Phase 7 | Pending |
+| UI-04 | Phase 7 | Complete |
 | EXPORT-01 | Phase 7 | Pending |
