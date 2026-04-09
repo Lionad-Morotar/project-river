@@ -18,6 +18,7 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
+    "@project-river/db": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.20.0"
   }

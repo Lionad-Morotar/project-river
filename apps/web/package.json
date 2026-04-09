@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@project-river/db": "workspace:*",
     "d3-array": "^3.2.4",
     "d3-axis": "^3.0.0",
     "d3-brush": "^3.0.0",

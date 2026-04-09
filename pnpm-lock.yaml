@@ -29,6 +29,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@project-river/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -115,6 +118,9 @@ importers:
 
   packages/pipeline:
     dependencies:
+      '@project-river/db':
+        specifier: workspace:*
+        version: link:../db
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@types/pg@8.20.0)(pg@8.20.0)
