@@ -13,6 +13,7 @@ project-river — interactive Git history Streamgraph visualization.
 - [ ] **Phase 5: API Routes** — Daily and monthly aggregation endpoints
 - [ ] **Phase 6: Streamgraph Visualization** — D3 Streamgraph, month selector, and hover tooltips
 - [ ] **Phase 7: Detail Panel & Export** — Month detail panel and SVG export
+- [ ] **Phase 8: Documentation** — Smart docs, understand docs, and codebase planning updates
 
 ## Phase Details
 
@@ -59,19 +60,24 @@ Plan list:
 **Plans**: 3 plans
 
 Plan list:
-- [ ] `03-01-PLAN.md` — Parser package: bootstrap `@project-river/pipeline`, implement streaming `git log --numstat` parser and tests
-- [ ] `03-02-PLAN.md` — Schema fix: add `filesTouched` column to `daily_stats` and generate Drizzle migration
-- [ ] `03-03-PLAN.md` — calcDay algorithm: daily contributor aggregation with UTC day buckets and unit tests
+- [x] `03-01-PLAN.md` — Parser package: bootstrap `@project-river/pipeline`, implement streaming `git log --numstat` parser and tests
+- [x] `03-02-PLAN.md` — Schema fix: add `filesTouched` column to `daily_stats` and generate Drizzle migration
+- [x] `03-03-PLAN.md` — calcDay algorithm: daily contributor aggregation with UTC day buckets and unit tests
 
 ### Phase 4: Pipeline CLI & sumDay
-**Goal**: Complete CLI tool persists parsed repo data to database with cumulative stats
+**Goal**: Complete CLI tool persists parsed repo data to the database with cumulative stats
 **Depends on**: Phase 3
 **Requirements**: PIPE-03, PIPE-04
 **Success Criteria** (what must be TRUE):
   1. Running `analyze <repo-path>` writes commits and daily stats to PostgreSQL
   2. Large repositories are processed in chunked batches without memory issues
   3. sumDay computes correct rolling cumulative statistics from daily stats
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plan list:
+- [ ] `04-01-PLAN.md` — sumDay SQL generation: PostgreSQL CTE with window functions and integration tests
+- [ ] `04-02-PLAN.md` — analyze persistence core: month-boundary chunked writes, force/incremental modes, integration tests
+- [ ] `04-03-PLAN.md` — CLI entrypoint: `analyze` command with parseArgs, bin registration, and CLI unit tests
 
 ### Phase 5: API Routes
 **Goal**: Backend exposes project data for visualization consumption
@@ -105,14 +111,40 @@ Plan list:
 **Plans**: TBD
 **UI hint**: yes
 
+### Phase 07.1: 审查及自动修复: 1. 使用子代理对各个模块进行 /qa-only 生成文档 2. 审视审查文档并对关键问题自动修复 (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 1/3 plans executed
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 07.1 to break down)
+
+### Phase 8: Documentation
+**Goal**: 使用智能子代理为项目生成全面的源代码文档和架构文档，更新项目知识库
+**Depends on**: Phase 3 (or later)
+**Requirements**: DOCS-01, DOCS-02, DOCS-03
+**Success Criteria** (what must be TRUE):
+  1. 所有关键源码包都有 `smart-docs` 生成的文档
+  2. 项目整体有 `understand` 生成的架构文档
+  3. `.planning/codebase` 目录下各文档已更新并反映当前代码库状态
+**Plans**: 3 plans
+
+Plan list:
+- [ ] `08-01-PLAN.md` — Source code smart docs: apps/web, packages/db, packages/pipeline
+- [ ] `08-02-PLAN.md` — Project understand documentation
+- [ ] `08-03-PLAN.md` — Update .planning/codebase documents with 4 subagents
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Setup & Infrastructure | 3/3 | Complete    | 2026-04-09 |
 | 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
-| 3. Git Parser & calcDay | 3/3 | Complete   | 2026-04-09 |
-| 4. Pipeline CLI & sumDay | 0/3 | Not started | - |
+| 3. Git Parser & calcDay | 3/3 | Complete    | 2026-04-09 |
+| 4. Pipeline CLI & sumDay | 1/3 | In Progress|  |
 | 5. API Routes | 0/3 | Not started | - |
 | 6. Streamgraph Visualization | 0/3 | Not started | - |
 | 7. Detail Panel & Export | 0/3 | Not started | - |
+| 8. Documentation | 0/3 | Not started | - |

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-last_updated: "2026-04-09T02:40:59.226Z"
+status: Ready to execute
+last_updated: "2026-04-09T03:09:15.836Z"
 progress:
-  total_phases: 7
+  total_phases: 9
   completed_phases: 3
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 15
+  completed_plans: 10
 ---
 
 # STATE
@@ -24,8 +24,8 @@ progress:
 
 ## Current Position
 
-Phase: 3 (git-parser-calcday) — EXECUTING
-Plan: 3 of 3
+Phase: 4 (pipeline-cli-sumday) — EXECUTING
+Plan: 2 of 3
 | Field | Value |
 |-------|-------|
 | Phase | 1 |
@@ -38,9 +38,9 @@ Plan: 3 of 3
 
 | Metric | Value |
 |--------|-------|
-| Phases completed | 0 / 7 |
-| Requirements delivered | 0 / 16 |
-| Success criteria met | 0 / 22 |
+| Phases completed | 3 / 8 |
+| Requirements delivered | 0 / 19 |
+| Success criteria met | 0 / 25 |
 | Blockers | 0 |
 | Phase 01-setup-infrastructure P01 | 0 | 3 tasks | 4 files |
 | Phase 01-setup-infrastructure P02 | 10min | 2 tasks | 9 files |
@@ -51,6 +51,10 @@ Plan: 3 of 3
 | Phase 03 P02 | 59 | 3 tasks | 5 files |
 | Phase 03-git-parser-calcday P01 | 303 | 3 tasks | 6 files |
 | Phase 03-git-parser-calcday P03 | 81 | 2 tasks | 3 files |
+| Phase 08-documentation P01 | - | 3 tasks | - |
+| Phase 08-documentation P02 | - | 2 tasks | - |
+| Phase 08-documentation P03 | - | 4 tasks | - |
+| Phase 04 P01 | 540 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -72,10 +76,16 @@ Plan: 3 of 3
 - [Phase 02-database-schema]: Migrations applied explicitly via pnpm db:migrate and db:generate scripts; no auto-migration on startup per D-04
 - [Phase 03-git-parser-calcday]: Header detection uses tab-count heuristic (>= 4 tabs) to distinguish commit headers from numstat lines, handling git's blank-line separator between header and file stats
 - [Phase 03-git-parser-calcday]: Used Set<string> to deduplicate file paths per contributor per UTC day for accurate filesTouched
+- [Phase 04]: Split DELETE and CTE INSERT into two db.execute calls because node-postgres rejects multi-command prepared statements
+- [Phase 04]: Use absolute path aliases in pipeline vitest.config.ts to resolve @project-river/db without relying on pnpm workspace links
 
 ### TODOs
 
 (None yet)
+
+### Roadmap Evolution
+
+- Phase 07.1 inserted after Phase 7: 审查及自动修复: 1. 使用子代理对各个模块进行 /qa-only 生成文档 2. 审视审查文档并对关键问题自动修复 (URGENT)
 
 ### Blockers
 
