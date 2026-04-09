@@ -7,7 +7,7 @@ project-river — interactive Git history Streamgraph visualization.
 ## Phases
 
 - [x] **Phase 1: Setup & Infrastructure** — Monorepo, Nuxt web app, and lint/build pipelines (completed 2026-04-09)
-- [ ] **Phase 2: Database & Schema** — PostgreSQL schema, Drizzle ORM, and local docker-compose
+- [x] **Phase 2: Database & Schema** — PostgreSQL schema, Drizzle ORM, and local docker-compose (completed 2026-04-09)
 - [ ] **Phase 3: Git Parser & calcDay** — Streaming Git log parser and daily contributor stats
 - [ ] **Phase 4: Pipeline CLI & sumDay** — Rolling cumulative stats and CLI entrypoint
 - [ ] **Phase 5: API Routes** — Daily and monthly aggregation endpoints
@@ -41,7 +41,12 @@ Plan list:
   1. Developer can start PostgreSQL locally with `docker-compose up`
   2. Drizzle migrations apply successfully and create all required tables
   3. Application code can connect to the database and execute queries
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plan list:
+- [x] `02-01-PLAN.md` — Drizzle ORM setup: packages/db package, client, and config
+- [x] `02-02-PLAN.md` — Schema definition: core.ts (projects, commits, commit_files) and stats.ts (daily_stats, sum_day)
+- [x] `02-03-PLAN.md` — Local PostgreSQL: docker-compose with pgAdmin, env setup, and migration verification
 
 ### Phase 3: Git Parser & calcDay
 **Goal**: Git repositories can be parsed into daily contributor statistics
@@ -51,7 +56,12 @@ Plan list:
   1. Running the parser on a Git repo produces a stream of parsed commits
   2. Merge-commit duplicates are correctly handled and not double-counted
   3. calcDay generates accurate daily contributor commit counts per day
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plan list:
+- [ ] `03-01-PLAN.md` — Parser package: bootstrap `@project-river/pipeline`, implement streaming `git log --numstat` parser and tests
+- [ ] `03-02-PLAN.md` — Schema fix: add `filesTouched` column to `daily_stats` and generate Drizzle migration
+- [ ] `03-03-PLAN.md` — calcDay algorithm: daily contributor aggregation with UTC day buckets and unit tests
 
 ### Phase 4: Pipeline CLI & sumDay
 **Goal**: Complete CLI tool persists parsed repo data to database with cumulative stats
@@ -99,9 +109,9 @@ Plan list:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Setup & Infrastructure | 2/3 | Complete    | 2026-04-09 |
-| 2. Database & Schema | 0/3 | Not started | - |
-| 3. Git Parser & calcDay | 0/3 | Not started | - |
+| 1. Setup & Infrastructure | 3/3 | Complete    | 2026-04-09 |
+| 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
+| 3. Git Parser & calcDay | 1/3 | In Progress|  |
 | 4. Pipeline CLI & sumDay | 0/3 | Not started | - |
 | 5. API Routes | 0/3 | Not started | - |
 | 6. Streamgraph Visualization | 0/3 | Not started | - |

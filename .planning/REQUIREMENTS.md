@@ -13,7 +13,7 @@
 
 ### Data Pipeline
 - [ ] **PIPE-01**: Implement streaming Git log parser (`git log --numstat`) with `--no-merges` to skip merge commits
-- [ ] **PIPE-02**: Implement `calcDay` algorithm to compute daily contributor statistics from parsed commits
+- [x] **PIPE-02**: Implement `calcDay` algorithm to compute daily contributor statistics from parsed commits
 - [ ] **PIPE-03**: Implement `sumDay` algorithm to compute rolling cumulative statistics from daily stats
 - [ ] **PIPE-04**: Build CLI entrypoint (`analyze`) that parses a repo and writes to PostgreSQL in chunked batches
 
@@ -56,7 +56,7 @@
 | DB-02 | Phase 2 | Complete |
 | DB-03 | Phase 2 | Complete |
 | PIPE-01 | Phase 3 | Pending |
-| PIPE-02 | Phase 3 | Pending |
+| PIPE-02 | Phase 3 | Complete |
 | PIPE-03 | Phase 4 | Pending |
 | PIPE-04 | Phase 4 | Pending |
 | API-01 | Phase 5 | Pending |
