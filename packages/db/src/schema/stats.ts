@@ -9,6 +9,7 @@ export const daily_stats = pgTable('daily_stats', {
   commits: integer('commits').notNull().default(0),
   insertions: integer('insertions').notNull().default(0),
   deletions: integer('deletions').notNull().default(0),
+  filesTouched: integer('files_touched').notNull().default(0),
 }, (table) => [
   index('daily_stats_project_date_idx').on(table.projectId, table.date),
 ]);
