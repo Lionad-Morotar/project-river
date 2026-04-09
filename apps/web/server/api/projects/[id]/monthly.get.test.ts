@@ -45,7 +45,8 @@ describe('monthly endpoint', () => {
     await expect(invokeMonthlyHandler({ id: 'not-a-number' })).rejects.toMatchObject({ statusCode: 400 })
   })
 
-  it('returns 404 for missing project', async () => {
+  const testOrSkip = hasDb ? it : it.skip
+  testOrSkip('returns 404 for missing project', async () => {
     await expect(invokeMonthlyHandler({ id: '999999' })).rejects.toMatchObject({ statusCode: 404 })
   })
 

@@ -47,7 +47,8 @@ describe('daily endpoint', () => {
     await expect(dailyHandler(createMockEvent({ id: 'abc' }))).rejects.toMatchObject({ statusCode: 400 })
   })
 
-  it('returns 404 for nonexistent project', async () => {
+  const testOrSkip = hasDb ? it : it.skip
+  testOrSkip('returns 404 for nonexistent project', async () => {
     await expect(dailyHandler(createMockEvent({ id: '999999' }))).rejects.toMatchObject({ statusCode: 404 })
   })
 
