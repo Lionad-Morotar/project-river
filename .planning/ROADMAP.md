@@ -8,7 +8,7 @@ project-river — interactive Git history Streamgraph visualization.
 
 - [x] **Phase 1: Setup & Infrastructure** — Monorepo, Nuxt web app, and lint/build pipelines (completed 2026-04-09)
 - [x] **Phase 2: Database & Schema** — PostgreSQL schema, Drizzle ORM, and local docker-compose (completed 2026-04-09)
-- [ ] **Phase 3: Git Parser & calcDay** — Streaming Git log parser and daily contributor stats
+- [x] **Phase 3: Git Parser & calcDay** — Streaming Git log parser and daily contributor stats (completed 2026-04-09)
 - [ ] **Phase 4: Pipeline CLI & sumDay** — Rolling cumulative stats and CLI entrypoint
 - [ ] **Phase 5: API Routes** — Daily and monthly aggregation endpoints
 - [ ] **Phase 6: Streamgraph Visualization** — D3 Streamgraph, month selector, and hover tooltips
@@ -111,7 +111,7 @@ Plan list:
 |-------|----------------|--------|-----------|
 | 1. Setup & Infrastructure | 3/3 | Complete    | 2026-04-09 |
 | 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
-| 3. Git Parser & calcDay | 2/3 | In Progress|  |
+| 3. Git Parser & calcDay | 3/3 | Complete   | 2026-04-09 |
 | 4. Pipeline CLI & sumDay | 0/3 | Not started | - |
 | 5. API Routes | 0/3 | Not started | - |
 | 6. Streamgraph Visualization | 0/3 | Not started | - |
