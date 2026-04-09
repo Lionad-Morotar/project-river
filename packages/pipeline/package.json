@@ -9,6 +9,9 @@
     "./calcDay": "./src/calcDay.ts"
   },
   "main": "./src/index.ts",
+  "bin": {
+    "analyze": "./src/cli.ts"
+  },
   "scripts": {
     "test": "vitest run",
     "lint": "eslint .",
