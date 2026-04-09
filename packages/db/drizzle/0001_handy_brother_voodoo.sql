@@ -1,0 +1,1 @@
+ALTER TABLE "daily_stats" ADD COLUMN "files_touched" integer DEFAULT 0 NOT NULL;
