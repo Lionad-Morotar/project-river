@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-09T03:09:15.836Z"
+last_updated: "2026-04-09T03:29:38.918Z"
 progress:
   total_phases: 9
   completed_phases: 3
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # STATE
@@ -25,7 +25,7 @@ progress:
 ## Current Position
 
 Phase: 4 (pipeline-cli-sumday) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 | Field | Value |
 |-------|-------|
 | Phase | 1 |
@@ -55,6 +55,7 @@ Plan: 2 of 3
 | Phase 08-documentation P02 | - | 2 tasks | - |
 | Phase 08-documentation P03 | - | 4 tasks | - |
 | Phase 04 P01 | 540 | 2 tasks | 6 files |
+| Phase 04-pipeline-cli-sumday P02 | 18min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,7 @@ Plan: 2 of 3
 - [Phase 03-git-parser-calcday]: Used Set<string> to deduplicate file paths per contributor per UTC day for accurate filesTouched
 - [Phase 04]: Split DELETE and CTE INSERT into two db.execute calls because node-postgres rejects multi-command prepared statements
 - [Phase 04]: Use absolute path aliases in pipeline vitest.config.ts to resolve @project-river/db without relying on pnpm workspace links
+- [Phase 04-pipeline-cli-sumday]: Interleaving async generator consumption with long-running DB transactions caused git log child-process stdout stalls in vitest fork workers; eager collection of commits before month-boundary DB work resolved this without losing the streaming parser design
 
 ### TODOs
 

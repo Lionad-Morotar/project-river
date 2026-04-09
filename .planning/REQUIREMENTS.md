@@ -15,7 +15,7 @@
 - [x] **PIPE-01**: Implement streaming Git log parser (`git log --numstat`) with `--no-merges` to skip merge commits
 - [x] **PIPE-02**: Implement `calcDay` algorithm to compute daily contributor statistics from parsed commits
 - [x] **PIPE-03**: Implement `sumDay` algorithm to compute rolling cumulative statistics from daily stats
-- [ ] **PIPE-04**: Build CLI entrypoint (`analyze`) that parses a repo and writes to PostgreSQL in chunked batches
+- [x] **PIPE-04**: Build CLI entrypoint (`analyze`) that parses a repo and writes to PostgreSQL in chunked batches
 
 ### API
 - [ ] **API-01**: `GET /api/projects/:id/daily` returns daily contributor data for Streamgraph rendering
@@ -58,7 +58,7 @@
 | PIPE-01 | Phase 3 | Complete |
 | PIPE-02 | Phase 3 | Complete |
 | PIPE-03 | Phase 4 | Complete |
-| PIPE-04 | Phase 4 | Pending |
+| PIPE-04 | Phase 4 | Complete |
 | API-01 | Phase 5 | Pending |
 | API-02 | Phase 5 | Pending |
 | UI-01 | Phase 6 | Pending |
