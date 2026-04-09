@@ -22,7 +22,7 @@
 - [x] **API-02**: `GET /api/projects/:id/monthly` returns monthly aggregated contributor metrics
 
 ### Frontend UI
-- [ ] **UI-01**: Render interactive Streamgraph with D3 (`d3.stack` + `d3.area` + `wiggle` offset), day-level x-axis, unrestricted contributor layers
+- [x] **UI-01**: Render interactive Streamgraph with D3 (`d3.stack` + `d3.area` + `wiggle` offset), day-level x-axis, unrestricted contributor layers
 - [ ] **UI-02**: Implement month selector/brushing that highlights the selected month on the Streamgraph
 - [ ] **UI-03**: Show tooltip on hover over contributor layer (contributor name, date, commits)
 - [ ] **UI-04**: Build month detail panel with Current vs Cumulative metrics and top contributors list
@@ -61,7 +61,7 @@
 | PIPE-04 | Phase 4 | Complete |
 | API-01 | Phase 5 | Complete |
 | API-02 | Phase 5 | Complete |
-| UI-01 | Phase 6 | Pending |
+| UI-01 | Phase 6 | Complete |
 | UI-02 | Phase 6 | Pending |
 | UI-03 | Phase 6 | Pending |
 | UI-04 | Phase 7 | Pending |

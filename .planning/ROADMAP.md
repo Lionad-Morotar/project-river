@@ -10,7 +10,7 @@ project-river — interactive Git history Streamgraph visualization.
 - [x] **Phase 2: Database & Schema** — PostgreSQL schema, Drizzle ORM, and local docker-compose (completed 2026-04-09)
 - [x] **Phase 3: Git Parser & calcDay** — Streaming Git log parser and daily contributor stats (completed 2026-04-09)
 - [x] **Phase 4: Pipeline CLI & sumDay** — Rolling cumulative stats and CLI entrypoint (completed 2026-04-09)
-- [ ] **Phase 5: API Routes** — Daily and monthly aggregation endpoints
+- [x] **Phase 5: API Routes** — Daily and monthly aggregation endpoints (completed 2026-04-09)
 - [ ] **Phase 6: Streamgraph Visualization** — D3 Streamgraph, month selector, and hover tooltips
 - [ ] **Phase 7: Detail Panel & Export** — Month detail panel and SVG export
 - [ ] **Phase 8: Documentation** — Smart docs, understand docs, and codebase planning updates
@@ -102,7 +102,13 @@ Plan list:
   1. User sees a colored Streamgraph with one layer per contributor
   2. User can hover over any layer to see contributor name, date, and commit count
   3. User can select a month via brushing/selector to highlight it on the graph
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plan list:
+- [ ] `06-01-PLAN.md` — D3 foundation: install d3-* packages, create `useContributorColors` and `d3Helpers` utilities with unit tests
+- [ ] `06-02-PLAN.md` — Streamgraph component: build `Streamgraph.vue` with D3 zoom, brush navigator, and month highlight; add `StreamgraphTooltip.vue`
+- [ ] `06-03-PLAN.md` — Page integration: create `/projects/[id]` page, `MonthSelector.vue`, wire data fetching, tooltip, and build verification
+
 **UI hint**: yes
 
 ### Phase 7: Detail Panel & Export
@@ -121,7 +127,7 @@ Plan list:
 **Goal:** [Urgent work - to be planned]
 **Requirements**: TBD
 **Depends on:** Phase 7
-**Plans:** 3/3 plans complete
+**Plans:** 2/3 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 07.1 to break down)
@@ -149,7 +155,7 @@ Plan list:
 | 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
 | 3. Git Parser & calcDay | 3/3 | Complete    | 2026-04-09 |
 | 4. Pipeline CLI & sumDay | 1/3 | Complete    | 2026-04-09 |
-| 5. API Routes | 2/3 | In Progress | - |
-| 6. Streamgraph Visualization | 0/3 | Not started | - |
+| 5. API Routes | 2/3 | Complete    | 2026-04-09 |
+| 6. Streamgraph Visualization | 3/3 | Ready       | - |
 | 7. Detail Panel & Export | 0/3 | Not started | - |
 | 8. Documentation | 0/3 | Not started | - |
