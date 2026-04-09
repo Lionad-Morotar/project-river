@@ -61,6 +61,14 @@ export async function analyzeRepo(
     existingHashes = new Set(rows.map(r => r.hash))
   }
 
+  const allCommits: ParsedCommit[] = []
+  for await (const commit of parseRepo(repoPath)) {
+    if (existingHashes?.has(commit.hash)) {
+      continue
+    }
+    allCommits.push(commit)
+  }
+
   let monthCommits: ParsedCommit[] = []
   let currentMonth = ''
 
@@ -131,11 +139,7 @@ export async function analyzeRepo(
     monthCommits = []
   }
 
-  for await (const commit of parseRepo(repoPath)) {
-    if (existingHashes?.has(commit.hash)) {
-      continue
-    }
-
+  for (const commit of allCommits) {
     const month = commit.committerDate.toISOString().slice(0, 7)
     if (currentMonth && month !== currentMonth) {
       await flushMonth()
@@ -145,6 +149,5 @@ export async function analyzeRepo(
   }
 
   await flushMonth()
-
   await generateSumDay(projectId)
 }
