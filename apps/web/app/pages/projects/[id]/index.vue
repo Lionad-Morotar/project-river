@@ -1,14 +1,10 @@
 <script setup lang="ts">
 import type { DailyRow } from '~/utils/d3Helpers'
-
-interface MonthlyRow {
-  yearMonth: string
-  contributor: string
-  commits: number
-  linesAdded: number
-  linesDeleted: number
-  filesTouched: number
-}
+import type { MonthlyRow } from '~/utils/monthDetailHelpers'
+import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
+import { useContributorColors } from '~/composables/useContributorColors'
+import { getMonthContributors, getMonthCumulative } from '~/utils/monthDetailHelpers'
+import { downloadStreamgraphSvg } from '~/utils/svgExport'
 
 const route = useRoute()
 const projectId = route.params.id as string
@@ -37,6 +33,26 @@ const chartHeight = ref(480)
 const availableMonths = computed(() => Array.from(new Set(monthlyData.value.map(m => m.yearMonth))).sort())
 
 const graphContainerRef = ref<HTMLDivElement | null>(null)
+const streamgraphRef = ref<{ getSvg: () => SVGSVGElement | null } | null>(null)
+
+const colorMap = computed(() => useContributorColors(Array.from(new Set(dailyData.value.map(d => d.contributor))).sort()))
+const hasData = computed(() => dailyData.value.length > 0)
+const panelContributors = computed(() => {
+  if (!selectedMonth.value)
+    return []
+  return getMonthContributors(monthlyData.value, dailyData.value, selectedMonth.value, colorMap.value)
+})
+const commitsThisMonth = computed(() => panelContributors.value.reduce((sum, c) => sum + c.monthlyCommits, 0))
+const totalCommitsToDate = computed(() => {
+  if (!selectedMonth.value)
+    return 0
+  const contributorsInMonth = new Set(panelContributors.value.map(c => c.contributor))
+  let total = 0
+  for (const contributor of contributorsInMonth) {
+    total += getMonthCumulative(dailyData.value, selectedMonth.value, contributor)
+  }
+  return total
+})
 
 function updateChartWidth() {
   if (graphContainerRef.value) {
@@ -55,6 +71,9 @@ onMounted(async () => {
     ])
     dailyData.value = daily
     monthlyData.value = monthly
+    if (availableMonths.value.length > 0) {
+      selectedMonth.value = availableMonths.value[availableMonths.value.length - 1]
+    }
   }
   catch {
     error.value = 'Failed to load project data. Please check your connection and try again.'
@@ -67,6 +86,15 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('resize', updateChartWidth)
 })
+
+function handleExport() {
+  const contributors = Array.from(new Set(dailyData.value.map(d => d.contributor))).sort()
+  downloadStreamgraphSvg(
+    streamgraphRef.value?.getSvg?.() ?? null,
+    `project-${projectId}-streamgraph.svg`,
+    contributors,
+  )
+}
 
 function onHover(event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number } | null) {
   if (!payload) {
@@ -131,6 +159,7 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
         class="relative w-full h-[520px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800"
       >
         <Streamgraph
+          ref="streamgraphRef"
           :data="dailyData"
           :width="chartWidth"
           :height="chartHeight"
@@ -150,6 +179,16 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
           :files-touched="tooltip.filesTouched"
         />
       </div>
+
+      <MonthDetailPanel
+        v-model:selected-month="selectedMonth"
+        :available-months="availableMonths"
+        :contributors="panelContributors"
+        :commits-this-month="commitsThisMonth"
+        :total-commits-to-date="totalCommitsToDate"
+        :has-data="hasData"
+        @export="handleExport"
+      />
     </div>
   </div>
 </template>
