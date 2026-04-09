@@ -9,7 +9,7 @@ project-river — interactive Git history Streamgraph visualization.
 - [x] **Phase 1: Setup & Infrastructure** — Monorepo, Nuxt web app, and lint/build pipelines (completed 2026-04-09)
 - [x] **Phase 2: Database & Schema** — PostgreSQL schema, Drizzle ORM, and local docker-compose (completed 2026-04-09)
 - [x] **Phase 3: Git Parser & calcDay** — Streaming Git log parser and daily contributor stats (completed 2026-04-09)
-- [ ] **Phase 4: Pipeline CLI & sumDay** — Rolling cumulative stats and CLI entrypoint
+- [x] **Phase 4: Pipeline CLI & sumDay** — Rolling cumulative stats and CLI entrypoint (completed 2026-04-09)
 - [ ] **Phase 5: API Routes** — Daily and monthly aggregation endpoints
 - [ ] **Phase 6: Streamgraph Visualization** — D3 Streamgraph, month selector, and hover tooltips
 - [ ] **Phase 7: Detail Panel & Export** — Month detail panel and SVG export
@@ -87,7 +87,12 @@ Plan list:
   1. `GET /api/projects/:id/daily` returns day-level contributor data
   2. `GET /api/projects/:id/monthly` returns monthly aggregated metrics
   3. API responses match the shape expected by the Streamgraph frontend
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plan list:
+- [ ] `05-01-PLAN.md` — Test scaffolds and tooling: install zod, add apps/web vitest config, create failing daily/monthly test scaffolds
+- [ ] `05-02-PLAN.md` — Daily endpoint: implement `GET /api/projects/:id/daily` with generate_series zero-filling, sum_day join, and passing tests
+- [ ] `05-03-PLAN.md` — Monthly endpoint: implement `GET /api/projects/:id/monthly` with month aggregation, zero-filling, and passing tests
 
 ### Phase 6: Streamgraph Visualization
 **Goal**: Users can explore repository contribution flow interactively
@@ -116,7 +121,7 @@ Plan list:
 **Goal:** [Urgent work - to be planned]
 **Requirements**: TBD
 **Depends on:** Phase 7
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 07.1 to break down)
@@ -143,7 +148,7 @@ Plan list:
 | 1. Setup & Infrastructure | 3/3 | Complete    | 2026-04-09 |
 | 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
 | 3. Git Parser & calcDay | 3/3 | Complete    | 2026-04-09 |
-| 4. Pipeline CLI & sumDay | 1/3 | In Progress|  |
+| 4. Pipeline CLI & sumDay | 1/3 | Complete    | 2026-04-09 |
 | 5. API Routes | 0/3 | Not started | - |
 | 6. Streamgraph Visualization | 0/3 | Not started | - |
 | 7. Detail Panel & Export | 0/3 | Not started | - |
