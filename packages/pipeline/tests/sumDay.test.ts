@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
 import { eq, and } from 'drizzle-orm'
 import { db } from '@project-river/db/client'
 import { projects, daily_stats, sum_day } from '@project-river/db/schema'
@@ -16,11 +16,16 @@ describe('sumDay', () => {
     projectId = project.id
   })
 
-  afterAll(async () => {
+  afterEach(async () => {
     if (!process.env.DATABASE_URL)
       return
     await db.delete(sum_day).where(eq(sum_day.projectId, projectId))
     await db.delete(daily_stats).where(eq(daily_stats.projectId, projectId))
+  })
+
+  afterAll(async () => {
+    if (!process.env.DATABASE_URL)
+      return
     await db.delete(projects).where(eq(projects.id, projectId))
   })
 

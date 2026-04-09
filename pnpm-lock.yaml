@@ -71,6 +71,15 @@ importers:
         specifier: ^0.31.10
         version: 0.31.10
 
+  packages/pipeline:
+    dependencies:
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@types/pg@8.20.0)(pg@8.20.0)
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
+
 packages:
 
   '@alloc/quick-lru@5.2.0':
