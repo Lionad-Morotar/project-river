@@ -111,7 +111,7 @@ Plan list:
 |-------|----------------|--------|-----------|
 | 1. Setup & Infrastructure | 3/3 | Complete    | 2026-04-09 |
 | 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
-| 3. Git Parser & calcDay | 1/3 | In Progress|  |
+| 3. Git Parser & calcDay | 2/3 | In Progress|  |
 | 4. Pipeline CLI & sumDay | 0/3 | Not started | - |
 | 5. API Routes | 0/3 | Not started | - |
 | 6. Streamgraph Visualization | 0/3 | Not started | - |
