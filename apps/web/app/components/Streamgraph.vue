@@ -60,7 +60,7 @@ const yDomain = computed(() => {
   return [yMin, yMax] as [number, number]
 })
 
-let _svgRoot: any = null
+let svgNode: SVGSVGElement | null = null
 let gChart: any = null
 let gXAxis: any = null
 let gYAxis: any = null
@@ -89,7 +89,7 @@ function render() {
     .attr('viewBox', [0, 0, props.width, props.height])
     .attr('style', 'max-width: 100%; height: auto;')
 
-  _svgRoot = svg
+  svgNode = svg.node() as SVGSVGElement | null
 
   const chartWidth = props.width - marginLeft - marginRight
   const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
@@ -297,6 +297,11 @@ onUnmounted(() => {
   if (chartRef.value) {
     select(chartRef.value).selectAll('*').remove()
   }
+  svgNode = null
+})
+
+defineExpose({
+  getSvg: () => svgNode,
 })
 </script>
 
