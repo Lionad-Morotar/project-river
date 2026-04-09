@@ -1,5 +1,6 @@
 import { db } from '@project-river/db/client'
 import { sql } from 'drizzle-orm'
+import { createError, defineEventHandler, getRouterParam, getValidatedQuery } from 'h3'
 import { z } from 'zod'
 
 const querySchema = z.object({
