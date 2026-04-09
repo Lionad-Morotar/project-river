@@ -11,6 +11,7 @@ export async function runAnalyze(argv: string[]): Promise<void> {
       'batch-size': { type: 'string', default: '2000' },
       'force': { type: 'boolean', default: false },
       'incremental': { type: 'boolean', default: false },
+      'no-ignore': { type: 'boolean', default: false },
     },
     strict: true,
     allowPositionals: true,
@@ -21,6 +22,7 @@ export async function runAnalyze(argv: string[]): Promise<void> {
   }
 
   const batchSize = Number.parseInt(values['batch-size'] as string, 10)
+  const ignoreEnabled = !(values['no-ignore'] as boolean)
 
   await analyzeRepo(
     positionals[0],
@@ -29,6 +31,7 @@ export async function runAnalyze(argv: string[]): Promise<void> {
       batchSize,
       force: values.force as boolean,
       incremental: values.incremental as boolean,
+      ignore: ignoreEnabled,
     },
   )
 }

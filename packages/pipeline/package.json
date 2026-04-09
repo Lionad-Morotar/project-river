@@ -20,6 +20,7 @@
   "dependencies": {
     "@project-river/db": "workspace:*",
     "drizzle-orm": "^0.45.2",
+    "ignore": "^7.0.5",
     "pg": "^8.20.0"
   },
   "devDependencies": {

@@ -166,6 +166,107 @@ describe.sequential('analyzeRepo integration', () => {
 
     await db.delete(projects).where(eq(projects.name, incrementalProjectName))
   })
+
+  it('--ignore=false stores all files without filtering', { timeout: 30000 }, async () => {
+    if (!process.env.DATABASE_URL) {
+      console.warn('DATABASE_URL missing, skipping')
+      return
+    }
+
+    const tempDir = mkdtempSync(`${tmpdir()}/river-ignore-test-`)
+    execSync('git init', { cwd: tempDir })
+    execSync('git config user.name "Test User"', { cwd: tempDir })
+    execSync('git config user.email "test@example.com"', { cwd: tempDir })
+
+    // Create a .gitignore that ignores *.log files
+    writeFileSync(`${tempDir}/.gitignore`, '*.log\n')
+    // Create a source file and a log file
+    writeFileSync(`${tempDir}/main.ts`, 'console.log("hi")\n')
+    writeFileSync(`${tempDir}/debug.log`, 'some debug output\n')
+    execSync('git add .', { cwd: tempDir })
+    execSync('git commit -m "add files"', {
+      cwd: tempDir,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: '2024-05-01T10:00:00Z',
+        GIT_COMMITTER_DATE: '2024-05-01T10:00:00Z',
+      },
+    })
+
+    const ignoreProjectName = `${projectName}-ignore-false`
+    await db.delete(projects).where(eq(projects.name, ignoreProjectName))
+
+    await analyzeRepo(tempDir, ignoreProjectName, {
+      batchSize: 2000,
+      force: true,
+      incremental: false,
+      ignore: false,
+    })
+
+    const projectRows = await db.select().from(projects).where(eq(projects.name, ignoreProjectName))
+    const projectId = projectRows[0]!.id
+
+    const commitRows = await db.select().from(commits).where(eq(commits.projectId, projectId))
+    expect(commitRows).toHaveLength(1)
+
+    // With --ignore=false, all committed files should be stored including debug.log
+    const allFileRows = await db.select().from(commit_files).where(eq(commit_files.commitId, commitRows[0]!.id))
+    const filePaths = allFileRows.map(f => f.path)
+    expect(filePaths).toContain('main.ts')
+    expect(filePaths).toContain('debug.log')
+
+    await db.delete(projects).where(eq(projects.name, ignoreProjectName))
+  })
+
+  it('default (ignore=true) filters files matching .gitignore patterns', { timeout: 30000 }, async () => {
+    if (!process.env.DATABASE_URL) {
+      console.warn('DATABASE_URL missing, skipping')
+      return
+    }
+
+    const tempDir = mkdtempSync(`${tmpdir()}/river-ignore-true-test-`)
+    execSync('git init', { cwd: tempDir })
+    execSync('git config user.name "Test User"', { cwd: tempDir })
+    execSync('git config user.email "test@example.com"', { cwd: tempDir })
+
+    // Create a .gitignore that ignores *.log files
+    writeFileSync(`${tempDir}/.gitignore`, '*.log\n')
+    // Create a source file and a log file
+    writeFileSync(`${tempDir}/main.ts`, 'console.log("hi")\n')
+    writeFileSync(`${tempDir}/debug.log`, 'some debug output\n')
+    execSync('git add .', { cwd: tempDir })
+    execSync('git commit -m "add files"', {
+      cwd: tempDir,
+      env: {
+        ...process.env,
+        GIT_AUTHOR_DATE: '2024-06-01T10:00:00Z',
+        GIT_COMMITTER_DATE: '2024-06-01T10:00:00Z',
+      },
+    })
+
+    const ignoreTrueProjectName = `${projectName}-ignore-true`
+    await db.delete(projects).where(eq(projects.name, ignoreTrueProjectName))
+
+    await analyzeRepo(tempDir, ignoreTrueProjectName, {
+      batchSize: 2000,
+      force: true,
+      incremental: false,
+    })
+
+    const projectRows = await db.select().from(projects).where(eq(projects.name, ignoreTrueProjectName))
+    const projectId = projectRows[0]!.id
+
+    const commitRows = await db.select().from(commits).where(eq(commits.projectId, projectId))
+    expect(commitRows).toHaveLength(1)
+
+    // With ignore=true (default), files matching *.log should be filtered out
+    const fileRows = await db.select().from(commit_files).where(eq(commit_files.commitId, commitRows[0]!.id))
+    const filePaths = fileRows.map(f => f.path)
+    expect(filePaths).toContain('main.ts')
+    expect(filePaths).not.toContain('debug.log')
+
+    await db.delete(projects).where(eq(projects.name, ignoreTrueProjectName))
+  })
 })
 
 describe.sequential('analyzeRepo path normalization', () => {

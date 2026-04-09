@@ -6,11 +6,13 @@ import { commit_files, commits, daily_stats, projects } from '@project-river/db/
 import { eq } from 'drizzle-orm'
 import { calcDay } from '../calcDay.ts'
 import { parseRepo } from '../parser.ts'
+import { buildGitignoreLookup, getGitignoreHistory } from './gitignore.ts'
 import { generateSumDay } from './sumDay.ts'
 
 interface AnalyzeOptions {
   batchSize: number
   force: boolean
+  ignore?: boolean
   incremental: boolean
 }
 
@@ -79,6 +81,14 @@ export async function analyzeRepo(
     allCommits.push(commit)
   }
 
+  // Build .gitignore pattern lookup for each commit (only when --ignore is enabled)
+  let gitignoreLookup: Map<string, string> | undefined
+  if (options.ignore !== false) {
+    const allShas = allCommits.map(c => c.hash)
+    const gitignoreHistory = await getGitignoreHistory(normalizedPath)
+    gitignoreLookup = buildGitignoreLookup(allShas, gitignoreHistory)
+  }
+
   let monthCommits: ParsedCommit[] = []
   let currentMonth = ''
 
@@ -110,12 +120,17 @@ export async function analyzeRepo(
         hashToId.set(row.hash, row.id)
       }
 
+      const { filterIgnoredFiles } = await import('./gitignore.ts')
+
       const fileRows: { commitId: number, path: string, insertions: number, deletions: number }[] = []
       for (const c of monthCommits) {
         const commitId = hashToId.get(c.hash)
         if (!commitId)
           continue
-        for (const f of c.files) {
+        const files = (options.ignore !== false && gitignoreLookup)
+          ? filterIgnoredFiles(c.files, gitignoreLookup.get(c.hash) ?? '')
+          : c.files
+        for (const f of files) {
           fileRows.push({
             commitId,
             path: f.path,
