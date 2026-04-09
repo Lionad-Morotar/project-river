@@ -1,8 +1,8 @@
 import type { ParsedCommit } from './types.ts'
 
 export interface DailyStat {
-  date: string          // YYYY-MM-DD in UTC
-  contributor: string    // authorEmail
+  date: string // YYYY-MM-DD in UTC
+  contributor: string // authorEmail
   commits: number
   insertions: number
   deletions: number
@@ -10,7 +10,7 @@ export interface DailyStat {
 }
 
 export function calcDay(commits: ParsedCommit[]): DailyStat[] {
-  const map = new Map<string, { commits: number; insertions: number; deletions: number; files: Set<string> }>()
+  const map = new Map<string, { commits: number, insertions: number, deletions: number, files: Set<string> }>()
 
   for (const c of commits) {
     const utcDate = c.committerDate.toISOString().slice(0, 10)
@@ -49,7 +49,8 @@ export function calcDay(commits: ParsedCommit[]): DailyStat[] {
       }
     })
     .sort((a, b) => {
-      if (a.date !== b.date) return a.date.localeCompare(b.date)
+      if (a.date !== b.date)
+        return a.date.localeCompare(b.date)
       return a.contributor.localeCompare(b.contributor)
     })
 }
