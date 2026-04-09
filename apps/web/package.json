@@ -32,6 +32,7 @@
     "drizzle-orm": "^0.45.2",
     "eslint-plugin-format": "^2.0.1",
     "h3": "^1.15.0",
+    "jsdom": "^29.0.2",
     "pg": "^8.20.0",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.8.3",

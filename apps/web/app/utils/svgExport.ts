@@ -1,4 +1,4 @@
-import { useContributorColors } from '~/composables/useContributorColors'
+import { useContributorColors } from '../composables/useContributorColors'
 
 export function serializeSvgWithLegend(
   svgNode: SVGSVGElement,

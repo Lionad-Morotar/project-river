@@ -10,6 +10,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '~/': path.resolve(__dirname, './'),
       '@project-river/db/client': path.resolve(__dirname, '../../packages/db/src/client.ts'),
       '@project-river/db/schema': path.resolve(__dirname, '../../packages/db/src/schema/index.ts'),
     },
