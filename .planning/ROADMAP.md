@@ -90,8 +90,8 @@ Plan list:
 **Plans**: 3 plans
 
 Plan list:
-- [ ] `05-01-PLAN.md` — Test scaffolds and tooling: install zod, add apps/web vitest config, create failing daily/monthly test scaffolds
-- [ ] `05-02-PLAN.md` — Daily endpoint: implement `GET /api/projects/:id/daily` with generate_series zero-filling, sum_day join, and passing tests
+- [x] `05-01-PLAN.md` — Test scaffolds and tooling: install zod, add apps/web vitest config, create failing daily/monthly test scaffolds
+- [x] `05-02-PLAN.md` — Daily endpoint: implement `GET /api/projects/:id/daily` with generate_series zero-filling, sum_day join, and passing tests
 - [ ] `05-03-PLAN.md` — Monthly endpoint: implement `GET /api/projects/:id/monthly` with month aggregation, zero-filling, and passing tests
 
 ### Phase 6: Streamgraph Visualization
@@ -149,7 +149,7 @@ Plan list:
 | 2. Database & Schema | 3/3 | Complete    | 2026-04-09 |
 | 3. Git Parser & calcDay | 3/3 | Complete    | 2026-04-09 |
 | 4. Pipeline CLI & sumDay | 1/3 | Complete    | 2026-04-09 |
-| 5. API Routes | 0/3 | Not started | - |
+| 5. API Routes | 2/3 | In Progress | - |
 | 6. Streamgraph Visualization | 0/3 | Not started | - |
 | 7. Detail Panel & Export | 0/3 | Not started | - |
 | 8. Documentation | 0/3 | Not started | - |
