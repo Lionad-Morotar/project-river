@@ -20,8 +20,10 @@
   "devDependencies": {
     "@nuxt/ui": "^3.1.0",
     "@vueuse/nuxt": "^13.0.0",
+    "drizzle-orm": "^0.45.2",
     "eslint-plugin-format": "^2.0.1",
     "h3": "^1.15.0",
+    "pg": "^8.20.0",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.8.3",
     "vitest": "^3.0.0"
