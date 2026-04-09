@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { db, pool } from '@project-river/db/client'
 import { commit_files, commits, daily_stats, projects, sum_day } from '@project-river/db/schema'
@@ -165,5 +165,130 @@ describe.sequential('analyzeRepo integration', () => {
     expect(sumRows.length).toBeGreaterThanOrEqual(3)
 
     await db.delete(projects).where(eq(projects.name, incrementalProjectName))
+  })
+})
+
+describe.sequential('analyzeRepo path normalization', () => {
+  const cleanupProjects: string[] = []
+
+  afterAll(async () => {
+    if (!process.env.DATABASE_URL)
+      return
+    for (const name of cleanupProjects) {
+      await db.delete(projects).where(eq(projects.name, name))
+    }
+    await pool.end()
+  })
+
+  it('stores absolute path when given relative path "."', { timeout: 30000 }, async () => {
+    if (!process.env.DATABASE_URL)
+      return
+
+    // Create a temp git repo
+    const tempDir = mkdtempSync(`${tmpdir()}/river-pathnorm-test-`)
+    execSync('git init', { cwd: tempDir })
+    execSync('git config user.name "Test"', { cwd: tempDir })
+    execSync('git config user.email "test@test.com"', { cwd: tempDir })
+    writeFileSync(`${tempDir}/test.txt`, 'hello\n')
+    execSync('git add .', { cwd: tempDir })
+    execSync('git commit -m "init"', { cwd: tempDir })
+
+    const projectName = 'pathnorm-dot-relative'
+    cleanupProjects.push(projectName)
+
+    // Save cwd, cd to parent, run with "."
+    const originalCwd = process.cwd()
+    process.chdir(tempDir)
+    await analyzeRepo('.', projectName, {
+      batchSize: 2000,
+      force: true,
+      incremental: false,
+    })
+    process.chdir(originalCwd)
+
+    const rows = await db.select().from(projects).where(eq(projects.name, projectName))
+    expect(rows).toHaveLength(1)
+    const storedPath = rows[0]!.path
+    // Should be absolute path, not "."
+    expect(storedPath).not.toBe('.')
+    expect(storedPath).toBe(tempDir) // realpath of "." should equal tempDir
+
+    cleanupProjects.push(projectName)
+  })
+
+  it('resolves symlink to real path', { timeout: 30000 }, async () => {
+    if (!process.env.DATABASE_URL)
+      return
+
+    const realDir = mkdtempSync(`${tmpdir()}/river-real-test-`)
+    const symlinkDir = `${tmpdir()}/river-symlink-test-`
+
+    execSync('git init', { cwd: realDir })
+    execSync('git config user.name "Test"', { cwd: realDir })
+    execSync('git config user.email "test@test.com"', { cwd: realDir })
+    writeFileSync(`${realDir}/test.txt`, 'hello\n')
+    execSync('git add .', { cwd: realDir })
+    execSync('git commit -m "init"', { cwd: realDir })
+
+    // Create symlink
+    symlinkSync(realDir, symlinkDir)
+
+    const projectName = 'pathnorm-symlink'
+    cleanupProjects.push(projectName)
+
+    await analyzeRepo(symlinkDir, projectName, {
+      batchSize: 2000,
+      force: true,
+      incremental: false,
+    })
+
+    const rows = await db.select().from(projects).where(eq(projects.name, projectName))
+    expect(rows).toHaveLength(1)
+    const storedPath = rows[0]!.path
+    // Should store the REAL path, not the symlink path
+    expect(storedPath).toBe(realDir)
+    expect(storedPath).not.toBe(symlinkDir)
+
+    // Cleanup symlink
+    unlinkSync(symlinkDir)
+  })
+
+  it('throws clear error for non-existent path', async () => {
+    await expect(
+      analyzeRepo('/nonexistent/path/that/does/not/exist', 'should-fail', {
+        batchSize: 2000,
+        force: false,
+        incremental: false,
+      }),
+    ).rejects.toThrow('Path does not exist')
+  })
+
+  it('strips trailing slashes', { timeout: 30000 }, async () => {
+    if (!process.env.DATABASE_URL)
+      return
+
+    const tempDir = mkdtempSync(`${tmpdir()}/river-slash-test-`)
+    execSync('git init', { cwd: tempDir })
+    execSync('git config user.name "Test"', { cwd: tempDir })
+    execSync('git config user.email "test@test.com"', { cwd: tempDir })
+    writeFileSync(`${tempDir}/test.txt`, 'hello\n')
+    execSync('git add .', { cwd: tempDir })
+    execSync('git commit -m "init"', { cwd: tempDir })
+
+    const projectName = 'pathnorm-slash'
+    cleanupProjects.push(projectName)
+
+    await analyzeRepo(`${tempDir}/`, projectName, {
+      batchSize: 2000,
+      force: true,
+      incremental: false,
+    })
+
+    const rows = await db.select().from(projects).where(eq(projects.name, projectName))
+    expect(rows).toHaveLength(1)
+    const storedPath = rows[0]!.path
+    // Should NOT have trailing slash
+    expect(storedPath).not.toMatch(/\/$/)
+    expect(storedPath).toBe(tempDir)
   })
 })

@@ -1,5 +1,6 @@
 import type { ParsedCommit } from '../types.ts'
-import { basename } from 'node:path'
+import { realpath } from 'node:fs/promises'
+import { basename, resolve } from 'node:path'
 import { db } from '@project-river/db/client'
 import { commit_files, commits, daily_stats, projects } from '@project-river/db/schema'
 import { eq } from 'drizzle-orm'
@@ -18,17 +19,26 @@ export async function analyzeRepo(
   projectName: string | undefined,
   options: AnalyzeOptions,
 ): Promise<void> {
-  const name = projectName ?? basename(repoPath)
+  // Normalize to absolute real path (resolves symlinks, .., //, trailing slashes)
+  let normalizedPath: string
+  try {
+    normalizedPath = await realpath(resolve(repoPath))
+  }
+  catch (err) {
+    throw new Error(`Path does not exist: ${repoPath}`, { cause: err })
+  }
+
+  const name = projectName ?? basename(normalizedPath)
 
   const existingRows = await db
     .select({ id: projects.id })
     .from(projects)
-    .where(eq(projects.path, repoPath))
+    .where(eq(projects.path, normalizedPath))
 
   const existing = existingRows[0]
 
   if (existing && !options.force && !options.incremental) {
-    throw new Error(`Project already analyzed: ${repoPath}. Use --force or --incremental.`)
+    throw new Error(`Project already analyzed: ${normalizedPath}. Use --force or --incremental.`)
   }
 
   let projectId: number
@@ -37,14 +47,14 @@ export async function analyzeRepo(
     await db.delete(projects).where(eq(projects.id, existing.id))
     const inserted = await db
       .insert(projects)
-      .values({ name, path: repoPath })
+      .values({ name, path: normalizedPath })
       .returning({ id: projects.id })
     projectId = inserted[0]!.id
   }
   else if (!existing) {
     const inserted = await db
       .insert(projects)
-      .values({ name, path: repoPath })
+      .values({ name, path: normalizedPath })
       .returning({ id: projects.id })
     projectId = inserted[0]!.id
   }
@@ -62,7 +72,7 @@ export async function analyzeRepo(
   }
 
   const allCommits: ParsedCommit[] = []
-  for await (const commit of parseRepo(repoPath)) {
+  for await (const commit of parseRepo(normalizedPath)) {
     if (existingHashes?.has(commit.hash)) {
       continue
     }
