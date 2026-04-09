@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest'
-import { eq, and } from 'drizzle-orm'
 import { db } from '@project-river/db/client'
-import { projects, daily_stats, sum_day } from '@project-river/db/schema'
+import { daily_stats, projects, sum_day } from '@project-river/db/schema'
+import { and, eq } from 'drizzle-orm'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { generateSumDay } from '../src/db/sumDay.ts'
 
 describe('sumDay', () => {
@@ -73,16 +73,12 @@ describe('sumDay', () => {
 
     await generateSumDay(projectId)
 
-    const aliceRows = await db.select().from(sum_day)
-      .where(and(eq(sum_day.projectId, projectId), eq(sum_day.contributor, 'alice@example.com')))
-      .orderBy(sum_day.date)
+    const aliceRows = await db.select().from(sum_day).where(and(eq(sum_day.projectId, projectId), eq(sum_day.contributor, 'alice@example.com'))).orderBy(sum_day.date)
     expect(aliceRows).toHaveLength(2)
     expect(aliceRows[0].cumulativeCommits).toBe(2)
     expect(aliceRows[1].cumulativeCommits).toBe(5)
 
-    const bobRows = await db.select().from(sum_day)
-      .where(and(eq(sum_day.projectId, projectId), eq(sum_day.contributor, 'bob@example.com')))
-      .orderBy(sum_day.date)
+    const bobRows = await db.select().from(sum_day).where(and(eq(sum_day.projectId, projectId), eq(sum_day.contributor, 'bob@example.com'))).orderBy(sum_day.date)
     expect(bobRows).toHaveLength(2)
     expect(bobRows[0].cumulativeCommits).toBe(1)
     expect(bobRows[1].cumulativeCommits).toBe(3)

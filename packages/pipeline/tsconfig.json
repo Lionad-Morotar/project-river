@@ -4,14 +4,14 @@
     "rootDir": ".",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "strict": true,
-    "outDir": "./dist",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "paths": {
       "@project-river/db/client": ["../db/src/client.ts"],
       "@project-river/db/schema": ["../db/src/schema/index.ts"]
-    }
+    },
+    "strict": true,
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": ["src/**/*", "tests/**/*"]
 }

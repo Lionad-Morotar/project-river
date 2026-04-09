@@ -1,5 +1,5 @@
-import { sql } from 'drizzle-orm'
 import { db } from '@project-river/db/client'
+import { sql } from 'drizzle-orm'
 
 export async function generateSumDay(projectId: number): Promise<void> {
   await db.execute(sql`DELETE FROM sum_day WHERE project_id = ${projectId}`)

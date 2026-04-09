@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 
+import process from 'node:process'
 import { parseArgs } from 'node:util'
 import { analyzeRepo } from './db/analyze.ts'
 
@@ -8,8 +9,8 @@ export async function runAnalyze(argv: string[]): Promise<void> {
     args: argv,
     options: {
       'batch-size': { type: 'string', default: '2000' },
-      force: { type: 'boolean', default: false },
-      incremental: { type: 'boolean', default: false },
+      'force': { type: 'boolean', default: false },
+      'incremental': { type: 'boolean', default: false },
     },
     strict: true,
     allowPositionals: true,

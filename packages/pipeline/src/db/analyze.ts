@@ -1,11 +1,11 @@
-import { basename } from 'node:path'
-import { eq, sql } from 'drizzle-orm'
-import { db } from '@project-river/db/client'
-import { projects, commits, commit_files, daily_stats } from '@project-river/db/schema'
-import { parseRepo } from '../parser.ts'
-import { calcDay } from '../calcDay.ts'
-import { generateSumDay } from './sumDay.ts'
 import type { ParsedCommit } from '../types.ts'
+import { basename } from 'node:path'
+import { db } from '@project-river/db/client'
+import { commit_files, commits, daily_stats, projects } from '@project-river/db/schema'
+import { eq } from 'drizzle-orm'
+import { calcDay } from '../calcDay.ts'
+import { parseRepo } from '../parser.ts'
+import { generateSumDay } from './sumDay.ts'
 
 interface AnalyzeOptions {
   batchSize: number
@@ -79,7 +79,7 @@ export async function analyzeRepo(
     const dailyStats = calcDay(monthCommits)
 
     await db.transaction(async (tx) => {
-      const commitRows: { id: number; hash: string }[] = []
+      const commitRows: { id: number, hash: string }[] = []
 
       for (let i = 0; i < monthCommits.length; i += options.batchSize) {
         const chunk = monthCommits.slice(i, i + options.batchSize)
@@ -100,7 +100,7 @@ export async function analyzeRepo(
         hashToId.set(row.hash, row.id)
       }
 
-      const fileRows: { commitId: number; path: string; insertions: number; deletions: number }[] = []
+      const fileRows: { commitId: number, path: string, insertions: number, deletions: number }[] = []
       for (const c of monthCommits) {
         const commitId = hashToId.get(c.hash)
         if (!commitId)

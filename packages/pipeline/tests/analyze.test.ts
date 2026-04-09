@@ -1,10 +1,10 @@
 import { execSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { describe, expect, it, beforeAll, afterAll } from 'vitest'
-import { eq } from 'drizzle-orm'
 import { db, pool } from '@project-river/db/client'
-import { projects, commits, commit_files, daily_stats, sum_day } from '@project-river/db/schema'
+import { commit_files, commits, daily_stats, projects, sum_day } from '@project-river/db/schema'
+import { eq } from 'drizzle-orm'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { analyzeRepo } from '../src/db/analyze.ts'
 
 describe.sequential('analyzeRepo integration', () => {
@@ -74,8 +74,7 @@ describe.sequential('analyzeRepo integration', () => {
     const commitRows = await db.select().from(commits).where(eq(commits.projectId, projectId))
     expect(commitRows).toHaveLength(2)
 
-    const fileRows = await db.select().from(commit_files)
-      .where(eq(commit_files.commitId, commitRows[0]!.id))
+    const fileRows = await db.select().from(commit_files).where(eq(commit_files.commitId, commitRows[0]!.id))
     expect(fileRows.length).toBeGreaterThanOrEqual(1)
 
     const statRows = await db.select().from(daily_stats).where(eq(daily_stats.projectId, projectId))
