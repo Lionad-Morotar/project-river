@@ -9,7 +9,7 @@
 ### Database
 - [ ] **DB-01**: Define PostgreSQL schema for `projects`, `commits`, `commit_files`, `daily_stats`, and `sum_day` tables
 - [ ] **DB-02**: Configure Drizzle ORM and migrations in `packages/db`
-- [ ] **DB-03**: Provide docker-compose for local PostgreSQL and verify migration succeeds
+- [x] **DB-03**: Provide docker-compose for local PostgreSQL and verify migration succeeds
 
 ### Data Pipeline
 - [ ] **PIPE-01**: Implement streaming Git log parser (`git log --numstat`) with `--no-merges` to skip merge commits
@@ -54,7 +54,7 @@
 | INFRA-02 | Phase 1 | Complete |
 | DB-01 | Phase 2 | Pending |
 | DB-02 | Phase 2 | Pending |
-| DB-03 | Phase 2 | Pending |
+| DB-03 | Phase 2 | Complete |
 | PIPE-01 | Phase 3 | Pending |
 | PIPE-02 | Phase 3 | Pending |
 | PIPE-03 | Phase 4 | Pending |
