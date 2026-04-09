@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Phase complete — ready for verification
-last_updated: "2026-04-09T03:32:34.666Z"
+status: Ready to execute
+last_updated: "2026-04-09T04:04:21.861Z"
 progress:
   total_phases: 9
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 12
+  total_plans: 18
+  completed_plans: 13
 ---
 
 # STATE
@@ -24,8 +24,8 @@ progress:
 
 ## Current Position
 
-Phase: 4 (pipeline-cli-sumday) — EXECUTING
-Plan: 3 of 3
+Phase: 05 (api-routes) — EXECUTING
+Plan: 2 of 3
 | Field | Value |
 |-------|-------|
 | Phase | 1 |
@@ -57,6 +57,7 @@ Plan: 3 of 3
 | Phase 04 P01 | 540 | 2 tasks | 6 files |
 | Phase 04-pipeline-cli-sumday P02 | 18min | 2 tasks | 6 files |
 | Phase 04-pipeline-cli-sumday P03 | 1min | 2 tasks | 3 files |
+| Phase 05-api-routes P01 | 128 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,7 @@ Plan: 3 of 3
 - [Phase 04]: Use absolute path aliases in pipeline vitest.config.ts to resolve @project-river/db without relying on pnpm workspace links
 - [Phase 04-pipeline-cli-sumday]: Interleaving async generator consumption with long-running DB transactions caused git log child-process stdout stalls in vitest fork workers; eager collection of commits before month-boundary DB work resolved this without losing the streaming parser design
 - [Phase 04-pipeline-cli-sumday]: Used vi.doMock to intercept analyzeRepo import so cli.test.ts runs without a live PostgreSQL connection
+- [Phase 05-api-routes]: Added h3 as explicit devDependency in apps/web so test scaffolds can construct H3Event objects without relying on transitive resolution.
 
 ### TODOs
 

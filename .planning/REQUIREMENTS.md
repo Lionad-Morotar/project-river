@@ -18,8 +18,8 @@
 - [x] **PIPE-04**: Build CLI entrypoint (`analyze`) that parses a repo and writes to PostgreSQL in chunked batches
 
 ### API
-- [ ] **API-01**: `GET /api/projects/:id/daily` returns daily contributor data for Streamgraph rendering
-- [ ] **API-02**: `GET /api/projects/:id/monthly` returns monthly aggregated contributor metrics
+- [x] **API-01**: `GET /api/projects/:id/daily` returns daily contributor data for Streamgraph rendering
+- [x] **API-02**: `GET /api/projects/:id/monthly` returns monthly aggregated contributor metrics
 
 ### Frontend UI
 - [ ] **UI-01**: Render interactive Streamgraph with D3 (`d3.stack` + `d3.area` + `wiggle` offset), day-level x-axis, unrestricted contributor layers
@@ -59,8 +59,8 @@
 | PIPE-02 | Phase 3 | Complete |
 | PIPE-03 | Phase 4 | Complete |
 | PIPE-04 | Phase 4 | Complete |
-| API-01 | Phase 5 | Pending |
-| API-02 | Phase 5 | Pending |
+| API-01 | Phase 5 | Complete |
+| API-02 | Phase 5 | Complete |
 | UI-01 | Phase 6 | Pending |
 | UI-02 | Phase 6 | Pending |
 | UI-03 | Phase 6 | Pending |
