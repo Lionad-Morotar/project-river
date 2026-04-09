@@ -1,14 +1,14 @@
 {
   "name": "@project-river/pipeline",
+  "type": "module",
   "version": "0.0.1",
   "private": true,
-  "type": "module",
-  "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
     "./parser": "./src/parser.ts",
     "./calcDay": "./src/calcDay.ts"
   },
+  "main": "./src/index.ts",
   "scripts": {
     "test": "vitest run",
     "lint": "eslint .",
