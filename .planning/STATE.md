@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to execute
-last_updated: "2026-04-09T04:36:19.412Z"
+last_updated: "2026-04-09T04:39:10.398Z"
 progress:
   total_phases: 9
   completed_phases: 4
   total_plans: 21
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # STATE
@@ -25,7 +25,7 @@ progress:
 ## Current Position
 
 Phase: 06 (streamgraph-visualization) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 | Field | Value |
 |-------|-------|
 | Phase | 1 |
@@ -60,6 +60,7 @@ Plan: 2 of 3
 | Phase 05-api-routes P01 | 128 | 3 tasks | 4 files |
 | Phase 05-api-routes P02 | 186 | 2 tasks | 3 files |
 | Phase 06 P01 | 120 | 3 tasks | 5 files |
+| Phase 06-streamgraph-visualization P02 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -87,6 +88,8 @@ Plan: 2 of 3
 - [Phase 04-pipeline-cli-sumday]: Used vi.doMock to intercept analyzeRepo import so cli.test.ts runs without a live PostgreSQL connection
 - [Phase 05-api-routes]: Added h3 as explicit devDependency in apps/web so test scaffolds can construct H3Event objects without relying on transitive resolution.
 - [Phase 05-api-routes]: Explicitly import h3 utilities (defineEventHandler, getRouterParam, getValidatedQuery, createError) in Nitro route handlers so Vitest can execute them directly without Nuxt auto-import context.
+- [Phase 06-streamgraph-visualization]: Curve interpolation uses curveBasis for smooth organic streamgraph layers
+- [Phase 06-streamgraph-visualization]: Month highlight rect is clipped and clamped to visible chart area to avoid bleed
 
 ### TODOs
 
