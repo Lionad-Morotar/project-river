@@ -28,7 +28,7 @@
 - [x] **UI-04**: Build month detail panel with Current vs Cumulative metrics and top contributors list
 
 ### Export
-- [ ] **EXPORT-01**: Add SVG export button that serializes the D3-generated SVG and triggers download
+- [x] **EXPORT-01**: Add SVG export button that serializes the D3-generated SVG and triggers download
 
 ## v2 Requirements
 
@@ -65,4 +65,4 @@
 | UI-02 | Phase 6 | Complete |
 | UI-03 | Phase 6 | Complete |
 | UI-04 | Phase 7 | Complete |
-| EXPORT-01 | Phase 7 | Pending |
+| EXPORT-01 | Phase 7 | Complete |
