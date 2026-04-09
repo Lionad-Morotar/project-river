@@ -7,7 +7,11 @@
     "strict": true,
     "outDir": "./dist",
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@project-river/db/client": ["../db/src/client.ts"],
+      "@project-river/db/schema": ["../db/src/schema/index.ts"]
+    }
   },
   "include": ["src/**/*", "tests/**/*"]
 }

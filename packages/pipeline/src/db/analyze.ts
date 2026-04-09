@@ -1,0 +1,150 @@
+import { basename } from 'node:path'
+import { eq, sql } from 'drizzle-orm'
+import { db } from '@project-river/db/client'
+import { projects, commits, commit_files, daily_stats } from '@project-river/db/schema'
+import { parseRepo } from '../parser.ts'
+import { calcDay } from '../calcDay.ts'
+import { generateSumDay } from './sumDay.ts'
+import type { ParsedCommit } from '../types.ts'
+
+interface AnalyzeOptions {
+  batchSize: number
+  force: boolean
+  incremental: boolean
+}
+
+export async function analyzeRepo(
+  repoPath: string,
+  projectName: string | undefined,
+  options: AnalyzeOptions,
+): Promise<void> {
+  const name = projectName ?? basename(repoPath)
+
+  const existingRows = await db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.path, repoPath))
+
+  const existing = existingRows[0]
+
+  if (existing && !options.force && !options.incremental) {
+    throw new Error(`Project already analyzed: ${repoPath}. Use --force or --incremental.`)
+  }
+
+  let projectId: number
+
+  if (existing && options.force) {
+    await db.delete(projects).where(eq(projects.id, existing.id))
+    const inserted = await db
+      .insert(projects)
+      .values({ name, path: repoPath })
+      .returning({ id: projects.id })
+    projectId = inserted[0]!.id
+  }
+  else if (!existing) {
+    const inserted = await db
+      .insert(projects)
+      .values({ name, path: repoPath })
+      .returning({ id: projects.id })
+    projectId = inserted[0]!.id
+  }
+  else {
+    projectId = existing.id
+  }
+
+  let existingHashes: Set<string> | undefined
+  if (options.incremental && existing) {
+    const rows = await db
+      .select({ hash: commits.hash })
+      .from(commits)
+      .where(eq(commits.projectId, projectId))
+    existingHashes = new Set(rows.map(r => r.hash))
+  }
+
+  let monthCommits: ParsedCommit[] = []
+  let currentMonth = ''
+
+  async function flushMonth(): Promise<void> {
+    if (monthCommits.length === 0)
+      return
+
+    const dailyStats = calcDay(monthCommits)
+
+    await db.transaction(async (tx) => {
+      const commitRows: { id: number; hash: string }[] = []
+
+      for (let i = 0; i < monthCommits.length; i += options.batchSize) {
+        const chunk = monthCommits.slice(i, i + options.batchSize)
+        const values = chunk.map(c => ({
+          projectId,
+          hash: c.hash,
+          authorName: c.authorName,
+          authorEmail: c.authorEmail,
+          committerDate: c.committerDate,
+          message: c.message,
+        }))
+        const inserted = await tx.insert(commits).values(values).returning({ id: commits.id, hash: commits.hash })
+        commitRows.push(...inserted)
+      }
+
+      const hashToId = new Map<string, number>()
+      for (const row of commitRows) {
+        hashToId.set(row.hash, row.id)
+      }
+
+      const fileRows: { commitId: number; path: string; insertions: number; deletions: number }[] = []
+      for (const c of monthCommits) {
+        const commitId = hashToId.get(c.hash)
+        if (!commitId)
+          continue
+        for (const f of c.files) {
+          fileRows.push({
+            commitId,
+            path: f.path,
+            insertions: f.insertions,
+            deletions: f.deletions,
+          })
+        }
+      }
+
+      for (let i = 0; i < fileRows.length; i += options.batchSize) {
+        const chunk = fileRows.slice(i, i + options.batchSize)
+        await tx.insert(commit_files).values(chunk)
+      }
+
+      const statRows = dailyStats.map(d => ({
+        projectId,
+        date: d.date,
+        contributor: d.contributor,
+        commits: d.commits,
+        insertions: d.insertions,
+        deletions: d.deletions,
+        filesTouched: d.filesTouched,
+      }))
+
+      for (let i = 0; i < statRows.length; i += options.batchSize) {
+        const chunk = statRows.slice(i, i + options.batchSize)
+        await tx.insert(daily_stats).values(chunk)
+      }
+    })
+
+    monthCommits = []
+  }
+
+  for await (const commit of parseRepo(repoPath)) {
+    if (existingHashes?.has(commit.hash)) {
+      continue
+    }
+
+    const month = commit.committerDate.toISOString().slice(0, 7)
+    if (currentMonth && month !== currentMonth) {
+      await flushMonth()
+    }
+    currentMonth = month
+    monthCommits.push(commit)
+  }
+
+  await flushMonth()
+
+  await generateSumDay(projectId)
+}
