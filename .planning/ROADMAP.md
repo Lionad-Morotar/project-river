@@ -127,15 +127,24 @@ Plan list:
 - [ ] `07-02-PLAN.md` — SVG export: expose D3 SVG node, serialization utility, and unit tests
 - [ ] `07-03-PLAN.md` — Page integration: wire panel, bidirectional month sync, auto-select, and build verification
 
-### Phase 07.1: 审查及自动修复: 1. 使用子代理对各个模块进行 /qa-only 生成文档 2. 审视审查文档并对关键问题自动修复 (INSERTED)
+### Phase 07.1: QA Review & Auto-Fix
 
-**Goal:** [Urgent work - to be planned]
-**Requirements**: TBD
-**Depends on:** Phase 7
-**Plans:** 3/3 plans complete
+**Goal**: Run focused code reviews on `packages/db`, `packages/pipeline`, and `apps/web`; collect findings into structured markdown documents; auto-fix critical/blocking issues.
+**Depends on**: Phase 7
+**Requirements**: DB-01, DB-02, DB-03, PIPE-01, PIPE-02, PIPE-03, PIPE-04, API-01, API-02, UI-01, UI-02, UI-03, UI-04, EXPORT-01, INFRA-01, INFRA-02
+**Success Criteria** (what must be TRUE):
+  1. Three structured review documents exist in the phase directory
+  2. Each review covers code quality, type safety, test coverage, and architectural consistency
+  3. Pipeline lint passes without blocking errors
+  4. Web tests pass when DATABASE_URL is absent
+  5. No regressions are introduced by auto-fixes
+**Plans**: 4 plans
 
-Plans:
-- [ ] TBD (run /gsd:plan-phase 07.1 to break down)
+Plan list:
+- [ ] `07.1-01-PLAN.md` — Review packages/db: schema, client, migrations, and configuration
+- [ ] `07.1-02-PLAN.md` — Review packages/pipeline: parser, calcDay, sumDay, analyze, CLI, and tests
+- [ ] `07.1-03-PLAN.md` — Review apps/web: API routes, Streamgraph components, detail panel, and pages
+- [ ] `07.1-04-PLAN.md` — Auto-fix critical issues: pipeline lint failures and brittle web API tests
 
 ### Phase 8: Documentation
 **Goal**: 使用智能子代理为项目生成全面的源代码文档和架构文档，更新项目知识库
