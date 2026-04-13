@@ -32,7 +32,6 @@ describe('runAnalyze', () => {
       '/path/to/repo',
       'MyProject',
       '--force',
-      '--incremental',
       '--batch-size',
       '500',
     ])
@@ -40,8 +39,26 @@ describe('runAnalyze', () => {
     expect(analyzeRepo).toHaveBeenCalledWith(
       '/path/to/repo',
       'MyProject',
-      { batchSize: 500, force: true, ignore: true, incremental: true },
+      { batchSize: 500, force: true, ignore: true, incremental: false },
     )
+  })
+
+  it('rejects --force with --incremental as mutually exclusive', async () => {
+    await expect(runAnalyze(['/path/to/repo', '--force', '--incremental']))
+      .rejects
+      .toThrow('--force and --incremental are mutually exclusive')
+  })
+
+  it('rejects invalid batch size', async () => {
+    await expect(runAnalyze(['/path/to/repo', '--batch-size', 'abc']))
+      .rejects
+      .toThrow('Invalid batch size')
+    await expect(runAnalyze(['/path/to/repo', '--batch-size', '0']))
+      .rejects
+      .toThrow('Invalid batch size')
+    await expect(runAnalyze(['/path/to/repo', '--batch-size', 'NaN']))
+      .rejects
+      .toThrow('Invalid batch size')
   })
 
   it('throws usage error when repo path is missing', async () => {

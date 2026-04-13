@@ -15,11 +15,11 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 describe('parseLogStream', () => {
   it('basic parsing yields 2 commits with correct fields and files', async () => {
     async function* lines(): AsyncGenerator<string> {
-      yield 'abc123\tAlice\talice@example.com\t2026-04-01T10:00:00Z\tfeat: add foo\tbar'
+      yield 'abc1230000000000000000000000000000000000\tAlice\talice@example.com\t2026-04-01T10:00:00Z\tfeat: add foo\tbar'
       yield '10\t2\tsrc/a.ts'
       yield '5\t1\tsrc/b.ts'
       yield ''
-      yield 'def456\tBob\tbob@example.com\t2026-04-02T12:00:00Z\tfix: bug'
+      yield 'def4560000000000000000000000000000000000\tBob\tbob@example.com\t2026-04-02T12:00:00Z\tfix: bug'
       yield '3\t0\tsrc/a.ts'
       yield ''
     }
@@ -28,7 +28,7 @@ describe('parseLogStream', () => {
     expect(commits).toHaveLength(2)
 
     const [first, second] = commits
-    expect(first.hash).toBe('abc123')
+    expect(first.hash).toBe('abc1230000000000000000000000000000000000')
     expect(first.authorName).toBe('Alice')
     expect(first.authorEmail).toBe('alice@example.com')
     expect(first.committerDate).toEqual(new Date('2026-04-01T10:00:00Z'))
@@ -37,7 +37,7 @@ describe('parseLogStream', () => {
     expect(first.files[0]).toEqual({ path: 'src/a.ts', insertions: 10, deletions: 2 })
     expect(first.files[1]).toEqual({ path: 'src/b.ts', insertions: 5, deletions: 1 })
 
-    expect(second.hash).toBe('def456')
+    expect(second.hash).toBe('def4560000000000000000000000000000000000')
     expect(second.authorName).toBe('Bob')
     expect(second.files).toHaveLength(1)
     expect(second.files[0]).toEqual({ path: 'src/a.ts', insertions: 3, deletions: 0 })
@@ -45,7 +45,7 @@ describe('parseLogStream', () => {
 
   it('binary file handling maps - to 0 insertions and deletions', async () => {
     async function* lines(): AsyncGenerator<string> {
-      yield 'bin123\tDev\tdev@example.com\t2026-04-03T08:00:00Z\tadd binary'
+      yield 'beef000000000000000000000000000000000000\tDev\tdev@example.com\t2026-04-03T08:00:00Z\tadd binary'
       yield '-\t-\tbinary.bin'
       yield ''
     }
@@ -58,7 +58,7 @@ describe('parseLogStream', () => {
 
   it('empty commit yields commit with files: []', async () => {
     async function* lines(): AsyncGenerator<string> {
-      yield 'empty123\tDev\tdev@example.com\t2026-04-04T09:00:00Z\tempty'
+      yield 'dead000000000000000000000000000000000000\tDev\tdev@example.com\t2026-04-04T09:00:00Z\tempty'
       yield ''
     }
 
