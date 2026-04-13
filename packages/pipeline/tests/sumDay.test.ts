@@ -5,10 +5,11 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { generateSumDay } from '../src/db/sumDay.ts'
 
 describe('sumDay', () => {
+  const hasDb = !!process.env.DATABASE_URL
   let projectId: number
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL) {
+    if (!hasDb) {
       console.warn('DATABASE_URL is not set, skipping sumDay integration tests')
       return
     }
@@ -17,23 +18,19 @@ describe('sumDay', () => {
   })
 
   afterEach(async () => {
-    if (!process.env.DATABASE_URL)
+    if (!hasDb)
       return
     await db.delete(sum_day).where(eq(sum_day.projectId, projectId))
     await db.delete(daily_stats).where(eq(daily_stats.projectId, projectId))
   })
 
   afterAll(async () => {
-    if (!process.env.DATABASE_URL)
+    if (!hasDb)
       return
     await db.delete(projects).where(eq(projects.id, projectId))
   })
 
-  it('single contributor cumulative stats', async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
+  it.skipIf(!hasDb)('single contributor cumulative stats', async () => {
     await db.insert(daily_stats).values([
       { projectId, date: '2024-01-01', contributor: 'alice@example.com', commits: 2, insertions: 10, deletions: 5, filesTouched: 1 },
       { projectId, date: '2024-01-02', contributor: 'alice@example.com', commits: 3, insertions: 20, deletions: 10, filesTouched: 2 },
@@ -59,11 +56,7 @@ describe('sumDay', () => {
     })
   })
 
-  it('multi-contributor isolation', async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
+  it.skipIf(!hasDb)('multi-contributor isolation', async () => {
     await db.insert(daily_stats).values([
       { projectId, date: '2024-01-01', contributor: 'alice@example.com', commits: 2, insertions: 10, deletions: 5, filesTouched: 1 },
       { projectId, date: '2024-01-02', contributor: 'alice@example.com', commits: 3, insertions: 20, deletions: 10, filesTouched: 2 },

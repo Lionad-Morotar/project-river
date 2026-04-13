@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process'
-import { mkdtempSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { db, pool } from '@project-river/db/client'
 import { commit_files, commits, daily_stats, projects, sum_day } from '@project-river/db/schema'
@@ -7,12 +7,13 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { analyzeRepo } from '../src/db/analyze.ts'
 
-describe.sequential('analyzeRepo integration', () => {
+describe('analyzeRepo integration', () => {
+  const hasDb = !!process.env.DATABASE_URL
   const projectName = 'analyze-test'
   const testRepos: string[] = []
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL) {
+    if (!hasDb) {
       console.warn('DATABASE_URL is not set, skipping analyzeRepo integration tests')
       return
     }
@@ -20,7 +21,7 @@ describe.sequential('analyzeRepo integration', () => {
   })
 
   afterAll(async () => {
-    if (!process.env.DATABASE_URL)
+    if (!hasDb)
       return
     await db.delete(projects).where(eq(projects.name, projectName))
     await pool.end()
@@ -50,12 +51,7 @@ describe.sequential('analyzeRepo integration', () => {
     return tempDir
   }
 
-  it('force: true writes commits and daily stats correctly across months', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
-
+  it.skipIf(!hasDb)('force: true writes commits and daily stats correctly across months', { timeout: 30000 }, async () => {
     const repo = makeTempGitRepo([
       '2024-01-15T10:00:00Z',
       '2024-02-15T10:00:00Z',
@@ -84,12 +80,7 @@ describe.sequential('analyzeRepo integration', () => {
     expect(sumRows.length).toBeGreaterThanOrEqual(2)
   })
 
-  it('default behavior rejects duplicate analysis', { timeout: 15000 }, async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
-
+  it.skipIf(!hasDb)('default behavior rejects duplicate analysis', { timeout: 15000 }, async () => {
     const repo = makeTempGitRepo(['2024-03-15T10:00:00Z'])
     const duplicateProjectName = `${projectName}-dup`
 
@@ -112,12 +103,7 @@ describe.sequential('analyzeRepo integration', () => {
     await db.delete(projects).where(eq(projects.name, duplicateProjectName))
   })
 
-  it('incremental: true skips existing SHAs and appends new commits', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
-
+  it.skipIf(!hasDb)('incremental: true skips existing SHAs and appends new commits', { timeout: 30000 }, async () => {
     const repo = makeTempGitRepo([
       '2024-04-10T10:00:00Z',
       '2024-04-11T10:00:00Z',
@@ -167,12 +153,7 @@ describe.sequential('analyzeRepo integration', () => {
     await db.delete(projects).where(eq(projects.name, incrementalProjectName))
   })
 
-  it('--ignore=false stores all files without filtering', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
-
+  it.skipIf(!hasDb)('--ignore=false stores all files without filtering', { timeout: 30000 }, async () => {
     const tempDir = mkdtempSync(`${tmpdir()}/river-ignore-test-`)
     execSync('git init', { cwd: tempDir })
     execSync('git config user.name "Test User"', { cwd: tempDir })
@@ -218,12 +199,7 @@ describe.sequential('analyzeRepo integration', () => {
     await db.delete(projects).where(eq(projects.name, ignoreProjectName))
   })
 
-  it('default (ignore=true) filters files matching .gitignore patterns', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL) {
-      console.warn('DATABASE_URL missing, skipping')
-      return
-    }
-
+  it.skipIf(!hasDb)('default (ignore=true) filters files matching .gitignore patterns', { timeout: 30000 }, async () => {
     const tempDir = mkdtempSync(`${tmpdir()}/river-ignore-true-test-`)
     execSync('git init', { cwd: tempDir })
     execSync('git config user.name "Test User"', { cwd: tempDir })
@@ -269,24 +245,31 @@ describe.sequential('analyzeRepo integration', () => {
   })
 })
 
-describe.sequential('analyzeRepo path normalization', () => {
+describe('analyzeRepo path normalization', () => {
+  const hasDb = !!process.env.DATABASE_URL
   const cleanupProjects: string[] = []
+  const cleanupDirs: string[] = []
 
   afterAll(async () => {
-    if (!process.env.DATABASE_URL)
+    if (!hasDb)
       return
     for (const name of cleanupProjects) {
       await db.delete(projects).where(eq(projects.name, name))
     }
     await pool.end()
+    for (const dir of cleanupDirs) {
+      try {
+        rmSync(dir, { recursive: true, force: true })
+      }
+      catch {
+        // ignore cleanup failures
+      }
+    }
   })
 
-  it('stores absolute path when given relative path "."', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL)
-      return
-
-    // Create a temp git repo
+  it.skipIf(!hasDb)('stores absolute path when given relative path "."', { timeout: 30000 }, async () => {
     const tempDir = mkdtempSync(`${tmpdir()}/river-pathnorm-test-`)
+    cleanupDirs.push(tempDir)
     execSync('git init', { cwd: tempDir })
     execSync('git config user.name "Test"', { cwd: tempDir })
     execSync('git config user.email "test@test.com"', { cwd: tempDir })
@@ -297,7 +280,6 @@ describe.sequential('analyzeRepo path normalization', () => {
     const projectName = 'pathnorm-dot-relative'
     cleanupProjects.push(projectName)
 
-    // Save cwd, cd to parent, run with "."
     const originalCwd = process.cwd()
     process.chdir(tempDir)
     await analyzeRepo('.', projectName, {
@@ -310,19 +292,14 @@ describe.sequential('analyzeRepo path normalization', () => {
     const rows = await db.select().from(projects).where(eq(projects.name, projectName))
     expect(rows).toHaveLength(1)
     const storedPath = rows[0]!.path
-    // Should be absolute path, not "."
     expect(storedPath).not.toBe('.')
-    expect(storedPath).toBe(tempDir) // realpath of "." should equal tempDir
-
-    cleanupProjects.push(projectName)
+    expect(storedPath).toBe(tempDir)
   })
 
-  it('resolves symlink to real path', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL)
-      return
-
+  it.skipIf(!hasDb)('resolves symlink to real path', { timeout: 30000 }, async () => {
     const realDir = mkdtempSync(`${tmpdir()}/river-real-test-`)
     const symlinkDir = `${tmpdir()}/river-symlink-test-`
+    cleanupDirs.push(realDir, symlinkDir)
 
     execSync('git init', { cwd: realDir })
     execSync('git config user.name "Test"', { cwd: realDir })
@@ -331,7 +308,6 @@ describe.sequential('analyzeRepo path normalization', () => {
     execSync('git add .', { cwd: realDir })
     execSync('git commit -m "init"', { cwd: realDir })
 
-    // Create symlink
     symlinkSync(realDir, symlinkDir)
 
     const projectName = 'pathnorm-symlink'
@@ -346,12 +322,8 @@ describe.sequential('analyzeRepo path normalization', () => {
     const rows = await db.select().from(projects).where(eq(projects.name, projectName))
     expect(rows).toHaveLength(1)
     const storedPath = rows[0]!.path
-    // Should store the REAL path, not the symlink path
     expect(storedPath).toBe(realDir)
     expect(storedPath).not.toBe(symlinkDir)
-
-    // Cleanup symlink
-    unlinkSync(symlinkDir)
   })
 
   it('throws clear error for non-existent path', async () => {
@@ -364,11 +336,9 @@ describe.sequential('analyzeRepo path normalization', () => {
     ).rejects.toThrow('Path does not exist')
   })
 
-  it('strips trailing slashes', { timeout: 30000 }, async () => {
-    if (!process.env.DATABASE_URL)
-      return
-
+  it.skipIf(!hasDb)('strips trailing slashes', { timeout: 30000 }, async () => {
     const tempDir = mkdtempSync(`${tmpdir()}/river-slash-test-`)
+    cleanupDirs.push(tempDir)
     execSync('git init', { cwd: tempDir })
     execSync('git config user.name "Test"', { cwd: tempDir })
     execSync('git config user.email "test@test.com"', { cwd: tempDir })
@@ -388,7 +358,6 @@ describe.sequential('analyzeRepo path normalization', () => {
     const rows = await db.select().from(projects).where(eq(projects.name, projectName))
     expect(rows).toHaveLength(1)
     const storedPath = rows[0]!.path
-    // Should NOT have trailing slash
     expect(storedPath).not.toMatch(/\/$/)
     expect(storedPath).toBe(tempDir)
   })

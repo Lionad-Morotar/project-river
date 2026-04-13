@@ -3,7 +3,7 @@ import { realpath } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
 import { db } from '@project-river/db/client'
 import { commit_files, commits, daily_stats, projects } from '@project-river/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { calcDay } from '../calcDay.ts'
 import { parseRepo } from '../parser.ts'
 import { buildGitignoreLookup, getGitignoreHistory } from './gitignore.ts'
@@ -84,9 +84,29 @@ export async function analyzeRepo(
   // Build .gitignore pattern lookup for each commit (only when --ignore is enabled)
   let gitignoreLookup: Map<string, string> | undefined
   if (options.ignore !== false) {
-    const allShas = allCommits.map(c => c.hash)
     const gitignoreHistory = await getGitignoreHistory(normalizedPath)
-    gitignoreLookup = buildGitignoreLookup(allShas, gitignoreHistory)
+
+    // For correct pattern tracking, we need SHAs in chronological order (oldest → newest).
+    // parseRepo yields newest-first (git log default), so reverse.
+    // In incremental mode, prepend existing commit SHAs from DB so that gitignore
+    // pattern evolution from the repo's beginning is properly tracked.
+    let chronologicalShas: string[]
+    if (options.incremental && existingHashes && existingHashes.size > 0) {
+      const existingOrdered = await db
+        .select({ hash: commits.hash })
+        .from(commits)
+        .where(eq(commits.projectId, projectId))
+        .orderBy(commits.committerDate)
+      chronologicalShas = [
+        ...existingOrdered.map(r => r.hash),
+        ...[...allCommits].reverse().map(c => c.hash),
+      ]
+    }
+    else {
+      chronologicalShas = [...allCommits].reverse().map(c => c.hash)
+    }
+
+    gitignoreLookup = buildGitignoreLookup(chronologicalShas, gitignoreHistory)
   }
 
   let monthCommits: ParsedCommit[] = []
@@ -158,7 +178,15 @@ export async function analyzeRepo(
 
       for (let i = 0; i < statRows.length; i += options.batchSize) {
         const chunk = statRows.slice(i, i + options.batchSize)
-        await tx.insert(daily_stats).values(chunk)
+        await tx.insert(daily_stats).values(chunk).onConflictDoUpdate({
+          target: [daily_stats.projectId, daily_stats.date, daily_stats.contributor],
+          set: {
+            commits: sql`${sql.raw(daily_stats.commits.name)} + ${sql.raw(`excluded.${daily_stats.commits.name}`)}`,
+            insertions: sql`${sql.raw(daily_stats.insertions.name)} + ${sql.raw(`excluded.${daily_stats.insertions.name}`)}`,
+            deletions: sql`${sql.raw(daily_stats.deletions.name)} + ${sql.raw(`excluded.${daily_stats.deletions.name}`)}`,
+            filesTouched: sql`${sql.raw(daily_stats.filesTouched.name)} + ${sql.raw(`excluded.${daily_stats.filesTouched.name}`)}`,
+          },
+        })
       }
     })
 

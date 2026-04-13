@@ -59,18 +59,35 @@ export function filterIgnoredFiles(
 /**
  * Build a lookup that maps each commit SHA to its applicable .gitignore patterns.
  * Uses the gitignore history to determine which rules were active at each commit.
+ *
+ * allCommitShas should be ordered chronologically (oldest to newest).
+ * In incremental mode, existing commit SHAs from DB should be prepended
+ * so that gitignore pattern evolution is tracked from the beginning.
+ *
+ * @param allCommitShas Commit SHAs sorted oldest-to-newest
+ * @param gitignoreHistory Gitignore change history sorted oldest-to-newest
  */
 export function buildGitignoreLookup(
   allCommitShas: string[],
   gitignoreHistory: GitignoreVersion[],
 ): Map<string, string> {
   const lookup = new Map<string, string>()
+
+  // Build a Map of SHAs that have gitignore changes for O(1) lookup
+  // instead of the previous O(n*m) gitignoreHistory.find() approach.
+  const shaToPatterns = new Map<string, string>()
+  for (const version of gitignoreHistory) {
+    shaToPatterns.set(version.commitSha, version.patterns)
+  }
+
+  // Walk commits chronologically (oldest → newest), evolving patterns forward.
+  // This ensures each commit gets the patterns that were active at that point in time.
   let currentPatterns = ''
 
   for (const sha of allCommitShas) {
-    const version = gitignoreHistory.find(v => v.commitSha === sha)
-    if (version) {
-      currentPatterns = version.patterns
+    const versionPatterns = shaToPatterns.get(sha)
+    if (versionPatterns !== undefined) {
+      currentPatterns = versionPatterns
     }
     lookup.set(sha, currentPatterns)
   }
