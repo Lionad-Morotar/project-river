@@ -1,4 +1,4 @@
-import { index, integer, pgTable, serial, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { index, integer, pgTable, serial, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/pg-core'
 
 export const projects = pgTable('projects', {
   id: serial('id').primaryKey(),
@@ -17,6 +17,7 @@ export const commits = pgTable('commits', {
   message: text('message'),
 }, table => [
   index('commits_project_date_idx').on(table.projectId, table.committerDate),
+  uniqueIndex('commits_project_hash_idx').on(table.projectId, table.hash),
 ])
 
 export const commit_files = pgTable('commit_files', {
@@ -29,4 +30,5 @@ export const commit_files = pgTable('commit_files', {
 }, table => [
   index('commit_files_commit_idx').on(table.commitId),
   index('commit_files_project_idx').on(table.projectId),
+  uniqueIndex('commit_files_commit_path_idx').on(table.commitId, table.path),
 ])
