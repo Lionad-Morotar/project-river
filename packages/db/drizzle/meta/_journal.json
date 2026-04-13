@@ -15,6 +15,13 @@
       "when": 1775701971219,
       "tag": "0001_handy_brother_voodoo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775751275645,
+      "tag": "0002_fat_komodo",
+      "breakpoints": true
     }
   ]
 }

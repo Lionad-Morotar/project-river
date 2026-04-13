@@ -122,7 +122,7 @@ export async function analyzeRepo(
 
       const { filterIgnoredFiles } = await import('./gitignore.ts')
 
-      const fileRows: { commitId: number, path: string, insertions: number, deletions: number }[] = []
+      const fileRows: { commitId: number, projectId: number, path: string, insertions: number, deletions: number }[] = []
       for (const c of monthCommits) {
         const commitId = hashToId.get(c.hash)
         if (!commitId)
@@ -133,6 +133,7 @@ export async function analyzeRepo(
         for (const f of files) {
           fileRows.push({
             commitId,
+            projectId,
             path: f.path,
             insertions: f.insertions,
             deletions: f.deletions,
