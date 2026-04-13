@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { DailyRow } from '~/utils/d3Helpers'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
+import { useResizeObserver } from '@vueuse/core'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
 import { useContributorColors } from '~/composables/useContributorColors'
 import { getMonthContributors, getMonthCumulative } from '~/utils/monthDetailHelpers'
@@ -54,16 +55,17 @@ const totalCommitsToDate = computed(() => {
   return total
 })
 
-function updateChartWidth() {
-  if (graphContainerRef.value) {
-    chartWidth.value = graphContainerRef.value.clientWidth
+// Observe container resize (debounced by browser, no manual listener cleanup)
+useResizeObserver(graphContainerRef, (entries) => {
+  const entry = entries[0]
+  if (entry) {
+    const { width } = entry.contentRect
+    if (width > 0)
+      chartWidth.value = Math.round(width)
   }
-}
+})
 
 onMounted(async () => {
-  updateChartWidth()
-  window.addEventListener('resize', updateChartWidth)
-
   try {
     const [daily, monthly] = await Promise.all([
       $fetch<DailyRow[]>(`/api/projects/${projectId}/daily`),
@@ -81,10 +83,6 @@ onMounted(async () => {
   finally {
     loading.value = false
   }
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateChartWidth)
 })
 
 function handleExport() {

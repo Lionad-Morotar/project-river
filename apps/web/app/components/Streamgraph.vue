@@ -4,12 +4,19 @@ import { extent, max, min } from 'd3-array'
 import { axisBottom, axisLeft } from 'd3-axis'
 import { brushX as d3BrushX } from 'd3-brush'
 import { scaleLinear, scaleUtc } from 'd3-scale'
-import { select } from 'd3-selection'
+import { pointer as d3Pointer, select } from 'd3-selection'
 import { curveBasis, area as d3Area } from 'd3-shape'
-import { zoom as d3Zoom } from 'd3-zoom'
+import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useContributorColors } from '~/composables/useContributorColors'
 import { buildStack, pivotDailyData } from '~/utils/d3Helpers'
+
+/** Type aliases for D3 internals (sub-packages lack built-in .d.ts) */
+type D3ScaleLinear = ReturnType<typeof scaleLinear>
+type D3ScaleUtc = ReturnType<typeof scaleUtc>
+type D3AreaGenerator = ReturnType<typeof d3Area<any>>
+type D3BrushXBehavior = ReturnType<typeof d3BrushX>
+type D3ZoomBehavior = ReturnType<typeof d3Zoom>
 
 interface Props {
   data: DailyRow[]
@@ -60,20 +67,30 @@ const yDomain = computed(() => {
   return [yMin, yMax] as [number, number]
 })
 
+/** O(1) hover lookup: contributor → date → row */
+const dataLookup = computed(() => {
+  const map = new Map<string, Map<string, DailyRow>>()
+  for (const row of props.data) {
+    let dateMap = map.get(row.contributor)
+    if (!dateMap) {
+      dateMap = new Map<string, DailyRow>()
+      map.set(row.contributor, dateMap)
+    }
+    dateMap.set(row.date, row)
+  }
+  return map
+})
+
 let svgNode: SVGSVGElement | null = null
-let gChart: any = null
-let gXAxis: any = null
-let gYAxis: any = null
-let gBrushGroup: any = null
-let brushGroup: any = null
-let xBase: any = null
-let xScale: any = null
-let yScale: any = null
-let zoomBehavior: any = null
-let brushBehavior: any = null
-let areaGenerator: any = null
-let layers: any = null
-let monthHighlight: any = null
+let gXAxis: SVGGElement | null = null
+let brushGroup: SVGGElement | null = null
+let xBase: D3ScaleUtc | null = null
+let xScale: D3ScaleLinear | null = null
+let yScale: D3ScaleLinear | null = null
+let zoomBehavior: D3ZoomBehavior | null = null
+let brushBehavior: D3BrushXBehavior | null = null
+let areaGenerator: D3AreaGenerator | null = null
+let monthHighlight: SVGRectElement | null = null
 
 function render() {
   if (!chartRef.value || !props.width || !props.height)
@@ -110,47 +127,51 @@ function render() {
     .domain(dateExtent)
     .range([marginLeft, props.width - marginRight])
 
-  xScale = xBase.copy()
+  xScale = xBase.copy() as D3ScaleLinear
 
   yScale = scaleLinear()
     .domain(yDomain.value)
     .range([chartHeight, 0])
 
-  // area generator (computed once, reused)
+  // area generator (computed once per render, reused)
+  const currentXScale = xScale
+  const currentYScale = yScale
   areaGenerator = d3Area<any>()
     .curve(curveBasis)
-    .x((d: any) => xScale(d.data.date))
-    .y0((d: any) => yScale(d[0]))
-    .y1((d: any) => yScale(d[1]))
+    .x((d: any) => currentXScale(d.data.date))
+    .y0((d: any) => currentYScale(d[0]))
+    .y1((d: any) => currentYScale(d[1]))
 
   // groups
-  gChart = svg.append('g')
+  const gChartSel = svg.append('g')
     .attr('clip-path', 'url(#clip)')
 
   // month highlight overlay
-  monthHighlight = gChart.append('rect')
+  const highlightSel = gChartSel.append('rect')
     .attr('class', 'month-highlight')
     .attr('fill', 'rgba(59,130,246,0.15)')
     .attr('y', marginTop)
     .attr('height', chartHeight)
     .style('display', 'none')
     .style('pointer-events', 'none')
+  monthHighlight = highlightSel.node() as SVGRectElement
 
   // axis groups
-  gXAxis = svg.append('g')
+  const gXAxisSel = svg.append('g')
     .attr('transform', `translate(0,${marginTop + chartHeight})`)
+  gXAxis = gXAxisSel.node() as SVGGElement
 
-  gYAxis = svg.append('g')
+  const gYAxisSel = svg.append('g')
     .attr('transform', `translate(${marginLeft},${marginTop})`)
 
   const xAxis = axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80)))
   const yAxis = axisLeft(yScale).ticks(5)
 
-  gXAxis.call(xAxis)
-  gYAxis.call(yAxis)
+  gXAxisSel.call(xAxis)
+  gYAxisSel.call(yAxis)
 
   // layers
-  layers = gChart.selectAll('path.layer')
+  const layers = gChartSel.selectAll('path.layer')
     .data(series.value)
     .join('path')
     .attr('class', 'layer')
@@ -158,18 +179,36 @@ function render() {
     .attr('d', areaGenerator)
     .style('cursor', 'pointer')
 
-  // pointer events for hover
+  // pointer events for hover — O(1) lookup via dataLookup
+  const lookup = dataLookup.value
+  const currentXScaleForHover = xScale
   layers
     .on('pointerenter pointermove', (event: PointerEvent, d: any) => {
       event.preventDefault()
       const contributor = d.key as string
-      const [px] = d3.pointer(event, svg.node())
-      const date = xScale.invert(px)
+      const [px] = d3Pointer(event, svg.node())
+      const date = currentXScaleForHover.invert(px)
       const isoDate = date.toISOString().split('T')[0]
 
-      const row = props.data.find(r => r.contributor === contributor && r.date === isoDate)
-        || props.data.find(r => r.contributor === contributor && Math.abs(new Date(r.date).getTime() - date.getTime()) <= 86400000)
-        || null
+      const dateMap = lookup.get(contributor)
+      if (!dateMap)
+        return
+
+      // O(1) exact match first, then nearest-day fallback
+      let row = dateMap.get(isoDate) ?? null
+      if (!row) {
+        const targetTime = date.getTime()
+        let minDelta = Infinity
+        for (const r of dateMap.values()) {
+          const delta = Math.abs(new Date(r.date).getTime() - targetTime)
+          if (delta < minDelta) {
+            minDelta = delta
+            row = r
+          }
+        }
+        if (minDelta > 86400000)
+          row = null
+      }
 
       if (row) {
         emit('hover', {
@@ -187,6 +226,7 @@ function render() {
     })
 
   // zoom behavior
+  const currentXBase = xBase
   zoomBehavior = d3Zoom()
     .scaleExtent([1, 50])
     .extent([[marginLeft, 0], [props.width - marginRight, marginTop + chartHeight]])
@@ -194,13 +234,13 @@ function render() {
     .on('zoom', (event: any) => {
       if (event.sourceEvent?.type === 'brush')
         return
-      const newX = event.transform.rescaleX(xBase)
-      xScale.domain(newX.domain())
-      gXAxis.call(axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80))))
+      const newX = event.transform.rescaleX(currentXBase)
+      xScale!.domain(newX.domain())
+      select(gXAxis!).call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
       layers.attr('d', areaGenerator)
       updateMonthHighlight()
-      if (brushGroup) {
-        brushGroup.call(brushBehavior.move, xBase.range().map(event.transform.invertX, event.transform))
+      if (brushGroup && brushBehavior) {
+        select(brushGroup).call(brushBehavior.move, currentXBase.range().map(event.transform.invertX, event.transform))
       }
     })
 
@@ -212,13 +252,13 @@ function render() {
     .on('brush end', (event: any) => {
       if (!event.selection || event.sourceEvent?.type === 'zoom')
         return
-      const [x0, x1] = event.selection.map(xBase.invert, xBase)
-      const k = (xBase.domain()[1].getTime() - xBase.domain()[0].getTime()) / (x1.getTime() - x0.getTime())
-      const tx = -xBase(x0) * k + marginLeft
-      svg.call(zoomBehavior.transform, d3.zoomIdentity.translate(tx, 0).scale(k))
+      const [x0, x1] = event.selection.map(currentXBase.invert, currentXBase)
+      const k = (currentXBase.domain()[1].getTime() - currentXBase.domain()[0].getTime()) / (x1.getTime() - x0.getTime())
+      const tx = -currentXBase(x0) * k + marginLeft
+      svg.call(zoomBehavior!.transform, zoomIdentity.translate(tx, 0).scale(k))
     })
 
-  gBrushGroup = svg.append('g')
+  const gBrushGroupSel = svg.append('g')
     .attr('transform', `translate(0, ${props.height - marginBottom - brushHeight + brushGap})`)
 
   // mini chart for brush background
@@ -228,11 +268,11 @@ function render() {
 
   const brushArea = d3Area<any>()
     .curve(curveBasis)
-    .x((d: any) => xBase(d.data.date))
+    .x((d: any) => currentXBase(d.data.date))
     .y0((d: any) => yBrush(d[0]))
     .y1((d: any) => yBrush(d[1]))
 
-  gBrushGroup.selectAll('path.brush-layer')
+  gBrushGroupSel.selectAll('path.brush-layer')
     .data(series.value)
     .join('path')
     .attr('class', 'brush-layer')
@@ -240,10 +280,11 @@ function render() {
     .attr('opacity', 0.4)
     .attr('d', brushArea)
 
-  brushGroup = gBrushGroup.append('g')
+  const brushGroupSel = gBrushGroupSel.append('g')
     .attr('class', 'brush')
     .call(brushBehavior)
-    .call(brushBehavior.move, xBase.range())
+    .call(brushBehavior.move, currentXBase.range())
+  brushGroup = brushGroupSel.node() as SVGGElement
 
   updateMonthHighlight()
 }
@@ -251,7 +292,7 @@ function render() {
 function updateMonthHighlight() {
   if (!monthHighlight || !props.selectedMonth || !xScale) {
     if (monthHighlight)
-      monthHighlight.style('display', 'none')
+      select(monthHighlight).style('display', 'none')
     return
   }
   const start = new Date(`${props.selectedMonth}-01T00:00:00Z`)
@@ -260,20 +301,20 @@ function updateMonthHighlight() {
 
   const x0 = xScale(start)
   const x1 = xScale(end)
-  const chartWidth = props.width - marginLeft - marginRight
+  const cw = props.width - marginLeft - marginRight
 
   // clamp to visible chart area inside clip
-  const visibleX0 = Math.max(marginLeft, Math.min(x0, marginLeft + chartWidth))
-  const visibleX1 = Math.max(marginLeft, Math.min(x1, marginLeft + chartWidth))
+  const visibleX0 = Math.max(marginLeft, Math.min(x0, marginLeft + cw))
+  const visibleX1 = Math.max(marginLeft, Math.min(x1, marginLeft + cw))
 
   if (visibleX1 > visibleX0) {
-    monthHighlight
+    select(monthHighlight)
       .attr('x', visibleX0)
       .attr('width', visibleX1 - visibleX0)
       .style('display', 'block')
   }
   else {
-    monthHighlight.style('display', 'none')
+    select(monthHighlight).style('display', 'none')
   }
 }
 
