@@ -181,10 +181,10 @@ export async function analyzeRepo(
         await tx.insert(daily_stats).values(chunk).onConflictDoUpdate({
           target: [daily_stats.projectId, daily_stats.date, daily_stats.contributor],
           set: {
-            commits: sql`${sql.raw(daily_stats.commits.name)} + ${sql.raw(`excluded.${daily_stats.commits.name}`)}`,
-            insertions: sql`${sql.raw(daily_stats.insertions.name)} + ${sql.raw(`excluded.${daily_stats.insertions.name}`)}`,
-            deletions: sql`${sql.raw(daily_stats.deletions.name)} + ${sql.raw(`excluded.${daily_stats.deletions.name}`)}`,
-            filesTouched: sql`${sql.raw(daily_stats.filesTouched.name)} + ${sql.raw(`excluded.${daily_stats.filesTouched.name}`)}`,
+            commits: sql`daily_stats.commits + excluded.commits`,
+            insertions: sql`daily_stats.insertions + excluded.insertions`,
+            deletions: sql`daily_stats.deletions + excluded.deletions`,
+            filesTouched: sql`daily_stats.files_touched + excluded.files_touched`,
           },
         })
       }
