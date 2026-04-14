@@ -26,18 +26,6 @@ export default defineEventHandler(async (event) => {
         COALESCE(${startDate}, CURRENT_DATE) AS min_date,
         COALESCE(${endDate}, CURRENT_DATE) AS max_date
     ),
-    contributors AS (
-      SELECT DISTINCT contributor FROM daily_stats WHERE project_id = ${projectId}
-    ),
-    month_range AS (
-      SELECT to_char(generate_series(min_date, max_date, '1 month'::interval), 'YYYY-MM') AS year_month
-      FROM bounds
-    ),
-    grid AS (
-      SELECT m.year_month, c.contributor
-      FROM month_range m
-      CROSS JOIN contributors c
-    ),
     ds_filtered AS (
       SELECT date, contributor, commits, insertions, deletions, files_touched
       FROM daily_stats
@@ -46,18 +34,15 @@ export default defineEventHandler(async (event) => {
         AND date <= (SELECT max_date FROM bounds)
     )
     SELECT
-      g.year_month AS "yearMonth",
-      g.contributor AS "contributor",
+      to_char(ds.date, 'YYYY-MM') AS "yearMonth",
+      ds.contributor AS "contributor",
       COALESCE(SUM(ds.commits), 0) AS "commits",
       COALESCE(SUM(ds.insertions), 0) AS "linesAdded",
       COALESCE(SUM(ds.deletions), 0) AS "linesDeleted",
       COALESCE(SUM(ds.files_touched), 0) AS "filesTouched"
-    FROM grid g
-    LEFT JOIN ds_filtered ds
-      ON to_char(ds.date, 'YYYY-MM') = g.year_month
-     AND ds.contributor = g.contributor
-    GROUP BY g.year_month, g.contributor
-    ORDER BY g.year_month ASC, g.contributor ASC
+    FROM ds_filtered ds
+    GROUP BY to_char(ds.date, 'YYYY-MM'), ds.contributor
+    ORDER BY to_char(ds.date, 'YYYY-MM') ASC, ds.contributor ASC
     LIMIT ${limit} OFFSET ${offset}
   `)
 

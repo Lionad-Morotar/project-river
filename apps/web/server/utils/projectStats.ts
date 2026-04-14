@@ -26,14 +26,14 @@ export interface DailyStatsRow {
 export const monthlyQuerySchema = z.object({
   start: z.string().regex(/^\d{4}-\d{2}$/).optional(),
   end: z.string().regex(/^\d{4}-\d{2}$/).optional(),
-  limit: z.coerce.number().int().min(1).max(5000).default(1000),
+  limit: z.coerce.number().int().min(1).max(100000).default(50000),
   offset: z.coerce.number().int().min(0).default(0),
 })
 
 export const dailyQuerySchema = z.object({
   start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  limit: z.coerce.number().int().min(1).max(5000).default(1000),
+  limit: z.coerce.number().int().min(1).max(100000).default(50000),
   offset: z.coerce.number().int().min(0).default(0),
 })
 

@@ -26,18 +26,6 @@ export default defineEventHandler(async (event) => {
         COALESCE(${startDate}, CURRENT_DATE) AS min_date,
         COALESCE(${endDate}, CURRENT_DATE) AS max_date
     ),
-    contributors AS (
-      SELECT DISTINCT contributor FROM daily_stats WHERE project_id = ${projectId}
-    ),
-    date_range AS (
-      SELECT generate_series(min_date, max_date, '1 day'::interval)::date AS date
-      FROM bounds
-    ),
-    grid AS (
-      SELECT d.date, c.contributor
-      FROM date_range d
-      CROSS JOIN contributors c
-    ),
     ds_filtered AS (
       SELECT date, contributor, commits, insertions, deletions, files_touched
       FROM daily_stats
@@ -53,21 +41,18 @@ export default defineEventHandler(async (event) => {
         AND date <= (SELECT max_date FROM bounds)
     )
     SELECT
-      g.date AS "date",
-      g.contributor AS "contributor",
+      ds.date AS "date",
+      ds.contributor AS "contributor",
       COALESCE(ds.commits, 0) AS "commits",
       COALESCE(ds.insertions, 0) AS "linesAdded",
       COALESCE(ds.deletions, 0) AS "linesDeleted",
       COALESCE(ds.files_touched, 0) AS "filesTouched",
       COALESCE(sd.cumulative_commits, 0) AS "cumulativeCommits"
-    FROM grid g
-    LEFT JOIN ds_filtered ds
-      ON ds.date = g.date
-     AND ds.contributor = g.contributor
+    FROM ds_filtered ds
     LEFT JOIN sd_filtered sd
-      ON sd.date = g.date
-     AND sd.contributor = g.contributor
-    ORDER BY g.date ASC, g.contributor ASC
+      ON sd.date = ds.date
+     AND sd.contributor = ds.contributor
+    ORDER BY ds.date ASC, ds.contributor ASC
     LIMIT ${limit} OFFSET ${offset}
   `)
 
