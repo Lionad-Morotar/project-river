@@ -91,6 +91,7 @@ let zoomBehavior: D3ZoomBehavior | null = null
 let brushBehavior: D3BrushXBehavior | null = null
 let areaGenerator: D3AreaGenerator | null = null
 let monthHighlight: SVGRectElement | null = null
+let isProgrammaticZoom = false
 
 function render() {
   if (!chartRef.value || !props.width || !props.height)
@@ -239,8 +240,10 @@ function render() {
       select(gXAxis!).call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
       layers.attr('d', areaGenerator)
       updateMonthHighlight()
-      if (brushGroup && brushBehavior) {
+      if (brushGroup && brushBehavior && !isProgrammaticZoom) {
+        isProgrammaticZoom = true
         select(brushGroup).call(brushBehavior.move, currentXBase.range().map(event.transform.invertX, event.transform))
+        isProgrammaticZoom = false
       }
     })
 
@@ -250,12 +253,14 @@ function render() {
   brushBehavior = d3BrushX()
     .extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
     .on('brush end', (event: any) => {
-      if (!event.selection || event.sourceEvent?.type === 'zoom')
+      if (!event.selection || event.sourceEvent?.type === 'zoom' || isProgrammaticZoom)
         return
       const [x0, x1] = event.selection.map(currentXBase.invert, currentXBase)
       const k = (currentXBase.domain()[1].getTime() - currentXBase.domain()[0].getTime()) / (x1.getTime() - x0.getTime())
       const tx = -currentXBase(x0) * k + marginLeft
+      isProgrammaticZoom = true
       svg.call(zoomBehavior!.transform, zoomIdentity.translate(tx, 0).scale(k))
+      isProgrammaticZoom = false
     })
 
   const gBrushGroupSel = svg.append('g')

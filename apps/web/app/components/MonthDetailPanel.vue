@@ -35,7 +35,7 @@ const PANEL_W = 360
 const BOTTOM_H = 280
 const SNAP_THRESHOLD = 60
 
-const { x, y, isDragging, style } = useDraggable(panelRef, {
+const { x, y, isDragging, style: _style } = useDraggable(panelRef, {
   handle: handleRef,
   initialValue: { x: vw.value - PANEL_W, y: 80 },
   preventDefault: true,
@@ -43,7 +43,8 @@ const { x, y, isDragging, style } = useDraggable(panelRef, {
 })
 
 const panelStyle = computed(() => ({
-  ...style.value,
+  left: `${x.value}px`,
+  top: `${y.value}px`,
   position: 'fixed',
   width: dockedEdge.value === 'bottom' ? '100%' : `${PANEL_W}px`,
   height: dockedEdge.value === 'bottom' ? `${BOTTOM_H}px` : 'auto',
