@@ -13,6 +13,7 @@ const projectId = route.params.id as string
 const dailyData = ref<DailyRow[]>([])
 const monthlyData = ref<MonthlyRow[]>([])
 const selectedMonth = ref<string | null>(null)
+const projectName = ref<string>(projectId)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
@@ -29,7 +30,7 @@ const tooltip = ref({
 })
 
 const chartWidth = ref(1024)
-const chartHeight = ref(480)
+const chartHeight = ref(560)
 
 const availableMonths = computed(() => Array.from(new Set(monthlyData.value.map(m => m.yearMonth))).sort())
 
@@ -56,7 +57,7 @@ const totalCommitsToDate = computed(() => {
 })
 
 // Observe container resize (debounced by browser, no manual listener cleanup)
-useResizeObserver(graphContainerRef, (entries) => {
+useResizeObserver(graphContainerRef, (entries: any[]) => {
   const entry = entries[0]
   if (entry) {
     const { width } = entry.contentRect
@@ -74,7 +75,7 @@ onMounted(async () => {
     dailyData.value = daily
     monthlyData.value = monthly
     if (availableMonths.value.length > 0) {
-      selectedMonth.value = availableMonths.value[availableMonths.value.length - 1]
+      selectedMonth.value = availableMonths.value[availableMonths.value.length - 1] ?? null
     }
   }
   catch {
@@ -95,98 +96,117 @@ function handleExport() {
 }
 
 function onHover(event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number } | null) {
-  if (!payload) {
+  if (!payload || !graphContainerRef.value) {
     tooltip.value.visible = false
     return
   }
+  // Position relative to the graph container
+  const rect = graphContainerRef.value.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // Keep tooltip inside container bounds
+  const tipW = 180
+  const tipH = 120
+  const finalX = x + tipW + 16 > rect.width ? x - tipW - 8 : x + 16
+  const finalY = y + tipH + 16 > rect.height ? y - tipH - 8 : y + 16
+
   tooltip.value.visible = true
+  tooltip.value.x = finalX
+  tooltip.value.y = finalY
   tooltip.value.contributor = payload.contributor
   tooltip.value.date = payload.date
   tooltip.value.commits = payload.commits
   tooltip.value.linesAdded = payload.linesAdded
   tooltip.value.linesDeleted = payload.linesDeleted
   tooltip.value.filesTouched = payload.filesTouched
-  tooltip.value.x = event.clientX + 12
-  tooltip.value.y = event.clientY + 12
 }
 </script>
 
 <template>
-  <div class="p-6 lg:p-10 max-w-7xl mx-auto">
-    <h1 class="text-2xl font-semibold mb-6">
-      Project {{ projectId }}
-    </h1>
+  <div class="min-h-screen bg-white">
+    <div class="max-w-7xl mx-auto px-6 lg:px-10 py-8">
+      <!-- Header -->
+      <header class="mb-6">
+        <h1 class="text-xl font-semibold text-slate-900 tracking-tight">
+          {{ projectName }}
+        </h1>
+      </header>
 
-    <div v-if="loading" class="text-slate-400">
-      Loading...
-    </div>
-
-    <div
-      v-else-if="error"
-      class="rounded-lg border border-red-900/50 bg-red-950/30 p-4 text-red-200"
-    >
-      {{ error }}
-    </div>
-
-    <div v-else-if="dailyData.length === 0" class="text-center py-16">
-      <h2 class="text-xl font-semibold text-slate-200 mb-2">
-        No data available yet
-      </h2>
-      <p class="text-slate-400">
-        Run the CLI analyzer on a repository to see the Streamgraph here.
-      </p>
-    </div>
-
-    <div v-else>
-      <div class="flex items-center gap-4 mb-4">
-        <MonthSelector
-          v-model="selectedMonth"
-          :months="availableMonths"
-        />
-        <UButton
-          color="primary"
-          variant="solid"
-          @click="selectedMonth = null"
-        >
-          Show All History
-        </UButton>
+      <div v-if="loading" class="text-slate-400 text-sm">
+        Loading...
       </div>
 
       <div
-        ref="graphContainerRef"
-        class="relative w-full h-[520px] bg-slate-900 rounded-lg overflow-hidden border border-slate-800"
+        v-else-if="error"
+        class="rounded-md border border-red-200 bg-red-50 p-4 text-red-700 text-sm"
       >
-        <Streamgraph
-          ref="streamgraphRef"
-          :data="dailyData"
-          :width="chartWidth"
-          :height="chartHeight"
-          :selected-month="selectedMonth"
-          @update:selected-month="selectedMonth = $event"
-          @hover="onHover"
-        />
-        <StreamgraphTooltip
-          :visible="tooltip.visible"
-          :x="tooltip.x"
-          :y="tooltip.y"
-          :contributor="tooltip.contributor"
-          :date="tooltip.date"
-          :commits="tooltip.commits"
-          :lines-added="tooltip.linesAdded"
-          :lines-deleted="tooltip.linesDeleted"
-          :files-touched="tooltip.filesTouched"
-        />
+        {{ error }}
       </div>
 
-      <MonthDetailPanel
-        v-model:selected-month="selectedMonth"
-        :available-months="availableMonths"
-        :contributors="panelContributors"
-        :commits-this-month="commitsThisMonth"
-        :total-commits-to-date="totalCommitsToDate"
-        :has-data="hasData"
-        @export="handleExport"
-      />
+      <div v-else-if="dailyData.length === 0" class="text-center py-16">
+        <h2 class="text-lg font-medium text-slate-700 mb-2">
+          No data available yet
+        </h2>
+        <p class="text-slate-400 text-sm">
+          Run the CLI analyzer on a repository to see the Streamgraph here.
+        </p>
+      </div>
+
+      <div v-else>
+        <!-- Controls row -->
+        <div class="flex items-center gap-3 mb-4">
+          <MonthSelector
+            v-model="selectedMonth"
+            :months="availableMonths"
+          />
+          <button
+            class="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+            @click="selectedMonth = null"
+          >
+            Show All History
+          </button>
+        </div>
+
+        <!-- Chart -->
+        <div
+          ref="graphContainerRef"
+          class="relative w-full border border-slate-200 rounded-md overflow-hidden bg-white"
+          :style="{ height: `${chartHeight}px` }"
+        >
+          <Streamgraph
+            ref="streamgraphRef"
+            :data="dailyData"
+            :width="chartWidth"
+            :height="chartHeight"
+            :selected-month="selectedMonth"
+            @update:selected-month="selectedMonth = $event"
+            @hover="onHover"
+          />
+          <StreamgraphTooltip
+            :visible="tooltip.visible"
+            :x="tooltip.x"
+            :y="tooltip.y"
+            :contributor="tooltip.contributor"
+            :date="tooltip.date"
+            :commits="tooltip.commits"
+            :lines-added="tooltip.linesAdded"
+            :lines-deleted="tooltip.linesDeleted"
+            :files-touched="tooltip.filesTouched"
+          />
+        </div>
+
+        <!-- Detail panel -->
+        <MonthDetailPanel
+          v-model:selected-month="selectedMonth"
+          :available-months="availableMonths"
+          :contributors="panelContributors"
+          :commits-this-month="commitsThisMonth"
+          :total-commits-to-date="totalCommitsToDate"
+          :has-data="hasData"
+          @export="handleExport"
+        />
+      </div>
     </div>
   </div>
 </template>

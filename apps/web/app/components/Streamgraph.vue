@@ -29,17 +29,17 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:selectedMonth', value: string | null): void
-  (e: 'hover', value: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number } | null): void
+  (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number } | null): void
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
 
-const marginTop = 20
-const marginRight = 30
-const marginBottom = 50
-const marginLeft = 50
-const brushHeight = 60
-const brushGap = 20
+const marginTop = 24
+const marginRight = 24
+const marginBottom = 24
+const marginLeft = 48
+const brushHeight = 50
+const brushGap = 16
 
 const contributors = computed(() => {
   const set = new Set<string>()
@@ -92,6 +92,14 @@ let brushBehavior: D3BrushXBehavior | null = null
 let areaGenerator: D3AreaGenerator | null = null
 let monthHighlight: SVGRectElement | null = null
 let isProgrammaticZoom = false
+
+/** Light theme axis colors */
+const AXIS_COLOR = '#94a3b8' // slate-400
+const TICK_COLOR = '#475569' // slate-600
+const GRID_COLOR = '#e2e8f0' // slate-200
+const HIGHLIGHT_COLOR = 'rgba(59,130,246,0.12)'
+const BRUSH_BG = '#f1f5f9' // slate-100
+const BRUSH_STROKE = '#cbd5e1' // slate-300
 
 function render() {
   if (!chartRef.value || !props.width || !props.height)
@@ -147,10 +155,30 @@ function render() {
   const gChartSel = svg.append('g')
     .attr('clip-path', 'url(#clip)')
 
+  // light background for chart area
+  gChartSel.append('rect')
+    .attr('x', marginLeft)
+    .attr('y', marginTop)
+    .attr('width', chartWidth)
+    .attr('height', chartHeight)
+    .attr('fill', '#ffffff')
+
+  // horizontal grid lines
+  const yTicks = yScale.ticks(5)
+  for (const tick of yTicks) {
+    gChartSel.append('line')
+      .attr('x1', marginLeft)
+      .attr('x2', marginLeft + chartWidth)
+      .attr('y1', yScale(tick))
+      .attr('y2', yScale(tick))
+      .attr('stroke', GRID_COLOR)
+      .attr('stroke-width', 0.5)
+  }
+
   // month highlight overlay
   const highlightSel = gChartSel.append('rect')
     .attr('class', 'month-highlight')
-    .attr('fill', 'rgba(59,130,246,0.15)')
+    .attr('fill', HIGHLIGHT_COLOR)
     .attr('y', marginTop)
     .attr('height', chartHeight)
     .style('display', 'none')
@@ -162,14 +190,35 @@ function render() {
     .attr('transform', `translate(0,${marginTop + chartHeight})`)
   gXAxis = gXAxisSel.node() as SVGGElement
 
-  const gYAxisSel = svg.append('g')
+  svg.append('g')
     .attr('transform', `translate(${marginLeft},${marginTop})`)
+    .call(
+      axisLeft(yScale)
+        .ticks(5)
+        .tickSize(-chartWidth)
+        .tickFormat(() => ''),
+    )
+    .call(g => g.select('.domain').remove())
+    .call(g => g.selectAll('.tick line').attr('stroke', GRID_COLOR).attr('stroke-width', 0.5))
 
   const xAxis = axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80)))
-  const yAxis = axisLeft(yScale).ticks(5)
 
   gXAxisSel.call(xAxis)
-  gYAxisSel.call(yAxis)
+  // style axis for light theme
+  gXAxisSel.call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
+  gXAxisSel.call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
+  gXAxisSel.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+
+  // left y-axis labels
+  const gYAxisLabels = svg.append('g')
+    .attr('transform', `translate(${marginLeft},${marginTop})`)
+  gYAxisLabels.call(
+    axisLeft(yScale)
+      .ticks(5)
+      .tickSize(0),
+  )
+  gYAxisLabels.call(g => g.select('.domain').remove())
+  gYAxisLabels.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
 
   // layers
   const layers = gChartSel.selectAll('path.layer')
@@ -178,7 +227,7 @@ function render() {
     .attr('class', 'layer')
     .attr('fill', (d: any) => colorMap.value.get(d.key) || '#999')
     .attr('d', areaGenerator)
-    .style('cursor', 'pointer')
+    .style('cursor', 'crosshair')
 
   // pointer events for hover — O(1) lookup via dataLookup
   const lookup = dataLookup.value
@@ -212,7 +261,7 @@ function render() {
       }
 
       if (row) {
-        emit('hover', {
+        emit('hover', event, {
           contributor: row.contributor,
           date: row.date,
           commits: row.commits,
@@ -222,8 +271,8 @@ function render() {
         })
       }
     })
-    .on('pointerleave', () => {
-      emit('hover', null)
+    .on('pointerleave', (event: PointerEvent) => {
+      emit('hover', event, null)
     })
 
   // zoom behavior
@@ -238,6 +287,9 @@ function render() {
       const newX = event.transform.rescaleX(currentXBase)
       xScale!.domain(newX.domain())
       select(gXAxis!).call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
+      select(gXAxis!).call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
+      select(gXAxis!).call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
+      select(gXAxis!).call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
       layers.attr('d', areaGenerator)
       updateMonthHighlight()
       if (brushGroup && brushBehavior && !isProgrammaticZoom) {
@@ -248,6 +300,8 @@ function render() {
     })
 
   svg.call(zoomBehavior)
+    // prevent scroll-to-zoom on the page
+    .on('wheel.zoom', null)
 
   // brush navigator
   brushBehavior = d3BrushX()
@@ -264,12 +318,20 @@ function render() {
     })
 
   const gBrushGroupSel = svg.append('g')
-    .attr('transform', `translate(0, ${props.height - marginBottom - brushHeight + brushGap})`)
+    .attr('transform', `translate(0, ${props.height - brushHeight})`)
+
+  // brush background
+  gBrushGroupSel.append('rect')
+    .attr('x', marginLeft)
+    .attr('width', chartWidth)
+    .attr('height', brushHeight)
+    .attr('fill', BRUSH_BG)
+    .attr('rx', 4)
 
   // mini chart for brush background
   const yBrush = scaleLinear()
     .domain(yDomain.value)
-    .range([brushHeight - 1, 1])
+    .range([brushHeight - 2, 2])
 
   const brushArea = d3Area<any>()
     .curve(curveBasis)
@@ -285,11 +347,24 @@ function render() {
     .attr('opacity', 0.4)
     .attr('d', brushArea)
 
+  // separator line between chart and brush
+  gBrushGroupSel.append('line')
+    .attr('x1', marginLeft)
+    .attr('x2', marginLeft + chartWidth)
+    .attr('y1', -brushGap / 2)
+    .attr('y2', -brushGap / 2)
+    .attr('stroke', GRID_COLOR)
+    .attr('stroke-width', 1)
+
   const brushGroupSel = gBrushGroupSel.append('g')
     .attr('class', 'brush')
     .call(brushBehavior)
     .call(brushBehavior.move, currentXBase.range())
   brushGroup = brushGroupSel.node() as SVGGElement
+
+  // style brush handles for light theme
+  brushGroupSel.selectAll('.selection').attr('fill', 'rgba(59,130,246,0.1)').attr('stroke', BRUSH_STROKE)
+  brushGroupSel.selectAll('.handle').attr('fill', '#94a3b8').attr('rx', 2)
 
   updateMonthHighlight()
 }
@@ -323,6 +398,31 @@ function updateMonthHighlight() {
   }
 }
 
+function zoomToMonth(month: string | null) {
+  if (!zoomBehavior || !xBase || !svgNode)
+    return
+
+  if (!month) {
+    // Reset to full range
+    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    return
+  }
+
+  const start = new Date(`${month}-01T00:00:00Z`)
+  const end = new Date(start)
+  end.setUTCMonth(end.getUTCMonth() + 1)
+
+  const [xMin, xMax] = xBase.range()
+  const chartWidth = xMax - xMin
+  const k = chartWidth / (xBase(end) - xBase(start))
+  const tx = xMin - xBase(start) * k
+
+  select(svgNode).call(
+    zoomBehavior.transform,
+    zoomIdentity.translate(tx, 0).scale(k),
+  )
+}
+
 watch([() => props.width, () => props.height], () => {
   render()
 })
@@ -332,7 +432,7 @@ watch(() => props.data, () => {
 }, { deep: true })
 
 watch(() => props.selectedMonth, () => {
-  updateMonthHighlight()
+  zoomToMonth(props.selectedMonth)
 })
 
 onMounted(() => {
