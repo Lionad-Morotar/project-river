@@ -1,14 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: MVP
-status: v1.0 milestone complete
-last_updated: "2026-04-09T13:55:00.000Z"
+milestone_name: milestone
+status: verifying
+last_updated: "2026-04-15T09:04:48.186Z"
+last_activity: 2026-04-15
 progress:
-  total_phases: 9
-  completed_phases: 9
-  total_plans: 28
-  completed_plans: 28
+  total_phases: 1
+  completed_phases: 1
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # STATE
@@ -18,30 +19,29 @@ progress:
 **Name**: project-river
 **Core Value**: Make Git repository evolution visceral and explorable through an interactive Streamgraph visualization.
 
-**Current Focus**: Planning next milestone
-**Milestone**: v1.0 MVP (complete)
+**Current Focus**: Milestone v1.1 — 服务端聚合与颜色算法重构
+**Milestone**: v1.1 可视化增强
 **Mode**: interactive
 
 ## Current Position
 
-All v1.0 phases completed. Milestone archived to `.planning/milestones/`.
+Phase: 09 (aggregated-streamgraph-contributor-color-rework) — EXECUTING
+Plan: 2 of 2
+Status: Phase complete — ready for verification
+Last activity: 2026-04-15
 
-| Field | Value |
-|-------|-------|
-| Phase | Complete |
-| Plan | Complete |
-| Status | v1.0 milestone complete |
-
-**Progress Bar**: `[████████████████████] 100%`
+**Progress Bar**: `[░░░░░░░░░░░░░░░░░░░░] 0%`
 
 ## Performance Metrics
 
 | Metric | Value |
 |--------|-------|
-| Phases completed | 9 / 9 |
-| Requirements delivered | 15 / 15 |
-| Success criteria met | All |
+| Phases completed | 0 / 1 |
+| Requirements delivered | 0 / 6 |
+| Success criteria met | — |
 | Blockers | 0 |
+| Phase 09 P01 | 4 | 1 tasks | 2 files |
+| Phase 09-aggregated-streamgraph-contributor-color-rework P02 | 590 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -55,6 +55,11 @@ All v1.0 phases completed. Milestone archived to `.planning/milestones/`.
 - **Frontend bootstrap**: Use `npm create nuxt@latest` template for `apps/web`.
 - **Vitest workspace**: Root `vitest.workspace.ts` required for monorepo test orchestration.
 - **Workspace dependencies**: Explicit `workspace:*` declarations required for production build safety.
+- [Phase 09]: Top 49 contributors determined by total commits across the date range, tie-broken by contributor name ascending.
+- [Phase 09]: Others layer sums all tail contributors metrics including cumulativeCommits.
+- [Phase 09-aggregated-streamgraph-contributor-color-rework]: Hue maps firstCommitDate linearly from 160° (oldest) to 280° (newest)
+- [Phase 09-aggregated-streamgraph-contributor-color-rework]: Saturation uses log10 scaling against maxCommits for better visual separation (15%–75%)
+- [Phase 09-aggregated-streamgraph-contributor-color-rework]: useStreamgraphData retained as thin passthrough for backward compatibility
 
 ### TODOs
 
@@ -62,8 +67,8 @@ All v1.0 phases completed. Milestone archived to `.planning/milestones/`.
 
 ### Roadmap Evolution
 
-- Phase 07.1 inserted after Phase 7: QA review and auto-fix for cross-cutting issues.
 - v1.0 milestone completed and archived on 2026-04-09.
+- v1.1 milestone started on 2026-04-15, focusing on aggregated daily API and contributor color rework.
 
 ### Blockers
 
@@ -71,5 +76,5 @@ All v1.0 phases completed. Milestone archived to `.planning/milestones/`.
 
 ## Session Continuity
 
-**Last action**: Completed v1.0 milestone lifecycle (audit → complete → tag)
-**Next expected action**: `/gsd:new-milestone` to begin v1.1 or v2.0 planning
+**Last action**: Phase 9 planning complete — 2 plans verified
+**Next expected action**: `/gsd:execute-phase 9`
