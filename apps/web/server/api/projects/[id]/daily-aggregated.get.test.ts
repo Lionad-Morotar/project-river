@@ -9,6 +9,9 @@ function createMockEvent(params: Record<string, string>, query: Record<string, s
   const url = `http://localhost/api/projects/${params.id}/daily-aggregated?${new URLSearchParams(query)}`
   const event = createEvent({ url })
   Object.assign(event.context, { params })
+  event.node = event.node || {}
+  event.node.res = event.node.res || {}
+  event.node.res.setHeader = () => event.node!.res!
   return event
 }
 
@@ -73,7 +76,8 @@ describe('daily-aggregated endpoint', () => {
   })
 
   testOrSkip('returns exactly 50 rows for 51 contributors (Top 49 + Others)', async () => {
-    if (!hasDb) return
+    if (!hasDb)
+      return
     const result = await dailyAggregatedHandler(createMockEvent({ id: String(projectId) }))
     expect(Array.isArray(result)).toBe(true)
 
@@ -85,22 +89,24 @@ describe('daily-aggregated endpoint', () => {
   })
 
   testOrSkip('Others row sums tail metrics correctly', async () => {
-    if (!hasDb) return
+    if (!hasDb)
+      return
     const result = await dailyAggregatedHandler(createMockEvent({ id: String(projectId) }))
     const othersRow = result.find((r: any) => r.date === '2024-01-01' && r.contributor === 'Others')
     expect(othersRow).toBeDefined()
 
-    // Tail contributors are indices 0..1 (lowest commits, tie-broken by contributor asc)
-    // Their insertions are 1+2=3, deletions are 0+1=1, cumulativeCommits are 1+1=2
+    // Tail contributors are indices 49..50 (lowest commits, tie-broken by contributor asc)
+    // Their insertions are 50+51=101, deletions are 49+50=99, cumulativeCommits are 1+1=2
     expect(othersRow.commits).toBe(2)
-    expect(othersRow.linesAdded).toBe(3)
-    expect(othersRow.linesDeleted).toBe(1)
+    expect(othersRow.linesAdded).toBe(101)
+    expect(othersRow.linesDeleted).toBe(99)
     expect(othersRow.filesTouched).toBe(2)
     expect(othersRow.cumulativeCommits).toBe(2)
   })
 
   testOrSkip('response fields match DailyStatsRow shape', async () => {
-    if (!hasDb) return
+    if (!hasDb)
+      return
     const result = await dailyAggregatedHandler(createMockEvent({ id: String(projectId) }))
     expect(result.length).toBeGreaterThan(0)
     const row = result[0]

@@ -9,6 +9,9 @@ function createMockEvent(params: Record<string, string>, query: Record<string, s
   const url = `http://localhost/api/projects/${params.id}/daily?${new URLSearchParams(query)}`
   const event = createEvent({ url })
   Object.assign(event.context, { params })
+  event.node = event.node || {}
+  event.node.res = event.node.res || {}
+  event.node.res.setHeader = () => event.node!.res!
   return event
 }
 

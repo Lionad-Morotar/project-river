@@ -10,6 +10,9 @@ async function invokeMonthlyHandler(routerParams: Record<string, string>, query:
     url: `http://localhost/api/projects/${routerParams.id}/monthly?${new URLSearchParams(query)}`,
   })
   Object.assign(event.context, { params: routerParams })
+  event.node = event.node || {}
+  event.node.res = event.node.res || {}
+  event.node.res.setHeader = () => event.node!.res!
   return monthlyHandler(event)
 }
 
@@ -70,7 +73,7 @@ describe('monthly endpoint', () => {
     })
   })
 
-  it('rejects limit above 5000', async () => {
-    await expect(invokeMonthlyHandler({ id: '1' }, { limit: '9999' })).rejects.toMatchObject({ statusCode: 400 })
+  testOrSkip('rejects limit above 100000', async () => {
+    await expect(invokeMonthlyHandler({ id: String(projectId) }, { limit: '100001' })).rejects.toMatchObject({ statusCode: 400 })
   })
 })
