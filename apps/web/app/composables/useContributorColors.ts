@@ -1,47 +1,64 @@
 import { OTHERS_LABEL } from './useStreamgraphData'
 
 /**
- * Contributor color generator — monochromatic blue palette.
+ * Contributor color generator — HSL mapped by contributor age and volume.
  *
- * All contributors share the same hue family (blue, ~210°) and are
- * distinguished by lightness variation.  Golden-ratio spacing over
- * the lightness domain ensures adjacent layers stay visually separable
- * even after D3's stackOrderInsideOut reordering.
- *
- * The narrow hue range (210–230) adds subtle warmth variation without
- * breaking the cohesive blue identity.
+ * Hue is driven by first commit date (older = cooler/lower hue, newer = warmer/higher hue).
+ * Saturation is driven by total contribution volume (low = near-neutral, high = vivid).
+ * Lightness is fixed for readability against the light background.
  */
 
-/** Fibonacci golden ratio — distributes points maximally in [0,1) */
-const PHI = 0.618033988749895
-
-const HUE_BASE = 215
-const HUE_RANGE = 15 // 215–230
-const SAT_MIN = 45
-const SAT_RANGE = 25 // 45–70%
-const LIGHT_MIN = 30
-const LIGHT_RANGE = 42 // 30–72%
-
-export function getContributorColor(index: number): string {
-  const t = (index * PHI) % 1
-  const hue = HUE_BASE + (t * HUE_RANGE)
-  const sat = SAT_MIN + (1 - t) * SAT_RANGE
-  const light = LIGHT_MIN + t * LIGHT_RANGE
-  return `hsl(${Math.round(hue)}, ${Math.round(sat)}%, ${Math.round(light)}%)`
+export interface ContributorMeta {
+  name: string
+  firstCommitDate: string // ISO date, e.g. '2024-01-01'
+  totalCommits: number
 }
 
 const OTHERS_COLOR = '#94a3b8' // slate-400
 
-export function useContributorColors(contributors: string[]): Map<string, string> {
-  const unique = Array.from(new Set(contributors)).sort()
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value))
+}
+
+export function getContributorHsl(
+  meta: ContributorMeta,
+  bounds: { minDate: string, maxDate: string },
+  maxCommits: number,
+): string {
+  const minTime = new Date(bounds.minDate).getTime()
+  const maxTime = new Date(bounds.maxDate).getTime()
+  const dateSpan = maxTime - minTime || 1
+
+  const tDate = clamp((new Date(meta.firstCommitDate).getTime() - minTime) / dateSpan, 0, 1)
+  const hue = 160 + tDate * 120
+
+  const denominator = Math.log10(maxCommits + 1) || 1
+  const tVolume = clamp(Math.log10(meta.totalCommits + 1) / denominator, 0, 1)
+  const saturation = 15 + tVolume * 60
+
+  return `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, 55%)`
+}
+
+export function useContributorColors(contributors: ContributorMeta[]): Map<string, string> {
+  if (contributors.length === 0) {
+    return new Map<string, string>()
+  }
+
+  const minDate = contributors.reduce((min, c) => c.firstCommitDate < min ? c.firstCommitDate : min, contributors[0]!.firstCommitDate)
+  const maxDate = contributors.reduce((max, c) => c.firstCommitDate > max ? c.firstCommitDate : max, contributors[0]!.firstCommitDate)
+  const maxCommits = contributors.reduce((max, c) => Math.max(max, c.totalCommits), 0)
+
+  const bounds = { minDate, maxDate }
+  const unique = Array.from(new Map(contributors.map(c => [c.name, c])).values())
+    .sort((a, b) => a.name.localeCompare(b.name))
+
   const map = new Map<string, string>()
-  for (let i = 0; i < unique.length; i++) {
-    const name = unique[i]!
-    if (name === OTHERS_LABEL) {
-      map.set(name, OTHERS_COLOR)
+  for (const meta of unique) {
+    if (meta.name === OTHERS_LABEL) {
+      map.set(meta.name, OTHERS_COLOR)
     }
     else {
-      map.set(name, getContributorColor(i))
+      map.set(meta.name, getContributorHsl(meta, bounds, maxCommits))
     }
   }
   return map
