@@ -20,7 +20,11 @@ describe('svgExport', () => {
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
     svg.appendChild(rect)
 
-    const result = serializeSvgWithLegend(svg, ['alice', 'bob'])
+    const colorMap = new Map<string, string>([
+      ['alice', 'hsl(160, 75%, 55%)'],
+      ['bob', 'hsl(220, 45%, 55%)'],
+    ])
+    const result = serializeSvgWithLegend(svg, ['alice', 'bob'], colorMap)
 
     expect(result).toContain('<style>')
     expect(result).toContain('font-family: Inter, ui-sans-serif, system-ui, sans-serif')
@@ -31,7 +35,7 @@ describe('svgExport', () => {
     createObjectURL.mockClear()
     clickSpy.mockClear()
 
-    expect(() => downloadStreamgraphSvg(null, 'test.svg', [])).not.toThrow()
+    expect(() => downloadStreamgraphSvg(null, 'test.svg', [], new Map())).not.toThrow()
     expect(createObjectURL).not.toHaveBeenCalled()
     expect(clickSpy).not.toHaveBeenCalled()
   })
