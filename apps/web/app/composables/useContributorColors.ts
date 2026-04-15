@@ -1,3 +1,5 @@
+import { OTHERS_LABEL } from './useStreamgraphData'
+
 /**
  * Contributor color generator — monochromatic blue palette.
  *
@@ -28,11 +30,19 @@ export function getContributorColor(index: number): string {
   return `hsl(${Math.round(hue)}, ${Math.round(sat)}%, ${Math.round(light)}%)`
 }
 
+const OTHERS_COLOR = '#94a3b8' // slate-400
+
 export function useContributorColors(contributors: string[]): Map<string, string> {
   const unique = Array.from(new Set(contributors)).sort()
   const map = new Map<string, string>()
   for (let i = 0; i < unique.length; i++) {
-    map.set(unique[i], getContributorColor(i))
+    const name = unique[i]!
+    if (name === OTHERS_LABEL) {
+      map.set(name, OTHERS_COLOR)
+    }
+    else {
+      map.set(name, getContributorColor(i))
+    }
   }
   return map
 }

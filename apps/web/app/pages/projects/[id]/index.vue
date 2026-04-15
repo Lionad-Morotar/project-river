@@ -4,6 +4,7 @@ import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import { useResizeObserver } from '@vueuse/core'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
 import { useContributorColors } from '~/composables/useContributorColors'
+import { useStreamgraphData } from '~/composables/useStreamgraphData'
 import { getMonthContributors, getMonthCumulative } from '~/utils/monthDetailHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
 
@@ -37,7 +38,8 @@ const availableMonths = computed(() => Array.from(new Set(monthlyData.value.map(
 const graphContainerRef = ref<HTMLDivElement | null>(null)
 const streamgraphRef = ref<{ getSvg: () => SVGSVGElement | null } | null>(null)
 
-const colorMap = computed(() => useContributorColors(Array.from(new Set(dailyData.value.map(d => d.contributor))).sort()))
+const streamgraphData = computed(() => useStreamgraphData(dailyData.value).filteredRows)
+const colorMap = computed(() => useContributorColors(Array.from(new Set(streamgraphData.value.map((d: DailyRow) => d.contributor))).sort()))
 const hasData = computed(() => dailyData.value.length > 0)
 const panelContributors = computed(() => {
   if (!selectedMonth.value)
@@ -87,7 +89,7 @@ onMounted(async () => {
 })
 
 function handleExport() {
-  const contributors = Array.from(new Set(dailyData.value.map(d => d.contributor))).sort()
+  const contributors = Array.from(new Set(streamgraphData.value.map((d: DailyRow) => d.contributor))).sort()
   downloadStreamgraphSvg(
     streamgraphRef.value?.getSvg?.() ?? null,
     `project-${projectId}-streamgraph.svg`,
@@ -176,7 +178,7 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
         >
           <Streamgraph
             ref="streamgraphRef"
-            :data="dailyData"
+            :data="streamgraphData"
             :width="chartWidth"
             :height="chartHeight"
             :selected-month="selectedMonth"
