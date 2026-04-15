@@ -1,8 +1,7 @@
-import { useContributorColors } from '../composables/useContributorColors'
-
 export function serializeSvgWithLegend(
   svgNode: SVGSVGElement,
   contributors: string[],
+  colorMap: Map<string, string>,
 ): string {
   const clone = svgNode.cloneNode(true) as SVGSVGElement
 
@@ -15,7 +14,6 @@ export function serializeSvgWithLegend(
   clone.prepend(style)
 
   // Build legend
-  const colorMap = useContributorColors(contributors)
   const topContributors = contributors.slice(0, 10)
   const moreCount = contributors.length - topContributors.length
 
@@ -78,13 +76,14 @@ export function downloadStreamgraphSvg(
   svgNode: SVGSVGElement | null,
   filename: string,
   contributors: string[],
+  colorMap: Map<string, string>,
 ) {
   if (!svgNode) {
     console.warn('[svgExport] No SVG node available')
     return
   }
 
-  const source = serializeSvgWithLegend(svgNode, contributors)
+  const source = serializeSvgWithLegend(svgNode, contributors, colorMap)
   const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

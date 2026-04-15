@@ -3,7 +3,7 @@ import type { DailyRow } from '~/utils/d3Helpers'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import { useResizeObserver } from '@vueuse/core'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
-import { useContributorColors } from '~/composables/useContributorColors'
+import { useContributorColors, type ContributorMeta } from '~/composables/useContributorColors'
 import { useStreamgraphData } from '~/composables/useStreamgraphData'
 import { getMonthContributors, getMonthCumulative } from '~/utils/monthDetailHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
@@ -39,7 +39,25 @@ const graphContainerRef = ref<HTMLDivElement | null>(null)
 const streamgraphRef = ref<{ getSvg: () => SVGSVGElement | null } | null>(null)
 
 const streamgraphData = computed(() => useStreamgraphData(dailyData.value).filteredRows)
-const colorMap = computed(() => useContributorColors(Array.from(new Set(streamgraphData.value.map((d: DailyRow) => d.contributor))).sort()))
+
+const contributorMetaList = computed<ContributorMeta[]>(() => {
+  const firstDateMap = new Map<string, string>()
+  const totalMap = new Map<string, number>()
+  for (const row of streamgraphData.value) {
+    const existing = firstDateMap.get(row.contributor)
+    if (!existing || row.date < existing) {
+      firstDateMap.set(row.contributor, row.date)
+    }
+    totalMap.set(row.contributor, (totalMap.get(row.contributor) || 0) + row.commits)
+  }
+  const result: ContributorMeta[] = []
+  for (const [name, firstCommitDate] of firstDateMap) {
+    result.push({ name, firstCommitDate, totalCommits: totalMap.get(name) || 0 })
+  }
+  return result
+})
+
+const colorMap = computed(() => useContributorColors(contributorMetaList.value))
 const hasData = computed(() => dailyData.value.length > 0)
 const panelContributors = computed(() => {
   if (!selectedMonth.value)
@@ -71,7 +89,7 @@ useResizeObserver(graphContainerRef, (entries: any[]) => {
 onMounted(async () => {
   try {
     const [daily, monthly] = await Promise.all([
-      $fetch<DailyRow[]>(`/api/projects/${projectId}/daily`),
+      $fetch<DailyRow[]>(`/api/projects/${projectId}/daily-aggregated`),
       $fetch<MonthlyRow[]>(`/api/projects/${projectId}/monthly`),
     ])
     dailyData.value = daily
@@ -94,6 +112,7 @@ function handleExport() {
     streamgraphRef.value?.getSvg?.() ?? null,
     `project-${projectId}-streamgraph.svg`,
     contributors,
+    colorMap.value,
   )
 }
 
@@ -182,6 +201,7 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
             :width="chartWidth"
             :height="chartHeight"
             :selected-month="selectedMonth"
+            :colors="colorMap"
             @update:selected-month="selectedMonth = $event"
             @hover="onHover"
           />

@@ -8,7 +8,6 @@ import { pointer as d3Pointer, select } from 'd3-selection'
 import { curveBasis, area as d3Area } from 'd3-shape'
 import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useContributorColors } from '~/composables/useContributorColors'
 import { buildStack, pivotDailyData } from '~/utils/d3Helpers'
 
 /** Type aliases for D3 internals (sub-packages lack built-in .d.ts) */
@@ -23,6 +22,7 @@ interface Props {
   width: number
   height: number
   selectedMonth: string | null
+  colors: Map<string, string>
 }
 
 const props = defineProps<Props>()
@@ -48,8 +48,6 @@ const contributors = computed(() => {
   }
   return Array.from(set).sort()
 })
-
-const colorMap = computed(() => useContributorColors(contributors.value))
 
 const pivotedData = computed(() => {
   return pivotDailyData(props.data)
@@ -225,7 +223,7 @@ function render() {
     .data(series.value)
     .join('path')
     .attr('class', 'layer')
-    .attr('fill', (d: any) => colorMap.value.get(d.key) || '#999')
+    .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
     .attr('d', areaGenerator)
     .style('cursor', 'crosshair')
 
@@ -343,7 +341,7 @@ function render() {
     .data(series.value)
     .join('path')
     .attr('class', 'brush-layer')
-    .attr('fill', (d: any) => colorMap.value.get(d.key) || '#999')
+    .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
     .attr('opacity', 0.4)
     .attr('d', brushArea)
 
