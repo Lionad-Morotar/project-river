@@ -51,6 +51,12 @@ Developers, maintainers, and project leads who want an intuitive, time-based ove
 
 ### Active
 
+- [x] **API-03**: 新增 `GET /api/projects/:id/daily-aggregated` 聚合接口 (Top 49 + Others) — v1.1
+- [x] **API-04**: 聚合接口保持与原 daily 接口一致的字段结构和零填充行为 — v1.1
+- [x] **VIZ-01**: 贡献者颜色算法基于时间跨度和总贡献量映射 — v1.1
+- [x] **VIZ-02**: 色相范围以蓝色为中心向两侧 ±60° 展开 — v1.1
+- [x] **VIZ-03**: 饱和度从高贡献向中性灰渐变 — v1.1
+- [x] **VIZ-04**: 前端 Streamgraph 组件消费新聚合接口 — v1.1
 - [ ] **V2-01**: Multi-repository comparison view
 - [ ] **V2-02**: Real-time/live background updates to analysis
 - [ ] **V2-03**: User authentication and multi-tenancy
