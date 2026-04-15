@@ -1,7 +1,7 @@
 import type { DailyStatsRow } from '../../../utils/projectStats'
 import { db } from '@project-river/db/client'
 import { sql } from 'drizzle-orm'
-import { createError, defineEventHandler, getRouterParam, getValidatedQuery } from 'h3'
+import { createError, defineEventHandler, getRouterParam, getValidatedQuery, setResponseHeader } from 'h3'
 import {
   assertProjectExists,
   buildDailyDateBounds,
@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
     LIMIT ${limit} OFFSET ${offset}
   `)
 
-  return result.rows.map(r => ({
+  const rows = result.rows.map(r => ({
     date: String(r.date),
     contributor: String(r.contributor),
     commits: Number(r.commits),
@@ -65,4 +65,7 @@ export default defineEventHandler(async (event) => {
     filesTouched: Number(r.filesTouched),
     cumulativeCommits: Number(r.cumulativeCommits),
   })) satisfies DailyStatsRow[]
+
+  setResponseHeader(event, 'Cache-Control', 'public, max-age=3600, s-maxage=3600')
+  return rows
 })
