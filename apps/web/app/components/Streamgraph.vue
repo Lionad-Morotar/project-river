@@ -65,7 +65,7 @@ const yDomain = computed(() => {
   return [yMin, yMax] as [number, number]
 })
 
-/** O(1) hover lookup: contributor → date → row */
+/** O(1) hover lookup: contributor -> date -> row */
 const dataLookup = computed(() => {
   const map = new Map<string, Map<string, DailyRow>>()
   for (const row of props.data) {
@@ -79,8 +79,10 @@ const dataLookup = computed(() => {
   return map
 })
 
+// -- Module-level D3 state (persisted across updates) --
+
 let svgNode: SVGSVGElement | null = null
-let gXAxis: SVGGElement | null = null
+let gXAxisEl: SVGGElement | null = null
 let brushGroup: SVGGElement | null = null
 let xBase: D3ScaleUtc | null = null
 let xScale: D3ScaleLinear | null = null
@@ -92,6 +94,15 @@ let monthHighlight: SVGRectElement | null = null
 let isProgrammaticZoom = false
 let brushCleanupFallback: ((e: PointerEvent) => void) | null = null
 
+// D3 selections that persist across updates
+let svgSelection: ReturnType<typeof select> | null = null
+let gChartSelection: ReturnType<typeof select> | null = null
+let gBrushGroupSelection: ReturnType<typeof select> | null = null
+let gYAxisGridSelection: ReturnType<typeof select> | null = null
+let gYAxisLabelsSelection: ReturnType<typeof select> | null = null
+let gXAxisSelection: ReturnType<typeof select> | null = null
+let clipRectSelection: ReturnType<typeof select> | null = null
+
 /** Dark theme axis colors */
 const AXIS_COLOR = '#94a3b8' // slate-400
 const TICK_COLOR = '#94a3b8' // slate-400
@@ -100,7 +111,57 @@ const HIGHLIGHT_COLOR = 'rgba(56,189,248,0.15)'
 const BRUSH_BG = '#0f172a' // slate-900
 const BRUSH_STROKE = '#475569' // slate-600
 
-function render() {
+// -- Hover handlers (extracted so they can be reused in data-join) --
+
+function handleHover(event: PointerEvent, d: any) {
+  event.preventDefault()
+  if (!xScale || !svgSelection)
+    return
+  const contributor = d.key as string
+  const [px] = d3Pointer(event, svgSelection.node())
+  const date = xScale.invert(px)
+  const isoDate = date.toISOString().split('T')[0]
+
+  const lookup = dataLookup.value
+  const dateMap = lookup.get(contributor)
+  if (!dateMap)
+    return
+
+  // O(1) exact match first, then nearest-day fallback
+  let row = dateMap.get(isoDate) ?? null
+  if (!row) {
+    const targetTime = date.getTime()
+    let minDelta = Infinity
+    for (const r of dateMap.values()) {
+      const delta = Math.abs(new Date(r.date).getTime() - targetTime)
+      if (delta < minDelta) {
+        minDelta = delta
+        row = r
+      }
+    }
+    if (minDelta > 86400000)
+      row = null
+  }
+
+  if (row) {
+    emit('hover', event, {
+      contributor: row.contributor,
+      date: row.date,
+      commits: row.commits,
+      linesAdded: row.linesAdded,
+      linesDeleted: row.linesDeleted,
+      filesTouched: row.filesTouched,
+    })
+  }
+}
+
+function handleLeave(event: PointerEvent) {
+  emit('hover', event, null)
+}
+
+// -- SVG skeleton: only runs once per mount / resize --
+
+function initSvg() {
   if (!chartRef.value || !props.width || !props.height)
     return
 
@@ -123,13 +184,14 @@ function render() {
     .attr('viewBox', [0, 0, props.width, props.height])
     .attr('style', 'max-width: 100%; height: auto; user-select: none; -webkit-user-select: none;')
 
-  svgNode = svg.node() as SVGSVGElement | null
+  svgNode = svg.node() as SVGSVGElement
+  svgSelection = svg
 
   const chartWidth = props.width - marginLeft - marginRight
   const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
 
   // defs / clipPath
-  svg.append('defs')
+  const clipRect = svg.append('defs')
     .append('clipPath')
     .attr('id', 'clip')
     .append('rect')
@@ -137,54 +199,26 @@ function render() {
     .attr('y', marginTop)
     .attr('width', chartWidth)
     .attr('height', chartHeight)
+  clipRectSelection = clipRect
 
-  // scales
-  const dateExtent = extent(pivotedData.value, d => d.date) as [Date, Date]
-  xBase = scaleUtc()
-    .domain(dateExtent)
-    .range([marginLeft, props.width - marginRight])
-
-  xScale = xBase.copy() as D3ScaleLinear
-
-  yScale = scaleLinear()
-    .domain(yDomain.value)
-    .range([chartHeight, 0])
-
-  // area generator (computed once per render, reused)
-  const currentXScale = xScale
-  const currentYScale = yScale
-  areaGenerator = d3Area<any>()
-    .curve(curveBasis)
-    .x((d: any) => currentXScale(d.data.date))
-    .y0((d: any) => currentYScale(d[0]))
-    .y1((d: any) => currentYScale(d[1]))
-
-  // groups
-  const gChartSel = svg.append('g')
+  // Chart group (clipped)
+  gChartSelection = svg.append('g')
     .attr('clip-path', 'url(#clip)')
 
-  // dark background for chart area
-  gChartSel.append('rect')
+  // Dark background for chart area (transparent, for pointer events)
+  gChartSelection.append('rect')
+    .attr('class', 'chart-bg')
     .attr('x', marginLeft)
     .attr('y', marginTop)
     .attr('width', chartWidth)
     .attr('height', chartHeight)
     .attr('fill', 'transparent')
 
-  // horizontal grid lines
-  const yTicks = yScale.ticks(5)
-  for (const tick of yTicks) {
-    gChartSel.append('line')
-      .attr('x1', marginLeft)
-      .attr('x2', marginLeft + chartWidth)
-      .attr('y1', yScale(tick))
-      .attr('y2', yScale(tick))
-      .attr('stroke', GRID_COLOR)
-      .attr('stroke-width', 0.5)
-  }
+  // Grid lines container
+  gChartSelection.append('g').attr('class', 'grid-lines')
 
-  // month highlight overlay
-  const highlightSel = gChartSel.append('rect')
+  // Month highlight overlay
+  const highlightSel = gChartSelection.append('rect')
     .attr('class', 'month-highlight')
     .attr('fill', HIGHLIGHT_COLOR)
     .attr('y', marginTop)
@@ -193,212 +227,45 @@ function render() {
     .style('pointer-events', 'none')
   monthHighlight = highlightSel.node() as SVGRectElement
 
-  // axis groups
-  const gXAxisSel = svg.append('g')
+  // Layers container (paths will be added via data-join)
+  gChartSelection.append('g').attr('class', 'layers')
+
+  // X-axis group
+  gXAxisSelection = svg.append('g')
+    .attr('class', 'x-axis')
     .attr('transform', `translate(0,${marginTop + chartHeight})`)
-  gXAxis = gXAxisSel.node() as SVGGElement
+  gXAxisEl = gXAxisSelection.node() as SVGGElement
 
-  svg.append('g')
+  // Y-axis grid (tick lines across chart)
+  gYAxisGridSelection = svg.append('g')
+    .attr('class', 'y-axis-grid')
     .attr('transform', `translate(${marginLeft},${marginTop})`)
-    .call(
-      axisLeft(yScale)
-        .ticks(5)
-        .tickSize(-chartWidth)
-        .tickFormat(() => ''),
-    )
-    .call(g => g.select('.domain').remove())
-    .call(g => g.selectAll('.tick line').attr('stroke', GRID_COLOR).attr('stroke-width', 0.5))
 
-  const xAxis = axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80)))
-
-  gXAxisSel.call(xAxis)
-  // style axis for light theme
-  gXAxisSel.call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
-  gXAxisSel.call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
-  gXAxisSel.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
-
-  // left y-axis labels
-  const gYAxisLabels = svg.append('g')
+  // Y-axis labels
+  gYAxisLabelsSelection = svg.append('g')
+    .attr('class', 'y-axis-labels')
     .attr('transform', `translate(${marginLeft},${marginTop})`)
-  gYAxisLabels.call(
-    axisLeft(yScale)
-      .ticks(5)
-      .tickSize(0),
-  )
-  gYAxisLabels.call(g => g.select('.domain').remove())
-  gYAxisLabels.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
 
-  // layers
-  const layers = gChartSel.selectAll('path.layer')
-    .data(series.value)
-    .join('path')
-    .attr('class', 'layer')
-    .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
-    .attr('d', areaGenerator)
-    .style('cursor', 'crosshair')
-
-  // pointer events for hover — O(1) lookup via dataLookup
-  const lookup = dataLookup.value
-  const currentXScaleForHover = xScale
-  layers
-    .on('pointerenter pointermove', (event: PointerEvent, d: any) => {
-      event.preventDefault()
-      const contributor = d.key as string
-      const [px] = d3Pointer(event, svg.node())
-      const date = currentXScaleForHover.invert(px)
-      const isoDate = date.toISOString().split('T')[0]
-
-      const dateMap = lookup.get(contributor)
-      if (!dateMap)
-        return
-
-      // O(1) exact match first, then nearest-day fallback
-      let row = dateMap.get(isoDate) ?? null
-      if (!row) {
-        const targetTime = date.getTime()
-        let minDelta = Infinity
-        for (const r of dateMap.values()) {
-          const delta = Math.abs(new Date(r.date).getTime() - targetTime)
-          if (delta < minDelta) {
-            minDelta = delta
-            row = r
-          }
-        }
-        if (minDelta > 86400000)
-          row = null
-      }
-
-      if (row) {
-        emit('hover', event, {
-          contributor: row.contributor,
-          date: row.date,
-          commits: row.commits,
-          linesAdded: row.linesAdded,
-          linesDeleted: row.linesDeleted,
-          filesTouched: row.filesTouched,
-        })
-      }
-    })
-    .on('pointerleave', (event: PointerEvent) => {
-      emit('hover', event, null)
-    })
-
-  // zoom behavior
-  const currentXBase = xBase
-  zoomBehavior = d3Zoom()
-    .scaleExtent([1, 50])
-    .extent([[marginLeft, 0], [props.width - marginRight, marginTop + chartHeight]])
-    .translateExtent([[marginLeft, -Infinity], [props.width - marginRight, Infinity]])
-    .on('zoom', (event: any) => {
-      if (event.sourceEvent?.type === 'brush')
-        return
-      const newX = event.transform.rescaleX(currentXBase)
-      xScale!.domain(newX.domain())
-      select(gXAxis!).call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
-      select(gXAxis!).call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
-      select(gXAxis!).call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
-      select(gXAxis!).call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
-      layers.attr('d', areaGenerator)
-      updateMonthHighlight()
-      if (brushGroup && brushBehavior && !isProgrammaticZoom) {
-        isProgrammaticZoom = true
-        select(brushGroup).call(brushBehavior.move, currentXBase.range().map(event.transform.invertX, event.transform))
-        isProgrammaticZoom = false
-      }
-    })
-
-  svg.call(zoomBehavior)
-    // prevent scroll-to-zoom on the page
-    .on('wheel.zoom', null)
-
-  // Restore zoom transform after resize re-render
-  if (savedTransform) {
-    svg.call(zoomBehavior.transform, savedTransform)
-  }
-
-  // brush navigator
-  brushBehavior = d3BrushX()
-    .extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
-    .on('start end', (event: any) => {
-      if (event.type === 'start') {
-        brushCleanupFallback = (_e: PointerEvent) => {
-          // Safety net: if internal brush mouseup was lost (e.g. mouse left window),
-          // force-clear window listeners and restore brush group pointer-events.
-          const bg = brushGroup
-          if (bg) {
-            const pe = bg.getAttribute('pointer-events')
-            if (pe === 'none') {
-              select(window).on('mousemove.brush mouseup.brush', null)
-              select(bg).attr('pointer-events', 'all')
-              select(bg).selectAll('.overlay').attr('cursor', 'crosshair')
-            }
-          }
-          if (brushCleanupFallback) {
-            window.removeEventListener('pointerup', brushCleanupFallback, true)
-            brushCleanupFallback = null
-          }
-        }
-        window.addEventListener('pointerup', brushCleanupFallback, true)
-      }
-      else if (event.type === 'end' && brushCleanupFallback) {
-        window.removeEventListener('pointerup', brushCleanupFallback, true)
-        brushCleanupFallback = null
-      }
-    })
-    .on('brush end', (event: any) => {
-      if (!event.selection || event.sourceEvent?.type === 'zoom' || isProgrammaticZoom)
-        return
-      const [x0, x1] = event.selection.map(currentXBase.invert, currentXBase)
-      const domainSpan = currentXBase.domain()[1].getTime() - currentXBase.domain()[0].getTime()
-      const selectionSpan = x1.getTime() - x0.getTime()
-
-      // Safety guards: avoid degenerate, inverted, or extreme selections
-      if (!Number.isFinite(selectionSpan) || selectionSpan <= 0 || !Number.isFinite(domainSpan))
-        return
-
-      const k = Math.min(50, Math.max(1, domainSpan / selectionSpan))
-      const tx = -currentXBase(x0) * k + marginLeft
-
-      if (!Number.isFinite(k) || !Number.isFinite(tx))
-        return
-
-      isProgrammaticZoom = true
-      svg.call(zoomBehavior!.transform, zoomIdentity.translate(tx, 0).scale(k))
-      isProgrammaticZoom = false
-    })
-
-  const gBrushGroupSel = svg.append('g')
+  // Brush group
+  gBrushGroupSelection = svg.append('g')
+    .attr('class', 'brush-group')
     .attr('transform', `translate(0, ${props.height - brushHeight})`)
 
-  // brush background
-  gBrushGroupSel.append('rect')
+  // Brush background rect
+  gBrushGroupSelection.append('rect')
+    .attr('class', 'brush-bg')
     .attr('x', marginLeft)
     .attr('width', chartWidth)
     .attr('height', brushHeight)
     .attr('fill', BRUSH_BG)
     .attr('rx', 4)
 
-  // mini chart for brush background
-  const yBrush = scaleLinear()
-    .domain(yDomain.value)
-    .range([brushHeight - 2, 2])
+  // Brush mini layers container
+  gBrushGroupSelection.append('g').attr('class', 'brush-layers')
 
-  const brushArea = d3Area<any>()
-    .curve(curveBasis)
-    .x((d: any) => currentXBase(d.data.date))
-    .y0((d: any) => yBrush(d[0]))
-    .y1((d: any) => yBrush(d[1]))
-
-  gBrushGroupSel.selectAll('path.brush-layer')
-    .data(series.value)
-    .join('path')
-    .attr('class', 'brush-layer')
-    .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
-    .attr('opacity', 0.4)
-    .attr('d', brushArea)
-
-  // separator line between chart and brush
-  gBrushGroupSel.append('line')
+  // Separator line between chart and brush
+  gBrushGroupSelection.append('line')
+    .attr('class', 'brush-separator')
     .attr('x1', marginLeft)
     .attr('x2', marginLeft + chartWidth)
     .attr('y1', -brushGap / 2)
@@ -406,17 +273,315 @@ function render() {
     .attr('stroke', GRID_COLOR)
     .attr('stroke-width', 1)
 
-  const brushGroupSel = gBrushGroupSel.append('g')
+  // Setup zoom behavior
+  zoomBehavior = d3Zoom()
+    .scaleExtent([1, 50])
+    .extent([[marginLeft, 0], [props.width - marginRight, marginTop + chartHeight]])
+    .translateExtent([[marginLeft, -Infinity], [props.width - marginRight, Infinity]])
+    .on('zoom', handleZoom)
+
+  svg.call(zoomBehavior)
+    // prevent scroll-to-zoom on the page
+    .on('wheel.zoom', null)
+
+  // Restore zoom transform after resize re-render
+  if (savedTransform && zoomBehavior) {
+    svg.call(zoomBehavior.transform, savedTransform)
+  }
+
+  // Setup brush behavior
+  brushBehavior = d3BrushX()
+    .extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
+    .on('start end', handleBrushStartEnd)
+    .on('brush end', handleBrushMove)
+
+  const brushGroupSel = gBrushGroupSelection.append('g')
     .attr('class', 'brush')
     .call(brushBehavior)
-    .call(brushBehavior.move, currentXBase.range())
+
   brushGroup = brushGroupSel.node() as SVGGElement
 
-  // style brush handles for light theme
+  // Style brush handles
   brushGroupSel.selectAll('.selection').attr('fill', 'rgba(59,130,246,0.1)').attr('stroke', BRUSH_STROKE)
   brushGroupSel.selectAll('.handle').attr('fill', '#94a3b8').attr('rx', 2)
+}
+
+// -- Zoom handler --
+
+function handleZoom(event: any) {
+  if (!xBase || !gXAxisEl || !gXAxisSelection || !areaGenerator)
+    return
+  if (event.sourceEvent?.type === 'brush')
+    return
+
+  const chartWidth = props.width - marginLeft - marginRight
+  const newX = event.transform.rescaleX(xBase)
+  xScale!.domain(newX.domain())
+
+  gXAxisSelection.call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
+  gXAxisSelection.call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
+  gXAxisSelection.call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
+  gXAxisSelection.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+
+  updateLayerPaths()
+  updateMonthHighlight()
+
+  if (brushGroup && brushBehavior && !isProgrammaticZoom) {
+    isProgrammaticZoom = true
+    select(brushGroup).call(brushBehavior.move, xBase.range().map(event.transform.invertX, event.transform))
+    isProgrammaticZoom = false
+  }
+}
+
+// -- Brush handlers --
+
+function handleBrushStartEnd(event: any) {
+  if (event.type === 'start') {
+    brushCleanupFallback = (_e: PointerEvent) => {
+      const bg = brushGroup
+      if (bg) {
+        const pe = bg.getAttribute('pointer-events')
+        if (pe === 'none') {
+          select(window).on('mousemove.brush mouseup.brush', null)
+          select(bg).attr('pointer-events', 'all')
+          select(bg).selectAll('.overlay').attr('cursor', 'crosshair')
+        }
+      }
+      if (brushCleanupFallback) {
+        window.removeEventListener('pointerup', brushCleanupFallback, true)
+        brushCleanupFallback = null
+      }
+    }
+    window.addEventListener('pointerup', brushCleanupFallback, true)
+  }
+  else if (event.type === 'end' && brushCleanupFallback) {
+    window.removeEventListener('pointerup', brushCleanupFallback, true)
+    brushCleanupFallback = null
+  }
+}
+
+function handleBrushMove(event: any) {
+  if (!xBase || !zoomBehavior || !svgSelection)
+    return
+  if (!event.selection || event.sourceEvent?.type === 'zoom' || isProgrammaticZoom)
+    return
+
+  const [x0, x1] = event.selection.map(xBase.invert, xBase)
+  const domainSpan = xBase.domain()[1].getTime() - xBase.domain()[0].getTime()
+  const selectionSpan = x1.getTime() - x0.getTime()
+
+  // Safety guards: avoid degenerate, inverted, or extreme selections
+  if (!Number.isFinite(selectionSpan) || selectionSpan <= 0 || !Number.isFinite(domainSpan))
+    return
+
+  const k = Math.min(50, Math.max(1, domainSpan / selectionSpan))
+  const tx = -xBase(x0) * k + marginLeft
+
+  if (!Number.isFinite(k) || !Number.isFinite(tx))
+    return
+
+  isProgrammaticZoom = true
+  svgSelection.call(zoomBehavior.transform, zoomIdentity.translate(tx, 0).scale(k))
+  isProgrammaticZoom = false
+}
+
+// -- Scale computation (called on init, resize, and data change) --
+
+function updateScales() {
+  if (!svgSelection || !props.width || !props.height)
+    return
+
+  const chartWidth = props.width - marginLeft - marginRight
+  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+
+  // Update clipPath dimensions
+  if (clipRectSelection) {
+    clipRectSelection
+      .attr('width', chartWidth)
+      .attr('height', chartHeight)
+  }
+
+  // Update chart background rect dimensions
+  if (gChartSelection) {
+    gChartSelection.select('.chart-bg')
+      .attr('width', chartWidth)
+      .attr('height', chartHeight)
+  }
+
+  // Compute base x-scale from data
+  const dateExtent = extent(pivotedData.value, d => d.date) as [Date, Date]
+  xBase = scaleUtc()
+    .domain(dateExtent)
+    .range([marginLeft, props.width - marginRight])
+
+  // Preserve current zoom domain if we have a zoom transform
+  const existingZoom = svgNode ? (svgNode as any).__zoom : null
+  if (existingZoom && typeof existingZoom.k === 'number') {
+    xScale = zoomIdentity
+      .translate(existingZoom.x || 0, 0)
+      .scale(existingZoom.k)
+      .rescaleX(xBase) as D3ScaleLinear
+  }
+  else {
+    xScale = xBase.copy() as D3ScaleLinear
+  }
+
+  yScale = scaleLinear()
+    .domain(yDomain.value)
+    .range([chartHeight, 0])
+
+  // Area generator
+  const currentXScale = xScale
+  const currentYScale = yScale
+  areaGenerator = d3Area<any>()
+    .curve(curveBasis)
+    .x((d: any) => currentXScale(d.data.date))
+    .y0((d: any) => currentYScale(d[0]))
+    .y1((d: any) => currentYScale(d[1]))
+
+  // Update horizontal grid lines
+  if (gChartSelection) {
+    const gridLines = gChartSelection.select('.grid-lines')
+    gridLines.selectAll('*').remove()
+    const yTicks = yScale.ticks(5)
+    for (const tick of yTicks) {
+      gridLines.append('line')
+        .attr('x1', marginLeft)
+        .attr('x2', marginLeft + chartWidth)
+        .attr('y1', yScale(tick))
+        .attr('y2', yScale(tick))
+        .attr('stroke', GRID_COLOR)
+        .attr('stroke-width', 0.5)
+    }
+  }
+
+  // Update X-axis
+  if (gXAxisSelection) {
+    gXAxisSelection
+      .attr('transform', `translate(0,${marginTop + chartHeight})`)
+      .call(axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80))))
+      .call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
+      .call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
+      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+  }
+
+  // Update Y-axis grid
+  if (gYAxisGridSelection) {
+    gYAxisGridSelection
+      .attr('transform', `translate(${marginLeft},${marginTop})`)
+      .call(
+        axisLeft(yScale)
+          .ticks(5)
+          .tickSize(-chartWidth)
+          .tickFormat(() => ''),
+      )
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('.tick line').attr('stroke', GRID_COLOR).attr('stroke-width', 0.5))
+  }
+
+  // Update Y-axis labels
+  if (gYAxisLabelsSelection) {
+    gYAxisLabelsSelection
+      .attr('transform', `translate(${marginLeft},${marginTop})`)
+      .call(
+        axisLeft(yScale)
+          .ticks(5)
+          .tickSize(0),
+      )
+      .call(g => g.select('.domain').remove())
+      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+  }
+
+  // Update brush group position and internal elements
+  if (gBrushGroupSelection) {
+    gBrushGroupSelection.attr('transform', `translate(0, ${props.height - brushHeight})`)
+
+    gBrushGroupSelection.select('.brush-bg')
+      .attr('width', chartWidth)
+
+    gBrushGroupSelection.select('.brush-separator')
+      .attr('x2', marginLeft + chartWidth)
+
+    // Update brush extent
+    if (brushBehavior) {
+      brushBehavior.extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
+    }
+  }
+
+  // Update month highlight height
+  if (monthHighlight) {
+    select(monthHighlight).attr('height', chartHeight)
+  }
+}
+
+// -- Layer paths via D3 data-join (called on data change) --
+
+function updateLayers() {
+  if (!gChartSelection || !gBrushGroupSelection || !areaGenerator || !xBase)
+    return
+
+  // Main chart layers — data-join
+  const layersContainer = gChartSelection.select('.layers')
+
+  layersContainer.selectAll('path.layer')
+    .data(series.value, (d: any) => d.key)
+    .join(
+      enter => enter.append('path')
+        .attr('class', 'layer')
+        .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
+        .style('cursor', 'crosshair')
+        .on('pointerenter pointermove', handleHover)
+        .on('pointerleave', handleLeave),
+      update => update
+        .attr('fill', (d: any) => props.colors.get(d.key) || '#999'),
+      exit => exit.remove(),
+    )
+    .attr('d', areaGenerator)
+
+  // Brush mini layers — data-join
+  const yBrush = scaleLinear()
+    .domain(yDomain.value)
+    .range([brushHeight - 2, 2])
+
+  const brushAreaGen = d3Area<any>()
+    .curve(curveBasis)
+    .x((d: any) => xBase!(d.data.date))
+    .y0((d: any) => yBrush(d[0]))
+    .y1((d: any) => yBrush(d[1]))
+
+  const brushLayersContainer = gBrushGroupSelection.select('.brush-layers')
+
+  brushLayersContainer.selectAll('path.brush-layer')
+    .data(series.value, (d: any) => d.key)
+    .join(
+      enter => enter.append('path')
+        .attr('class', 'brush-layer')
+        .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
+        .attr('opacity', 0.4),
+      update => update
+        .attr('fill', (d: any) => props.colors.get(d.key) || '#999'),
+      exit => exit.remove(),
+    )
+    .attr('d', brushAreaGen)
+
+  // Reset brush to full range if it's the first render
+  if (brushGroup && brushBehavior) {
+    const brushSel = select(brushGroup)
+    const currentSelection = d3BrushX.selection(brushSel) as [number, number] | null
+    // Only move brush to full range on initial setup (no existing selection)
+    if (!currentSelection) {
+      brushSel.call(brushBehavior.move, xBase.range())
+    }
+  }
 
   updateMonthHighlight()
+}
+
+/** Update only the path `d` attributes (used by zoom handler for performance) */
+function updateLayerPaths() {
+  if (!gChartSelection || !areaGenerator)
+    return
+  gChartSelection.selectAll('path.layer').attr('d', areaGenerator)
 }
 
 function updateMonthHighlight() {
@@ -449,12 +614,12 @@ function updateMonthHighlight() {
 }
 
 function zoomToMonth(month: string | null) {
-  if (!zoomBehavior || !xBase || !svgNode)
+  if (!zoomBehavior || !xBase || !svgSelection)
     return
 
   if (!month) {
     // Reset to full range
-    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    svgSelection.call(zoomBehavior.transform, zoomIdentity)
     return
   }
 
@@ -469,7 +634,7 @@ function zoomToMonth(month: string | null) {
   if (end > domain[1])
     end = domain[1]
   if (start >= end) {
-    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    svgSelection.call(zoomBehavior.transform, zoomIdentity)
     return
   }
 
@@ -479,7 +644,7 @@ function zoomToMonth(month: string | null) {
 
   // Safety guards against invalid dates or degenerate domains
   if (!Number.isFinite(monthWidth) || monthWidth <= 0) {
-    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    svgSelection.call(zoomBehavior.transform, zoomIdentity)
     return
   }
 
@@ -487,22 +652,33 @@ function zoomToMonth(month: string | null) {
   const tx = xMin - xBase(start) * k
 
   if (!Number.isFinite(k) || !Number.isFinite(tx)) {
-    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    svgSelection.call(zoomBehavior.transform, zoomIdentity)
     return
   }
 
-  select(svgNode).call(
+  svgSelection.call(
     zoomBehavior.transform,
     zoomIdentity.translate(tx, 0).scale(k),
   )
 }
 
+// -- Lifecycle & watchers --
+
 watch([() => props.width, () => props.height], () => {
-  render()
+  if (!svgNode)
+    return
+  // Resize: rebuild SVG skeleton (dimensions changed), then update scales + layers
+  initSvg()
+  updateScales()
+  updateLayers()
 })
 
 watch(() => props.data, () => {
-  render()
+  if (!svgNode)
+    return
+  // Data change: only update scales + layers, NO SVG rebuild
+  updateScales()
+  updateLayers()
 }, { deep: true })
 
 watch(() => props.selectedMonth, () => {
@@ -510,7 +686,9 @@ watch(() => props.selectedMonth, () => {
 })
 
 onMounted(() => {
-  render()
+  initSvg()
+  updateScales()
+  updateLayers()
 })
 
 onUnmounted(() => {
@@ -524,6 +702,13 @@ onUnmounted(() => {
     select(chartRef.value).selectAll('*').remove()
   }
   svgNode = null
+  svgSelection = null
+  gChartSelection = null
+  gBrushGroupSelection = null
+  gYAxisGridSelection = null
+  gYAxisLabelsSelection = null
+  gXAxisSelection = null
+  clipRectSelection = null
 })
 
 defineExpose({
