@@ -26,9 +26,12 @@ const handleRef = ref<HTMLElement | null>(null)
 
 const { width: vw, height: vh } = useWindowSize()
 
-const { x, y, isDragging } = useDraggable(panelRef, {
+const x = defineModel<number>('x', { default: 0 })
+const y = defineModel<number>('y', { default: 0 })
+
+const { isDragging } = useDraggable(panelRef, {
   handle: handleRef,
-  initialValue: { x: props.initialX, y: props.initialY },
+  initialValue: { x: x.value || props.initialX, y: y.value || props.initialY },
   preventDefault: true,
   onStart: () => emit('dragStart'),
   onEnd: () => {
