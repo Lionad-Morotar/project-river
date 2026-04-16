@@ -91,13 +91,13 @@ let areaGenerator: D3AreaGenerator | null = null
 let monthHighlight: SVGRectElement | null = null
 let isProgrammaticZoom = false
 
-/** Light theme axis colors */
+/** Dark theme axis colors */
 const AXIS_COLOR = '#94a3b8' // slate-400
-const TICK_COLOR = '#475569' // slate-600
-const GRID_COLOR = '#e2e8f0' // slate-200
-const HIGHLIGHT_COLOR = 'rgba(59,130,246,0.12)'
-const BRUSH_BG = '#f1f5f9' // slate-100
-const BRUSH_STROKE = '#cbd5e1' // slate-300
+const TICK_COLOR = '#94a3b8' // slate-400
+const GRID_COLOR = '#334155' // slate-700
+const HIGHLIGHT_COLOR = 'rgba(56,189,248,0.15)'
+const BRUSH_BG = '#0f172a' // slate-900
+const BRUSH_STROKE = '#475569' // slate-600
 
 function render() {
   if (!chartRef.value || !props.width || !props.height)
@@ -153,13 +153,13 @@ function render() {
   const gChartSel = svg.append('g')
     .attr('clip-path', 'url(#clip)')
 
-  // light background for chart area
+  // dark background for chart area
   gChartSel.append('rect')
     .attr('x', marginLeft)
     .attr('y', marginTop)
     .attr('width', chartWidth)
     .attr('height', chartHeight)
-    .attr('fill', '#ffffff')
+    .attr('fill', 'transparent')
 
   // horizontal grid lines
   const yTicks = yScale.ticks(5)
