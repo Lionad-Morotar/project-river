@@ -23,6 +23,6 @@ const items = computed(() => [
     value-attribute="value"
     placeholder="Select month"
     class="w-48"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:model-value="emit('update:modelValue', typeof $event === 'object' && $event !== null ? ($event as any).value : $event)"
   />
 </template>

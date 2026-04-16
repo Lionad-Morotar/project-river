@@ -104,6 +104,15 @@ function render() {
   if (!chartRef.value || !props.width || !props.height)
     return
 
+  // Preserve current zoom transform before clearing (resize re-render)
+  let savedTransform: any = null
+  if (svgNode) {
+    const existingZoom = (svgNode as any).__zoom
+    if (existingZoom && typeof existingZoom.k === 'number' && typeof existingZoom.x === 'number') {
+      savedTransform = zoomIdentity.translate(existingZoom.x, existingZoom.y || 0).scale(existingZoom.k)
+    }
+  }
+
   const container = select(chartRef.value)
   container.selectAll('*').remove()
 
@@ -302,6 +311,11 @@ function render() {
     // prevent scroll-to-zoom on the page
     .on('wheel.zoom', null)
 
+  // Restore zoom transform after resize re-render
+  if (savedTransform) {
+    svg.call(zoomBehavior.transform, savedTransform)
+  }
+
   // brush navigator
   brushBehavior = d3BrushX()
     .extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
@@ -335,8 +349,19 @@ function render() {
       if (!event.selection || event.sourceEvent?.type === 'zoom' || isProgrammaticZoom)
         return
       const [x0, x1] = event.selection.map(currentXBase.invert, currentXBase)
-      const k = (currentXBase.domain()[1].getTime() - currentXBase.domain()[0].getTime()) / (x1.getTime() - x0.getTime())
+      const domainSpan = currentXBase.domain()[1].getTime() - currentXBase.domain()[0].getTime()
+      const selectionSpan = x1.getTime() - x0.getTime()
+
+      // Safety guards: avoid degenerate, inverted, or extreme selections
+      if (!Number.isFinite(selectionSpan) || selectionSpan <= 0 || !Number.isFinite(domainSpan))
+        return
+
+      const k = Math.min(50, Math.max(1, domainSpan / selectionSpan))
       const tx = -currentXBase(x0) * k + marginLeft
+
+      if (!Number.isFinite(k) || !Number.isFinite(tx))
+        return
+
       isProgrammaticZoom = true
       svg.call(zoomBehavior!.transform, zoomIdentity.translate(tx, 0).scale(k))
       isProgrammaticZoom = false
@@ -433,14 +458,38 @@ function zoomToMonth(month: string | null) {
     return
   }
 
-  const start = new Date(`${month}-01T00:00:00Z`)
-  const end = new Date(start)
+  const domain = xBase.domain()
+  let start = new Date(`${month}-01T00:00:00Z`)
+  let end = new Date(start)
   end.setUTCMonth(end.getUTCMonth() + 1)
+
+  // Clamp to available data domain to avoid invalid scales
+  if (start < domain[0])
+    start = domain[0]
+  if (end > domain[1])
+    end = domain[1]
+  if (start >= end) {
+    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    return
+  }
 
   const [xMin, xMax] = xBase.range()
   const chartWidth = xMax - xMin
-  const k = chartWidth / (xBase(end) - xBase(start))
+  const monthWidth = xBase(end) - xBase(start)
+
+  // Safety guards against invalid dates or degenerate domains
+  if (!Number.isFinite(monthWidth) || monthWidth <= 0) {
+    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    return
+  }
+
+  const k = Math.min(50, Math.max(1, chartWidth / monthWidth))
   const tx = xMin - xBase(start) * k
+
+  if (!Number.isFinite(k) || !Number.isFinite(tx)) {
+    select(svgNode).call(zoomBehavior.transform, zoomIdentity)
+    return
+  }
 
   select(svgNode).call(
     zoomBehavior.transform,
