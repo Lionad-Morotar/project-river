@@ -213,6 +213,20 @@ const panelContributors = computed(() => {
 const commitsThisMonth = computed(() => panelContributors.value.reduce((sum, c) => sum + c.monthlyCommits, 0))
 const totalCommitsToDate = computed(() => panelContributors.value.reduce((sum, c) => sum + c.cumulativeCommits, 0))
 
+/** Commits from the month before the selected month */
+const previousMonthCommits = computed(() => {
+  if (!selectedMonth.value || availableMonths.value.length === 0)
+    return 0
+  const idx = availableMonths.value.indexOf(selectedMonth.value)
+  if (idx <= 0)
+    return 0
+  const prevMonth = availableMonths.value[idx - 1]
+  if (!prevMonth)
+    return 0
+  return getMonthContributors(monthlyData.value, dailyData.value, prevMonth, colorMap.value)
+    .reduce((sum, c) => sum + c.monthlyCommits, 0)
+})
+
 // -- Resize observer --
 useResizeObserver(graphContainerRef, (entries: any[]) => {
   const entry = entries[0]
@@ -329,6 +343,11 @@ function handleExport() {
     `${repoName}-streamgraph.svg`,
     contributors,
     colorMap.value,
+    {
+      projectName: projectMeta.value?.fullName || projectMeta.value?.name || 'Project',
+      dateRange: formattedDateRange.value,
+      healthSignals: healthSignals.value.map(s => ({ label: s.label, severity: s.severity })),
+    },
   )
 }
 
@@ -701,6 +720,7 @@ function formatNumber(n: number): string {
               :total-commits-to-date="totalCommitsToDate"
               :has-data="hasData"
               :is-all-history="isAllHistory"
+              :previous-month-commits="previousMonthCommits"
               @export="handleExport"
             />
           </template>

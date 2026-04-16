@@ -16,6 +16,7 @@ interface Props {
   totalCommitsToDate: number
   hasData: boolean
   isAllHistory?: boolean
+  previousMonthCommits?: number
 }
 
 const props = defineProps<Props>()
@@ -35,6 +36,14 @@ const canGoNext = computed(() => {
   if (!props.selectedMonth || props.availableMonths.length === 0)
     return false
   return props.selectedMonth !== props.availableMonths[props.availableMonths.length - 1]
+})
+
+const monthDelta = computed(() => {
+  if (props.isAllHistory || !props.previousMonthCommits || props.previousMonthCommits === 0)
+    return null
+  const change = props.commitsThisMonth - props.previousMonthCommits
+  const pct = Math.round(change / props.previousMonthCommits * 100)
+  return { change, pct }
 })
 
 function goPrevious() {
@@ -98,6 +107,13 @@ function goNext() {
         </div>
         <div class="text-2xl font-semibold text-slate-100 tabular-nums">
           {{ commitsThisMonth }}
+          <span
+            v-if="monthDelta"
+            class="text-xs font-medium tabular-nums ml-1"
+            :class="monthDelta.change >= 0 ? 'text-emerald-400' : 'text-red-400'"
+          >
+            {{ monthDelta.change >= 0 ? '↑' : '↓' }}{{ Math.abs(monthDelta.pct) }}%
+          </span>
         </div>
       </div>
       <div>
