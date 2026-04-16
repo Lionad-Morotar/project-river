@@ -18,7 +18,9 @@ function onPointerDown(event: PointerEvent) {
   dragging = true
   startPos = event.clientX + event.clientY
   const target = event.currentTarget as HTMLElement
-  target.setPointerCapture(event.pointerId)
+  if (target.setPointerCapture) {
+    target.setPointerCapture(event.pointerId)
+  }
   emit('start')
 }
 
@@ -36,7 +38,9 @@ function onPointerUp(event: PointerEvent) {
     return
   dragging = false
   const target = event.currentTarget as HTMLElement
-  target.releasePointerCapture(event.pointerId)
+  if (target.releasePointerCapture) {
+    target.releasePointerCapture(event.pointerId)
+  }
   emit('end')
 }
 
