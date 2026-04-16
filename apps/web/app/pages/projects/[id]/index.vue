@@ -2,8 +2,11 @@
 import type { ContributorMeta } from '~/composables/useContributorColors'
 import type { DailyRow } from '~/utils/d3Helpers'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
-import { useResizeObserver } from '@vueuse/core'
+import { useResizeObserver, useThrottleFn } from '@vueuse/core'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
+import ProjectLayout from '~/components/ProjectLayout.vue'
+import Streamgraph from '~/components/Streamgraph.vue'
+import StreamgraphTooltip from '~/components/StreamgraphTooltip.vue'
 import { useContributorColors } from '~/composables/useContributorColors'
 import { useStreamgraphData } from '~/composables/useStreamgraphData'
 import { getAllContributors, getMonthContributors } from '~/utils/monthDetailHelpers'
@@ -31,8 +34,19 @@ const tooltip = ref({
   filesTouched: 0,
 })
 
-const chartWidth = ref(1024)
-const chartHeight = ref(560)
+const rawChartWidth = ref(1024)
+const rawChartHeight = ref(560)
+const chartWidth = ref(rawChartWidth.value)
+const chartHeight = ref(rawChartHeight.value)
+
+const debouncedUpdateSize = useThrottleFn(() => {
+  chartWidth.value = rawChartWidth.value
+  chartHeight.value = rawChartHeight.value
+}, 150)
+
+watch([rawChartWidth, rawChartHeight], () => {
+  debouncedUpdateSize()
+})
 
 const availableMonths = computed(() => Array.from(new Set(monthlyData.value.map(m => m.yearMonth))).sort())
 
@@ -73,9 +87,11 @@ const totalCommitsToDate = computed(() => panelContributors.value.reduce((sum, c
 useResizeObserver(graphContainerRef, (entries: any[]) => {
   const entry = entries[0]
   if (entry) {
-    const { width } = entry.contentRect
+    const { width, height } = entry.contentRect
     if (width > 0)
-      chartWidth.value = Math.round(width)
+      rawChartWidth.value = Math.round(width)
+    if (height > 0)
+      rawChartHeight.value = Math.round(height)
   }
 })
 
@@ -138,11 +154,11 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
 </script>
 
 <template>
-  <div class="min-h-screen bg-white">
+  <div class="min-h-screen bg-slate-950">
     <div class="max-w-7xl mx-auto px-6 lg:px-10 py-8">
       <!-- Header -->
       <header class="mb-6">
-        <h1 class="text-xl font-semibold text-slate-900 tracking-tight">
+        <h1 class="text-xl font-semibold text-slate-100 tracking-tight">
           {{ projectName }}
         </h1>
       </header>
@@ -153,16 +169,16 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
 
       <div
         v-else-if="error"
-        class="rounded-md border border-red-200 bg-red-50 p-4 text-red-700 text-sm"
+        class="rounded-md border border-red-800 bg-red-950/40 p-4 text-red-200 text-sm"
       >
         {{ error }}
       </div>
 
       <div v-else-if="dailyData.length === 0" class="text-center py-16">
-        <h2 class="text-lg font-medium text-slate-700 mb-2">
+        <h2 class="text-lg font-medium text-slate-300 mb-2">
           No data available yet
         </h2>
-        <p class="text-slate-400 text-sm">
+        <p class="text-slate-500 text-sm">
           Run the CLI analyzer on a repository to see the Streamgraph here.
         </p>
       </div>
@@ -175,53 +191,57 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
             :months="availableMonths"
           />
           <button
-            class="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+            class="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition-colors"
             @click="selectedMonth = null"
           >
             Show All History
           </button>
         </div>
 
-        <!-- Chart -->
-        <div
-          ref="graphContainerRef"
-          class="relative w-full border border-slate-200 rounded-md overflow-hidden bg-white"
-          :style="{ height: `${chartHeight}px` }"
-        >
-          <Streamgraph
-            ref="streamgraphRef"
-            :data="streamgraphData"
-            :width="chartWidth"
-            :height="chartHeight"
-            :selected-month="selectedMonth"
-            :colors="colorMap"
-            @update:selected-month="selectedMonth = $event"
-            @hover="onHover"
-          />
-          <StreamgraphTooltip
-            :visible="tooltip.visible"
-            :x="tooltip.x"
-            :y="tooltip.y"
-            :contributor="tooltip.contributor"
-            :date="tooltip.date"
-            :commits="tooltip.commits"
-            :lines-added="tooltip.linesAdded"
-            :lines-deleted="tooltip.linesDeleted"
-            :files-touched="tooltip.filesTouched"
-          />
-        </div>
+        <!-- Chart + Panel Layout -->
+        <ProjectLayout class="h-[640px] border border-slate-800 rounded-md">
+          <template #chart>
+            <div
+              ref="graphContainerRef"
+              class="relative w-full h-full"
+            >
+              <Streamgraph
+                ref="streamgraphRef"
+                :data="streamgraphData"
+                :width="chartWidth"
+                :height="chartHeight"
+                :selected-month="selectedMonth"
+                :colors="colorMap"
+                @update:selected-month="selectedMonth = $event"
+                @hover="onHover"
+              />
+              <StreamgraphTooltip
+                :visible="tooltip.visible"
+                :x="tooltip.x"
+                :y="tooltip.y"
+                :contributor="tooltip.contributor"
+                :date="tooltip.date"
+                :commits="tooltip.commits"
+                :lines-added="tooltip.linesAdded"
+                :lines-deleted="tooltip.linesDeleted"
+                :files-touched="tooltip.filesTouched"
+              />
+            </div>
+          </template>
 
-        <!-- Detail panel -->
-        <MonthDetailPanel
-          v-model:selected-month="selectedMonth"
-          :available-months="availableMonths"
-          :contributors="panelContributors"
-          :commits-this-month="commitsThisMonth"
-          :total-commits-to-date="totalCommitsToDate"
-          :has-data="hasData"
-          :is-all-history="isAllHistory"
-          @export="handleExport"
-        />
+          <template #panel>
+            <MonthDetailPanel
+              v-model:selected-month="selectedMonth"
+              :available-months="availableMonths"
+              :contributors="panelContributors"
+              :commits-this-month="commitsThisMonth"
+              :total-commits-to-date="totalCommitsToDate"
+              :has-data="hasData"
+              :is-all-history="isAllHistory"
+              @export="handleExport"
+            />
+          </template>
+        </ProjectLayout>
       </div>
     </div>
   </div>
