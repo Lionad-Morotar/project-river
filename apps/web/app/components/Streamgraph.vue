@@ -40,6 +40,10 @@ const marginBottom = 24
 const marginLeft = 48
 const brushHeight = 50
 const brushGap = 16
+const MIN_THICKNESS_PX = 2
+const HIT_AREA_PX = 6
+const MAX_SPIKE_MARKERS = 5
+const MAX_CONTRIBUTOR_LABELS = 8
 
 const contributors = computed(() => {
   const set = new Set<string>()
@@ -88,6 +92,47 @@ const dailyTotals = computed(() => {
   return map
 })
 
+/** Detect commit spike dates (> 2.5x mean daily total) for vertical markers */
+const spikeDates = computed(() => {
+  const totals = Array.from(dailyTotals.value.values())
+  if (totals.length < 14)
+    return []
+  const mean = totals.reduce((a, b) => a + b, 0) / totals.length
+  if (mean === 0)
+    return []
+  const threshold = mean * 2.5
+  const spikes: string[] = []
+  for (const [date, total] of dailyTotals.value) {
+    if (total > threshold)
+      spikes.push(date)
+  }
+  return spikes
+    .sort((a, b) => (dailyTotals.value.get(b) || 0) - (dailyTotals.value.get(a) || 0))
+    .slice(0, MAX_SPIKE_MARKERS)
+})
+
+/** Find widest point per contributor for inline labels */
+const contributorLabelData = computed(() => {
+  if (!series.value.length)
+    return []
+  const labels: Array<{ contributor: string, dateIndex: number, maxThickness: number }> = []
+  for (const layer of series.value) {
+    let maxT = 0
+    let bestI = 0
+    for (let i = 0; i < layer.length; i++) {
+      const t = layer[i][1] - layer[i][0]
+      if (t > maxT) {
+        maxT = t
+        bestI = i
+      }
+    }
+    if (maxT > 0)
+      labels.push({ contributor: layer.key as string, dateIndex: bestI, maxThickness: maxT })
+  }
+  labels.sort((a, b) => b.maxThickness - a.maxThickness)
+  return labels.slice(0, MAX_CONTRIBUTOR_LABELS)
+})
+
 // -- Module-level D3 state (persisted across updates) --
 
 let svgNode: SVGSVGElement | null = null
@@ -112,6 +157,26 @@ let gYAxisGridSelection: ReturnType<typeof select> | null = null
 let gYAxisLabelsSelection: ReturnType<typeof select> | null = null
 let gXAxisSelection: ReturnType<typeof select> | null = null
 let clipRectSelection: ReturnType<typeof select> | null = null
+let gAnnotationsSelection: ReturnType<typeof select> | null = null
+let gLabelsSelection: ReturnType<typeof select> | null = null
+
+/** Smart time format adapting to visible time span */
+function smartTimeFormat(date: Date): string {
+  if (!xScale)
+    return ''
+  const domain = xScale.domain()
+  const span = (domain[1] as number) - (domain[0] as number)
+  const oneYear = 365.25 * 86400000
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  if (span > 5 * oneYear)
+    return date.getMonth() === 0 ? `${date.getFullYear()}` : ''
+  if (span > oneYear)
+    return date.getMonth() === 0 ? `${date.getFullYear()}` : months[date.getMonth()]!
+  if (span > 90 * 86400000)
+    return `${months[date.getMonth()]} ${date.getFullYear()}`
+  return `${months[date.getMonth()]} ${date.getDate()}`
+}
 
 /** Dark theme axis colors */
 const AXIS_COLOR = '#94a3b8' // slate-400
@@ -120,8 +185,6 @@ const GRID_COLOR = '#334155' // slate-700
 const HIGHLIGHT_COLOR = 'rgba(56,189,248,0.15)'
 const BRUSH_BG = '#0f172a' // slate-900
 const BRUSH_STROKE = '#475569' // slate-600
-const MIN_THICKNESS_PX = 2
-const HIT_AREA_PX = 6
 
 // -- Hover handlers (extracted so they can be reused in data-join) --
 
@@ -244,6 +307,12 @@ function initSvg() {
 
   // Layers container (paths will be added via data-join)
   gChartSelection.append('g').attr('class', 'layers')
+
+  // Annotations container (vertical spike markers)
+  gAnnotationsSelection = gChartSelection.append('g').attr('class', 'annotations')
+
+  // Inline labels container (contributor names at widest points)
+  gLabelsSelection = gChartSelection.append('g').attr('class', 'labels')
 
   // X-axis group
   gXAxisSelection = svg.append('g')
@@ -482,7 +551,7 @@ function updateScales() {
   if (gXAxisSelection) {
     gXAxisSelection
       .attr('transform', `translate(0,${marginTop + chartHeight})`)
-      .call(axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80))))
+      .call(axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80))).tickFormat(smartTimeFormat))
       .call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
       .call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
       .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
@@ -621,6 +690,8 @@ function updateLayers() {
   }
 
   updateMonthHighlight()
+  updateAnnotations()
+  updateLabels()
 }
 
 /** Update only the path `d` attributes (used by zoom handler for performance) */
@@ -631,6 +702,8 @@ function updateLayerPaths() {
   if (hitAreaGenerator) {
     gChartSelection.selectAll('path.layer-hitarea').attr('d', hitAreaGenerator)
   }
+  updateAnnotations()
+  updateLabels()
 }
 
 function updateMonthHighlight() {
@@ -660,6 +733,73 @@ function updateMonthHighlight() {
   else {
     select(monthHighlight).style('display', 'none')
   }
+}
+
+/** Render vertical dashed lines at commit spike dates */
+function updateAnnotations() {
+  if (!gAnnotationsSelection || !xScale || !yScale)
+    return
+  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+
+  const spikeData = spikeDates.value.map(date => ({
+    date,
+    x: xScale(new Date(date)),
+  })).filter(d => Number.isFinite(d.x))
+
+  gAnnotationsSelection.selectAll('line.spike')
+    .data(spikeData, (d: any) => d.date)
+    .join(
+      enter => enter.append('line')
+        .attr('class', 'spike')
+        .attr('stroke', '#94a3b8')
+        .attr('stroke-width', 0.5)
+        .attr('stroke-dasharray', '3,3')
+        .attr('opacity', 0.4)
+        .style('pointer-events', 'none'),
+      update => update,
+      exit => exit.remove(),
+    )
+    .attr('x1', (d: any) => d.x)
+    .attr('x2', (d: any) => d.x)
+    .attr('y1', marginTop)
+    .attr('y2', marginTop + chartHeight)
+}
+
+/** Render contributor name labels at the widest point of their streams */
+function updateLabels() {
+  if (!gLabelsSelection || !xScale || !yScale)
+    return
+
+  const labelData = contributorLabelData.value.map((l) => {
+    const layer = series.value.find(s => s.key === l.contributor)
+    if (!layer)
+      return null
+    const point = layer[l.dateIndex]
+    if (!point)
+      return null
+    return {
+      contributor: l.contributor,
+      x: xScale(point.data.date),
+      y: yScale((point[0] + point[1]) / 2),
+    }
+  }).filter((d): d is { contributor: string, x: number, y: number } => d !== null && Number.isFinite(d.x) && Number.isFinite(d.y))
+
+  gLabelsSelection.selectAll('text.label')
+    .data(labelData, (d: any) => d.contributor)
+    .join(
+      enter => enter.append('text')
+        .attr('class', 'label')
+        .attr('fill', (d: any) => props.colors.get(d.contributor) || '#999')
+        .attr('font-size', '10px')
+        .attr('font-weight', 500)
+        .attr('opacity', 0.65)
+        .style('pointer-events', 'none')
+        .text((d: any) => d.contributor),
+      update => update,
+      exit => exit.remove(),
+    )
+    .attr('x', (d: any) => d.x + 4)
+    .attr('y', (d: any) => d.y + 3)
 }
 
 function zoomToMonth(month: string | null) {
@@ -758,6 +898,8 @@ onUnmounted(() => {
   gYAxisLabelsSelection = null
   gXAxisSelection = null
   clipRectSelection = null
+  gAnnotationsSelection = null
+  gLabelsSelection = null
 })
 
 defineExpose({
