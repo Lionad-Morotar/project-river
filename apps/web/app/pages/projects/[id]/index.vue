@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { ContributorMeta } from '~/composables/useContributorColors'
 import type { DailyRow } from '~/utils/d3Helpers'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import { useResizeObserver } from '@vueuse/core'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
-import { useContributorColors, type ContributorMeta } from '~/composables/useContributorColors'
+import { useContributorColors } from '~/composables/useContributorColors'
 import { useStreamgraphData } from '~/composables/useStreamgraphData'
-import { getMonthContributors, getMonthCumulative } from '~/utils/monthDetailHelpers'
+import { getAllContributors, getMonthContributors } from '~/utils/monthDetailHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
 
 const route = useRoute()
@@ -59,22 +60,14 @@ const contributorMetaList = computed<ContributorMeta[]>(() => {
 
 const colorMap = computed(() => useContributorColors(contributorMetaList.value))
 const hasData = computed(() => dailyData.value.length > 0)
+const isAllHistory = computed(() => !selectedMonth.value)
 const panelContributors = computed(() => {
   if (!selectedMonth.value)
-    return []
+    return getAllContributors(monthlyData.value, dailyData.value, colorMap.value)
   return getMonthContributors(monthlyData.value, dailyData.value, selectedMonth.value, colorMap.value)
 })
 const commitsThisMonth = computed(() => panelContributors.value.reduce((sum, c) => sum + c.monthlyCommits, 0))
-const totalCommitsToDate = computed(() => {
-  if (!selectedMonth.value)
-    return 0
-  const contributorsInMonth = new Set(panelContributors.value.map(c => c.contributor))
-  let total = 0
-  for (const contributor of contributorsInMonth) {
-    total += getMonthCumulative(dailyData.value, selectedMonth.value, contributor)
-  }
-  return total
-})
+const totalCommitsToDate = computed(() => panelContributors.value.reduce((sum, c) => sum + c.cumulativeCommits, 0))
 
 // Observe container resize (debounced by browser, no manual listener cleanup)
 useResizeObserver(graphContainerRef, (entries: any[]) => {
@@ -226,6 +219,7 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
           :commits-this-month="commitsThisMonth"
           :total-commits-to-date="totalCommitsToDate"
           :has-data="hasData"
+          :is-all-history="isAllHistory"
           @export="handleExport"
         />
       </div>

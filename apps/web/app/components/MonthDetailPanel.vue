@@ -16,6 +16,7 @@ interface Props {
   commitsThisMonth: number
   totalCommitsToDate: number
   hasData: boolean
+  isAllHistory?: boolean
 }
 
 const props = defineProps<Props>()
@@ -160,7 +161,7 @@ function goNext() {
     <div class="grid grid-cols-2 gap-4 px-4 py-3 pl-10">
       <div>
         <div class="text-xs text-slate-400 font-medium">
-          Commits this month
+          {{ isAllHistory ? 'Total commits' : 'Commits this month' }}
         </div>
         <div class="text-2xl font-semibold text-slate-900 tabular-nums">
           {{ commitsThisMonth }}
@@ -168,7 +169,7 @@ function goNext() {
       </div>
       <div>
         <div class="text-xs text-slate-400 font-medium">
-          Total commits to date
+          {{ isAllHistory ? 'Total commits to date' : 'Total commits to date' }}
         </div>
         <div class="text-2xl font-semibold text-slate-900 tabular-nums">
           {{ totalCommitsToDate }}

@@ -21,7 +21,7 @@ export function getMonthCumulative(rows: DailyRow[], yearMonth: string, contribu
   if (matching.length === 0)
     return 0
   matching.sort((a, b) => b.date.localeCompare(a.date))
-  return matching[0].cumulativeCommits
+  return matching[0]!.cumulativeCommits
 }
 
 export function getMonthContributors(
@@ -43,6 +43,44 @@ export function getMonthContributors(
   }
 
   return Array.from(map.values()).sort((a, b) => {
+    if (b.monthlyCommits !== a.monthlyCommits) {
+      return b.monthlyCommits - a.monthlyCommits
+    }
+    return a.contributor.localeCompare(b.contributor)
+  })
+}
+
+export function getAllContributors(
+  monthlyRows: MonthlyRow[],
+  dailyRows: DailyRow[],
+  colorMap: Map<string, string>,
+): MonthContributor[] {
+  const monthlyMap = new Map<string, number>()
+  for (const row of monthlyRows) {
+    monthlyMap.set(row.contributor, (monthlyMap.get(row.contributor) || 0) + row.commits)
+  }
+
+  const latestDateMap = new Map<string, string>()
+  const cumulativeMap = new Map<string, number>()
+  for (const row of dailyRows) {
+    const existingDate = latestDateMap.get(row.contributor)
+    if (existingDate === undefined || row.date.localeCompare(existingDate) > 0) {
+      latestDateMap.set(row.contributor, row.date)
+      cumulativeMap.set(row.contributor, row.cumulativeCommits)
+    }
+  }
+
+  const result: MonthContributor[] = []
+  for (const [contributor, monthlyCommits] of monthlyMap) {
+    result.push({
+      contributor,
+      monthlyCommits,
+      cumulativeCommits: cumulativeMap.get(contributor) || 0,
+      color: colorMap.get(contributor) ?? '#999',
+    })
+  }
+
+  return result.sort((a, b) => {
     if (b.monthlyCommits !== a.monthlyCommits) {
       return b.monthlyCommits - a.monthlyCommits
     }
