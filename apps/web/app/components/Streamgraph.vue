@@ -90,6 +90,7 @@ let brushBehavior: D3BrushXBehavior | null = null
 let areaGenerator: D3AreaGenerator | null = null
 let monthHighlight: SVGRectElement | null = null
 let isProgrammaticZoom = false
+let brushCleanupFallback: ((e: PointerEvent) => void) | null = null
 
 /** Dark theme axis colors */
 const AXIS_COLOR = '#94a3b8' // slate-400
@@ -111,7 +112,7 @@ function render() {
     .attr('width', props.width)
     .attr('height', props.height)
     .attr('viewBox', [0, 0, props.width, props.height])
-    .attr('style', 'max-width: 100%; height: auto;')
+    .attr('style', 'max-width: 100%; height: auto; user-select: none; -webkit-user-select: none;')
 
   svgNode = svg.node() as SVGSVGElement | null
 
@@ -304,6 +305,32 @@ function render() {
   // brush navigator
   brushBehavior = d3BrushX()
     .extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
+    .on('start end', (event: any) => {
+      if (event.type === 'start') {
+        brushCleanupFallback = (_e: PointerEvent) => {
+          // Safety net: if internal brush mouseup was lost (e.g. mouse left window),
+          // force-clear window listeners and restore brush group pointer-events.
+          const bg = brushGroup
+          if (bg) {
+            const pe = bg.getAttribute('pointer-events')
+            if (pe === 'none') {
+              select(window).on('mousemove.brush mouseup.brush', null)
+              select(bg).attr('pointer-events', 'all')
+              select(bg).selectAll('.overlay').attr('cursor', 'crosshair')
+            }
+          }
+          if (brushCleanupFallback) {
+            window.removeEventListener('pointerup', brushCleanupFallback, true)
+            brushCleanupFallback = null
+          }
+        }
+        window.addEventListener('pointerup', brushCleanupFallback, true)
+      }
+      else if (event.type === 'end' && brushCleanupFallback) {
+        window.removeEventListener('pointerup', brushCleanupFallback, true)
+        brushCleanupFallback = null
+      }
+    })
     .on('brush end', (event: any) => {
       if (!event.selection || event.sourceEvent?.type === 'zoom' || isProgrammaticZoom)
         return
@@ -438,6 +465,12 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (brushCleanupFallback) {
+    window.removeEventListener('pointerup', brushCleanupFallback, true)
+    brushCleanupFallback = null
+  }
+  select(window).on('mousemove.brush mouseup.brush keydown.brush keyup.brush', null)
+  select(window).on('mousemove.zoom mouseup.zoom', null)
   if (chartRef.value) {
     select(chartRef.value).selectAll('*').remove()
   }

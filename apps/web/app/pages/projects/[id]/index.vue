@@ -155,8 +155,8 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950">
-    <div class="max-w-7xl mx-auto px-6 lg:px-10 py-8">
+  <div class="min-h-screen bg-slate-950 flex flex-col">
+    <div class="max-w-7xl mx-auto px-6 lg:px-10 py-8 flex flex-col flex-1 w-full">
       <!-- Header -->
       <header class="mb-6">
         <h1 class="text-xl font-semibold text-slate-100 tracking-tight">
@@ -200,7 +200,7 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
         </div>
 
         <!-- Chart + Panel Layout -->
-        <ProjectLayout class="h-[640px] border border-slate-800 rounded-md">
+        <ProjectLayout class="flex-1 border border-slate-800 rounded-md min-h-0">
           <template #chart>
             <div
               ref="graphContainerRef"

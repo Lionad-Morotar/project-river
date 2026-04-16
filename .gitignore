@@ -2,3 +2,5 @@
 node_modules
 .DS_Store
 data/
+.gstack/
+apps/web/test-results/

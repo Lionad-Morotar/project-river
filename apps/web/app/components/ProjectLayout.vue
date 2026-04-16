@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import type { Edge } from '~/composables/usePanelDrag'
-import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { useElementSize, useStorage } from '@vueuse/core'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, ref } from 'vue'
 import DraggablePanel from '~/components/DraggablePanel.vue'
 import ResizeHandle from '~/components/ResizeHandle.vue'
 
@@ -29,8 +27,7 @@ const panelW = ref(storedPanelW.value)
 const panelH = ref(storedPanelH.value)
 const floatX = ref(storedFloatX.value)
 const floatY = ref(storedFloatY.value)
-
-const dragEdge = shallowRef<Edge | null>(null)
+const previewEdge = ref<'top' | 'left' | 'right' | 'bottom' | null>(null)
 
 const CHART_MIN = 300
 const PANEL_MIN_V = 200
@@ -42,6 +39,26 @@ const gridClass = computed(() => {
     case 'bottom': return 'grid-rows-[1fr_auto]'
     case 'left': return 'grid-cols-[auto_1fr]'
     case 'right': return 'grid-cols-[1fr_auto]'
+    default: return ''
+  }
+})
+
+const chartGridClass = computed(() => {
+  switch (dockedEdge.value) {
+    case 'top': return 'row-start-2'
+    case 'bottom': return 'row-start-1'
+    case 'left': return 'col-start-2'
+    case 'right': return 'col-start-1'
+    default: return ''
+  }
+})
+
+const panelGridClass = computed(() => {
+  switch (dockedEdge.value) {
+    case 'top': return 'row-start-1'
+    case 'bottom': return 'row-start-2'
+    case 'left': return 'col-start-1'
+    case 'right': return 'col-start-2'
     default: return ''
   }
 })
@@ -72,6 +89,57 @@ const panelStyle = computed(() => {
   }
 })
 
+const previewClass = computed(() => {
+  if (!previewEdge.value)
+    return ''
+  switch (previewEdge.value) {
+    case 'top': return 'shadow-[inset_0_8px_0_0_rgba(14,165,233,0.35)]'
+    case 'bottom': return 'shadow-[inset_0_-8px_0_0_rgba(14,165,233,0.35)]'
+    case 'left': return 'shadow-[inset_8px_0_0_0_rgba(14,165,233,0.35)]'
+    case 'right': return 'shadow-[inset_-8px_0_0_rgba(14,165,233,0.35)]'
+    default: return ''
+  }
+})
+
+const undockHandleClass = computed(() => {
+  switch (dockedEdge.value) {
+    case 'top':
+      return 'absolute top-0 left-0 right-0 h-6 cursor-grab active:cursor-grabbing flex flex-row items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-t'
+    case 'bottom':
+      return 'absolute bottom-0 left-0 right-0 h-6 cursor-grab active:cursor-grabbing flex flex-row items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-b'
+    case 'left':
+      return 'absolute left-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-l'
+    case 'right':
+      return 'absolute right-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-r'
+    default:
+      return ''
+  }
+})
+
+const resizeOrientation = computed(() => {
+  return dockedEdge.value === 'top' || dockedEdge.value === 'bottom' ? 'horizontal' : 'vertical'
+})
+
+const resizeHandleClass = computed(() => {
+  switch (dockedEdge.value) {
+    case 'top': return 'absolute bottom-0 left-0 right-0'
+    case 'bottom': return 'absolute top-0 left-0 right-0'
+    case 'left': return 'absolute right-0 top-0 bottom-0'
+    case 'right': return 'absolute left-0 top-0 bottom-0'
+    default: return ''
+  }
+})
+
+const contentPaddingClass = computed(() => {
+  switch (dockedEdge.value) {
+    case 'top': return 'pt-6'
+    case 'bottom': return 'pb-6'
+    case 'left': return 'pl-6'
+    case 'right': return 'pr-6'
+    default: return ''
+  }
+})
+
 function onResizeMove(delta: number) {
   switch (dockedEdge.value) {
     case 'top':
@@ -99,101 +167,55 @@ function onFloatDragEnd() {
   storedFloatY.value = floatY.value
 }
 
-function bindDropTarget(el: HTMLElement | null, edge: Edge) {
-  if (!el)
-    return () => {}
-  return dropTargetForElements({
-    element: el,
-    getData: () => ({ edge }),
-    canDrop: args => args.source.data.type === 'panel',
-    onDragEnter: () => {
-      dragEdge.value = edge
-    },
-    onDragLeave: () => {
-      if (dragEdge.value === edge)
-        dragEdge.value = null
-    },
-    onDrop: (args) => {
-      dragEdge.value = null
-      if (args.source.data.type === 'panel') {
-        dockedEdge.value = edge
-      }
-    },
-  })
+// Docked panel undock drag state
+let dockedDragging = false
+let dockedStartX = 0
+let dockedStartY = 0
+
+function onDockedPointerDown(e: PointerEvent) {
+  dockedDragging = true
+  dockedStartX = e.clientX
+  dockedStartY = e.clientY
+  const target = e.currentTarget as HTMLElement
+  target.setPointerCapture(e.pointerId)
 }
 
-const topRef = ref<HTMLDivElement | null>(null)
-const leftRef = ref<HTMLDivElement | null>(null)
-const rightRef = ref<HTMLDivElement | null>(null)
-const bottomRef = ref<HTMLDivElement | null>(null)
+function onDockedPointerMove(_e: PointerEvent) {
+  // noop: drag threshold is evaluated on pointerup
+}
 
-let cleanupTop: (() => void) | null = null
-let cleanupLeft: (() => void) | null = null
-let cleanupRight: (() => void) | null = null
-let cleanupBottom: (() => void) | null = null
-
-watch(topRef, (el) => {
-  cleanupTop?.()
-  cleanupTop = bindDropTarget(el, 'top')
-}, { immediate: true })
-watch(leftRef, (el) => {
-  cleanupLeft?.()
-  cleanupLeft = bindDropTarget(el, 'left')
-}, { immediate: true })
-watch(rightRef, (el) => {
-  cleanupRight?.()
-  cleanupRight = bindDropTarget(el, 'right')
-}, { immediate: true })
-watch(bottomRef, (el) => {
-  cleanupBottom?.()
-  cleanupBottom = bindDropTarget(el, 'bottom')
-}, { immediate: true })
-
-const dropPreviewClass = computed(() => {
-  if (!dragEdge.value)
-    return ''
-  switch (dragEdge.value) {
-    case 'top': return 'border-t-4 border-sky-500'
-    case 'bottom': return 'border-b-4 border-sky-500'
-    case 'left': return 'border-l-4 border-sky-500'
-    case 'right': return 'border-r-4 border-sky-500'
-    default: return ''
+function onDockedPointerUp(e: PointerEvent) {
+  if (!dockedDragging)
+    return
+  dockedDragging = false
+  const target = e.currentTarget as HTMLElement
+  target.releasePointerCapture(e.pointerId)
+  const dx = e.clientX - dockedStartX
+  const dy = e.clientY - dockedStartY
+  const dist = Math.sqrt(dx * dx + dy * dy)
+  if (dist > 20) {
+    floatX.value = Math.max(8, e.clientX - 40)
+    floatY.value = Math.max(8, e.clientY - 40)
+    dockedEdge.value = null
   }
-})
+}
 </script>
 
 <template>
-  <div ref="layoutRef" class="relative w-full h-full overflow-hidden">
-    <!-- Drop handles -->
-    <div
-      ref="topRef"
-      class="absolute top-0 left-0 right-0 h-4 z-30 transition-colors"
-      :class="dragEdge === 'top' ? 'bg-sky-500/20' : 'bg-transparent'"
-    />
-    <div
-      ref="leftRef"
-      class="absolute top-0 left-0 bottom-0 w-4 z-30 transition-colors"
-      :class="dragEdge === 'left' ? 'bg-sky-500/20' : 'bg-transparent'"
-    />
-    <div
-      ref="rightRef"
-      class="absolute top-0 right-0 bottom-0 w-4 z-30 transition-colors"
-      :class="dragEdge === 'right' ? 'bg-sky-500/20' : 'bg-transparent'"
-    />
-    <div
-      ref="bottomRef"
-      class="absolute bottom-0 left-0 right-0 h-4 z-30 transition-colors"
-      :class="dragEdge === 'bottom' ? 'bg-sky-500/20' : 'bg-transparent'"
-    />
-
+  <div
+    ref="layoutRef"
+    class="relative w-full h-full overflow-hidden transition-shadow"
+    :class="previewClass"
+  >
     <!-- Main grid or floating -->
     <div
       class="w-full h-full"
-      :class="dockedEdge ? ['grid', gridClass, dropPreviewClass] : ''"
+      :class="dockedEdge ? ['grid', gridClass] : ''"
     >
       <!-- Chart area -->
       <div
         class="relative overflow-hidden"
+        :class="chartGridClass"
         :style="chartStyle"
       >
         <slot name="chart" />
@@ -203,16 +225,32 @@ const dropPreviewClass = computed(() => {
       <div
         v-if="dockedEdge"
         class="relative bg-slate-900 border-slate-800 flex flex-col"
-        :class="dockedEdge === 'top' || dockedEdge === 'bottom' ? 'border-t border-b' : 'border-l border-r'"
+        :class="[panelGridClass, dockedEdge === 'top' || dockedEdge === 'bottom' ? 'border-t border-b' : 'border-l border-r']"
         :style="panelStyle"
       >
+        <!-- Undock handle -->
+        <div
+          class="hover:bg-slate-800/50 transition-colors"
+          :class="undockHandleClass"
+          aria-label="Drag panel"
+          @pointerdown="onDockedPointerDown"
+          @pointermove="onDockedPointerMove"
+          @pointerup="onDockedPointerUp"
+        >
+          <div class="w-0.5 h-5 bg-slate-500 rounded-full" />
+          <div class="w-0.5 h-5 bg-slate-500 rounded-full" />
+        </div>
+
         <ResizeHandle
-          :orientation="dockedEdge === 'top' || dockedEdge === 'bottom' ? 'horizontal' : 'vertical'"
+          :orientation="resizeOrientation"
+          class="z-40"
+          :class="resizeHandleClass"
           @start="() => {}"
           @move="onResizeMove"
           @end="onResizeEnd"
         />
-        <div class="flex-1 min-h-0 overflow-hidden">
+
+        <div class="flex-1 min-h-0 overflow-hidden" :class="contentPaddingClass">
           <slot name="panel" />
         </div>
       </div>
@@ -226,6 +264,8 @@ const dropPreviewClass = computed(() => {
       :min-x="8"
       :min-y="8"
       @drag-end="onFloatDragEnd"
+      @dock="dockedEdge = $event"
+      @preview="previewEdge = $event"
     >
       <div
         class="bg-slate-900 border border-slate-800 shadow-lg rounded-md flex flex-col max-h-[calc(100vh-80px)]"
