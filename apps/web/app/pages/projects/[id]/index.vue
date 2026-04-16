@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { ContributorMeta } from '~/composables/useContributorColors'
 import type { DailyRow } from '~/utils/d3Helpers'
+import type { HealthSignal } from '~/utils/healthRules'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import { useResizeObserver, useThrottleFn } from '@vueuse/core'
+import HealthSummary from '~/components/HealthSummary.vue'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
 import ProjectLayout from '~/components/ProjectLayout.vue'
 import Streamgraph from '~/components/Streamgraph.vue'
@@ -39,6 +41,7 @@ const monthlyData = ref<MonthlyRow[]>([])
 const selectedMonth = ref<string | null>(null)
 const dataLoading = ref(true)
 const dataError = ref<string | null>(null)
+const healthSignals = ref<HealthSignal[]>([])
 
 // -- Derived: loading & error aggregates --
 const loading = computed(() => metaLoading.value || dataLoading.value)
@@ -250,12 +253,14 @@ onMounted(async () => {
 
   // Fetch chart data
   try {
-    const [daily, monthly] = await Promise.all([
+    const [daily, monthly, health] = await Promise.all([
       $fetch<DailyRow[]>(`/api/projects/${projectId}/daily-aggregated`),
       $fetch<MonthlyRow[]>(`/api/projects/${projectId}/monthly`),
+      $fetch<{ signals: HealthSignal[] }>(`/api/projects/${projectId}/health`),
     ])
     dailyData.value = daily
     monthlyData.value = monthly
+    healthSignals.value = health.signals
     if (availableMonths.value.length > 0) {
       selectedMonth.value = availableMonths.value[availableMonths.value.length - 1] ?? null
     }
@@ -282,12 +287,14 @@ function pollProjectStatus() {
       if (meta.status === 'ready') {
         // Project became ready — load chart data
         dataLoading.value = true
-        const [daily, monthly] = await Promise.all([
+        const [daily, monthly, health] = await Promise.all([
           $fetch<DailyRow[]>(`/api/projects/${projectId}/daily-aggregated`),
           $fetch<MonthlyRow[]>(`/api/projects/${projectId}/monthly`),
+          $fetch<{ signals: HealthSignal[] }>(`/api/projects/${projectId}/health`),
         ])
         dailyData.value = daily
         monthlyData.value = monthly
+        healthSignals.value = health.signals
         if (availableMonths.value.length > 0) {
           selectedMonth.value = availableMonths.value[availableMonths.value.length - 1] ?? null
         }
@@ -629,6 +636,14 @@ function formatNumber(n: number): string {
             />
             {{ recentActivityLabel }}
           </span>
+        </div>
+
+        <!-- 2.5 Health signals -->
+        <div
+          v-if="healthSignals.length > 0"
+          class="mb-3"
+        >
+          <HealthSummary :signals="healthSignals" />
         </div>
 
         <!-- 4. Timeline controls -->
