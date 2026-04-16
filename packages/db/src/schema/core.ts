@@ -5,7 +5,17 @@ export const projects = pgTable('projects', {
   name: varchar('name', { length: 255 }).notNull(),
   path: text('path').notNull(),
   createdAt: timestamp('created_at', { mode: 'date', precision: 3, withTimezone: true }).defaultNow().notNull(),
-})
+  url: text('url'),
+  fullName: varchar('full_name', { length: 255 }),
+  status: varchar('status', { length: 20 }).notNull().default('ready'),
+  description: text('description'),
+  lastAnalyzedAt: timestamp('last_analyzed_at', { mode: 'date', precision: 3, withTimezone: true }),
+  errorMessage: text('error_message'),
+}, table => [
+  uniqueIndex('projects_full_name_unique_idx').on(table.fullName),
+  index('projects_status_idx').on(table.status),
+  index('projects_last_analyzed_at_idx').on(table.lastAnalyzedAt),
+])
 
 export const commits = pgTable('commits', {
   id: serial('id').primaryKey(),
