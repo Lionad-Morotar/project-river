@@ -92,6 +92,7 @@ const tooltip = ref({
   linesAdded: 0,
   linesDeleted: 0,
   filesTouched: 0,
+  percentage: 0,
 })
 
 // -- Chart sizing --
@@ -337,7 +338,7 @@ async function handleReanalyze() {
   }
 }
 
-function onHover(event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number } | null) {
+function onHover(event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number } | null) {
   if (!payload || !graphContainerRef.value) {
     tooltip.value.visible = false
     return
@@ -360,6 +361,7 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
   tooltip.value.linesAdded = payload.linesAdded
   tooltip.value.linesDeleted = payload.linesDeleted
   tooltip.value.filesTouched = payload.filesTouched
+  tooltip.value.percentage = payload.percentage
 }
 
 // -- Helpers --
@@ -670,6 +672,7 @@ function formatNumber(n: number): string {
                 :lines-added="tooltip.linesAdded"
                 :lines-deleted="tooltip.linesDeleted"
                 :files-touched="tooltip.filesTouched"
+                :percentage="tooltip.percentage"
               />
             </div>
           </template>

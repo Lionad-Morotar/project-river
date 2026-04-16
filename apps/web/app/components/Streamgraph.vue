@@ -29,7 +29,7 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:selectedMonth', value: string | null): void
-  (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number } | null): void
+  (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number } | null): void
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
@@ -79,6 +79,15 @@ const dataLookup = computed(() => {
   return map
 })
 
+/** O(1) daily total lookup for contribution percentage */
+const dailyTotals = computed(() => {
+  const map = new Map<string, number>()
+  for (const row of props.data) {
+    map.set(row.date, (map.get(row.date) || 0) + row.commits)
+  }
+  return map
+})
+
 // -- Module-level D3 state (persisted across updates) --
 
 let svgNode: SVGSVGElement | null = null
@@ -90,6 +99,7 @@ let yScale: D3ScaleLinear | null = null
 let zoomBehavior: D3ZoomBehavior | null = null
 let brushBehavior: D3BrushXBehavior | null = null
 let areaGenerator: D3AreaGenerator | null = null
+let hitAreaGenerator: D3AreaGenerator | null = null
 let monthHighlight: SVGRectElement | null = null
 let isProgrammaticZoom = false
 let brushCleanupFallback: ((e: PointerEvent) => void) | null = null
@@ -110,6 +120,8 @@ const GRID_COLOR = '#334155' // slate-700
 const HIGHLIGHT_COLOR = 'rgba(56,189,248,0.15)'
 const BRUSH_BG = '#0f172a' // slate-900
 const BRUSH_STROKE = '#475569' // slate-600
+const MIN_THICKNESS_PX = 2
+const HIT_AREA_PX = 6
 
 // -- Hover handlers (extracted so they can be reused in data-join) --
 
@@ -144,6 +156,8 @@ function handleHover(event: PointerEvent, d: any) {
   }
 
   if (row) {
+    const totalDay = dailyTotals.value.get(row.date) || 0
+    const percentage = totalDay > 0 ? Math.round(row.commits / totalDay * 100) : 0
     emit('hover', event, {
       contributor: row.contributor,
       date: row.date,
@@ -151,6 +165,7 @@ function handleHover(event: PointerEvent, d: any) {
       linesAdded: row.linesAdded,
       linesDeleted: row.linesDeleted,
       filesTouched: row.filesTouched,
+      percentage,
     })
   }
 }
@@ -430,14 +445,22 @@ function updateScales() {
     .domain(yDomain.value)
     .range([chartHeight, 0])
 
-  // Area generator
+  // Area generator with minimum thickness clamping
   const currentXScale = xScale
   const currentYScale = yScale
+  const clampedY1 = (d: any) => Math.min(currentYScale(d[1]), currentYScale(d[0]) - MIN_THICKNESS_PX)
   areaGenerator = d3Area<any>()
     .curve(curveBasis)
     .x((d: any) => currentXScale(d.data.date))
     .y0((d: any) => currentYScale(d[0]))
-    .y1((d: any) => currentYScale(d[1]))
+    .y1(clampedY1)
+
+  // Hit area generator — expanded by HIT_AREA_PX on each side for easier hovering
+  hitAreaGenerator = d3Area<any>()
+    .curve(curveBasis)
+    .x((d: any) => currentXScale(d.data.date))
+    .y0((d: any) => currentYScale(d[0]) + HIT_AREA_PX)
+    .y1((d: any) => clampedY1(d) - HIT_AREA_PX)
 
   // Update horizontal grid lines
   if (gChartSelection) {
@@ -520,23 +543,46 @@ function updateLayers() {
   if (!gChartSelection || !gBrushGroupSelection || !areaGenerator || !xBase)
     return
 
-  // Main chart layers — data-join
+  // Main chart layers — group-based data-join with hit area + visual path
   const layersContainer = gChartSelection.select('.layers')
 
-  layersContainer.selectAll('path.layer')
+  layersContainer.selectAll('g.layer-group')
     .data(series.value, (d: any) => d.key)
     .join(
-      enter => enter.append('path')
-        .attr('class', 'layer')
-        .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
-        .style('cursor', 'crosshair')
-        .on('pointerenter pointermove', handleHover)
-        .on('pointerleave', handleLeave),
-      update => update
-        .attr('fill', (d: any) => props.colors.get(d.key) || '#999'),
+      (enter) => {
+        const g = enter.append('g').attr('class', 'layer-group')
+
+        // Hit area path (behind, catches pointer events)
+        g.append('path')
+          .attr('class', 'layer-hitarea')
+          .attr('fill', 'transparent')
+          .style('pointer-events', 'all')
+          .style('cursor', 'crosshair')
+          .on('pointerenter pointermove', handleHover)
+          .on('pointerleave', handleLeave)
+
+        // Visual path (in front, no pointer events)
+        g.append('path')
+          .attr('class', 'layer-visual')
+          .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
+          .style('pointer-events', 'none')
+
+        return g
+      },
+      update => update,
       exit => exit.remove(),
     )
+
+  // Update visual paths
+  layersContainer.selectAll('path.layer-visual')
+    .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
     .attr('d', areaGenerator)
+
+  // Update hit area paths
+  if (hitAreaGenerator) {
+    layersContainer.selectAll('path.layer-hitarea')
+      .attr('d', hitAreaGenerator)
+  }
 
   // Brush mini layers — data-join
   const yBrush = scaleLinear()
@@ -581,7 +627,10 @@ function updateLayers() {
 function updateLayerPaths() {
   if (!gChartSelection || !areaGenerator)
     return
-  gChartSelection.selectAll('path.layer').attr('d', areaGenerator)
+  gChartSelection.selectAll('path.layer-visual').attr('d', areaGenerator)
+  if (hitAreaGenerator) {
+    gChartSelection.selectAll('path.layer-hitarea').attr('d', hitAreaGenerator)
+  }
 }
 
 function updateMonthHighlight() {

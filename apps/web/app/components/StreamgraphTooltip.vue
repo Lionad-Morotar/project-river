@@ -9,6 +9,7 @@ interface Props {
   linesAdded: number
   linesDeleted: number
   filesTouched: number
+  percentage: number
 }
 
 defineProps<Props>()
@@ -20,8 +21,16 @@ defineProps<Props>()
     class="absolute z-50 min-w-[170px] rounded-md border border-slate-700 bg-slate-900 px-3 py-2 shadow-md"
     :style="{ left: `${x}px`, top: `${y}px`, pointerEvents: 'none' }"
   >
-    <div class="mb-1 text-xs font-semibold text-slate-100 truncate max-w-[200px]">
-      {{ contributor }}
+    <div class="mb-1 flex items-center justify-between gap-3">
+      <span class="text-xs font-semibold text-slate-100 truncate max-w-[140px]">
+        {{ contributor }}
+      </span>
+      <span
+        v-if="percentage > 0"
+        class="shrink-0 text-xs font-medium text-sky-400"
+      >
+        {{ percentage }}%
+      </span>
     </div>
     <div class="mb-2 text-xs text-slate-400">
       {{ date }}
