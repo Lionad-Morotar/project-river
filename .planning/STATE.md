@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
+milestone: v1.1
 milestone_name: milestone
 status: verifying
-last_updated: "2026-04-15T09:04:48.186Z"
-last_activity: 2026-04-15
+last_updated: "2026-04-16T15:15:00.000Z"
+last_activity: 2026-04-16
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # STATE
@@ -19,29 +19,30 @@ progress:
 **Name**: project-river
 **Core Value**: Make Git repository evolution visceral and explorable through an interactive Streamgraph visualization.
 
-**Current Focus**: Milestone v1.1 — 服务端聚合与颜色算法重构
+**Current Focus**: Milestone v1.1 — Docked Panel Layout（Phase 10）
 **Milestone**: v1.1 可视化增强
 **Mode**: interactive
 
 ## Current Position
 
-Phase: 09 (aggregated-streamgraph-contributor-color-rework) — EXECUTING
-Plan: 2 of 2
-Status: Phase complete — ready for verification
-Last activity: 2026-04-15
+Phase: 10 (docked-panel-layout) — COMPLETE
+Plan: 1 of 1
+Status: Completed
+Last activity: 2026-04-16
 
-**Progress Bar**: `[░░░░░░░░░░░░░░░░░░░░] 0%`
+**Progress Bar**: `[████████████████████░░░░░░░░░░░░░░░░] 60%`
 
 ## Performance Metrics
 
 | Metric | Value |
 |--------|-------|
-| Phases completed | 0 / 1 |
-| Requirements delivered | 0 / 6 |
-| Success criteria met | — |
+| Phases completed | 1 / 2 |
+| Requirements delivered | 6 / 6 |
+| Success criteria met | Phase 10 complete |
 | Blockers | 0 |
 | Phase 09 P01 | 4 | 1 tasks | 2 files |
 | Phase 09-aggregated-streamgraph-contributor-color-rework P02 | 590 | 2 tasks | 7 files |
+| Phase 10-docked-panel-layout P01 | ~45m | 6 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,14 @@ Last activity: 2026-04-15
 - [Phase 09-aggregated-streamgraph-contributor-color-rework]: Hue maps firstCommitDate linearly from 160° (oldest) to 280° (newest)
 - [Phase 09-aggregated-streamgraph-contributor-color-rework]: Saturation uses log10 scaling against maxCommits for better visual separation (15%–75%)
 - [Phase 09-aggregated-streamgraph-contributor-color-rework]: useStreamgraphData retained as thin passthrough for backward compatibility
+- [Phase 10-docked-panel-layout]: Use `@atlaskit/pragmatic-drag-and-drop` for drag-and-drop (not Kareem-based hook)
+- [Phase 10-docked-panel-layout]: Split MonthDetailPanel into pure presentation + DraggablePanel wrapper
+- [Phase 10-docked-panel-layout]: Extract ProjectLayout.vue to own the grid, drop handles, and resize logic
+- [Phase 10-docked-panel-layout]: Debounce D3 redraws during resize drag (~150ms) via useThrottleFn
+- [Phase 10-docked-panel-layout]: Throttle localStorage writes — update local ref during drag, flush on mouseup
+- [Phase 10-docked-panel-layout]: Minimum sizes enforced: chart >=300px, panel >=200px (vertical) / >=160px (horizontal)
+- [Phase 10-docked-panel-layout]: Clamp floating coordinates to viewport bounds on drag end
+- [Phase 10-docked-panel-layout]: Persist docked edge + resize ratios + floating position in localStorage via useStorage
 
 ### TODOs
 
@@ -69,6 +78,7 @@ Last activity: 2026-04-15
 
 - v1.0 milestone completed and archived on 2026-04-09.
 - v1.1 milestone started on 2026-04-15, focusing on aggregated daily API and contributor color rework.
+- Phase 10 completed on 2026-04-16: docked panel layout with dark theme migration.
 
 ### Blockers
 
@@ -76,5 +86,5 @@ Last activity: 2026-04-15
 
 ## Session Continuity
 
-**Last action**: Phase 9 planning complete — 2 plans verified
-**Next expected action**: `/gsd:execute-phase 9`
+**Last action**: Phase 10 plan execution complete
+**Next expected action**: milestone v1.1 completion review or transition to next phase
