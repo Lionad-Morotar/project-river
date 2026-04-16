@@ -1,8 +1,8 @@
-import type { Edge } from '@atlaskit/pragmatic-drag-and-drop/types'
 import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { onMounted, onUnmounted, ref, shallowRef } from 'vue'
 
-export type DockedEdge = 'top' | 'left' | 'right' | 'bottom' | null
+export type Edge = 'top' | 'left' | 'right' | 'bottom'
+export type DockedEdge = Edge | null
 
 export interface PanelDragState {
   isDragging: boolean

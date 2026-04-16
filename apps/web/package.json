@@ -30,8 +30,10 @@
   "devDependencies": {
     "@atlaskit/pragmatic-drag-and-drop": "^1.7.10",
     "@nuxt/ui": "^3.1.0",
+    "@playwright/test": "^1.59.1",
     "@vitejs/plugin-vue": "^6.0.6",
     "@vue/test-utils": "^2.4.6",
+    "@vueuse/core": "^14.2.1",
     "@vueuse/nuxt": "^13.0.0",
     "drizzle-orm": "^0.45.2",
     "eslint-plugin-format": "^2.0.1",

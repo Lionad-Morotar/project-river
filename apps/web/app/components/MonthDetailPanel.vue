@@ -42,7 +42,7 @@ function goPrevious() {
     return
   const idx = props.availableMonths.indexOf(props.selectedMonth)
   if (idx > 0) {
-    emit('update:selectedMonth', props.availableMonths[idx - 1])
+    emit('update:selectedMonth', props.availableMonths[idx - 1] ?? null)
   }
 }
 
@@ -51,7 +51,7 @@ function goNext() {
     return
   const idx = props.availableMonths.indexOf(props.selectedMonth)
   if (idx >= 0 && idx < props.availableMonths.length - 1) {
-    emit('update:selectedMonth', props.availableMonths[idx + 1])
+    emit('update:selectedMonth', props.availableMonths[idx + 1] ?? null)
   }
 }
 </script>

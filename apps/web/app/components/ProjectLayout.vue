@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Edge } from '@atlaskit/pragmatic-drag-and-drop/types'
+import type { Edge } from '~/composables/usePanelDrag'
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
 import { useElementSize, useStorage } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
