@@ -1,6 +1,7 @@
+import type { ContributorMeta } from '../../app/composables/useContributorColors'
 import { describe, expect, it } from 'vitest'
+import { getContributorHsl, useContributorColors } from '../../app/composables/useContributorColors'
 import { OTHERS_LABEL } from '../../app/composables/useStreamgraphData'
-import { getContributorHsl, useContributorColors, type ContributorMeta } from '../../app/composables/useContributorColors'
 
 describe('getContributorHsl', () => {
   const bounds = { minDate: '2024-01-01', maxDate: '2024-01-31' }
