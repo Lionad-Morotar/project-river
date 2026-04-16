@@ -107,8 +107,9 @@ onMounted(async () => {
       selectedMonth.value = availableMonths.value[availableMonths.value.length - 1] ?? null
     }
   }
-  catch {
-    error.value = 'Failed to load project data. Please check your connection and try again.'
+  catch (err: any) {
+    const msg = err?.data?.statusMessage || err?.statusMessage || err?.message || 'Failed to load project data. Please check your connection and try again.'
+    error.value = msg
   }
   finally {
     loading.value = false
