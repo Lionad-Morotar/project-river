@@ -48,15 +48,15 @@ Developers, maintainers, and project leads who want an intuitive, time-based ove
 - ✓ **UI-03**: Show tooltip on hover over contributor layer — v1.0
 - ✓ **UI-04**: Build month detail panel with Current vs Cumulative metrics and top contributors — v1.0
 - ✓ **EXPORT-01**: Add SVG export button that serializes the D3-generated SVG — v1.0
+- ✓ **API-03**: 新增 `GET /api/projects/:id/daily-aggregated` 聚合接口 (Top 49 + Others) — v1.1
+- ✓ **API-04**: 聚合接口保持与原 daily 接口一致的字段结构和零填充行为 — v1.1
+- ✓ **VIZ-01**: 贡献者颜色算法基于时间跨度和总贡献量映射 — v1.1
+- ✓ **VIZ-02**: 色相范围以蓝色为中心向两侧 ±60° 展开 — v1.1
+- ✓ **VIZ-03**: 饱和度从高贡献向中性灰渐变 — v1.1
+- ✓ **VIZ-04**: 前端 Streamgraph 组件消费新聚合接口 — v1.1
 
 ### Active
 
-- [x] **API-03**: 新增 `GET /api/projects/:id/daily-aggregated` 聚合接口 (Top 49 + Others) — v1.1
-- [x] **API-04**: 聚合接口保持与原 daily 接口一致的字段结构和零填充行为 — v1.1
-- [x] **VIZ-01**: 贡献者颜色算法基于时间跨度和总贡献量映射 — v1.1
-- [x] **VIZ-02**: 色相范围以蓝色为中心向两侧 ±60° 展开 — v1.1
-- [x] **VIZ-03**: 饱和度从高贡献向中性灰渐变 — v1.1
-- [x] **VIZ-04**: 前端 Streamgraph 组件消费新聚合接口 — v1.1
 - [ ] **V2-01**: Multi-repository comparison view
 - [ ] **V2-02**: Real-time/live background updates to analysis
 - [ ] **V2-03**: User authentication and multi-tenancy
@@ -95,11 +95,19 @@ Developers, maintainers, and project leads who want an intuitive, time-based ove
 - 9 phases, 28 plans, 36 tasks completed
 - 11 test files, 41 tests passing
 - End-to-end flow verified: CLI `analyze` → PostgreSQL → Nuxt API → D3 Streamgraph → SVG export
-- Cross-cutting QA review (Phase 07.1) fixed pipeline lint and brittle test issues
-- Documentation generated for all major packages and architecture
+
+**Shipped v1.1 on 2026-04-16** with docked panel layout, dark theme, and aggregated daily API.
+- 2 phases, 3 plans completed
+- 22 commits, 20 files changed, +1006/-255 lines
+- Backend aggregation (Top 49 + Others) reduces frontend rendering load
+- HSL contributor color mapping based on tenure and contribution volume
+- Dark theme migration across all UI components
+- Draggable/dockable MonthDetailPanel with localStorage persistence
+- Resize handles with keyboard support and minimum size constraints
+- Playwright E2E and Vue Test Utils infrastructure added
 
 **Known technical debt** (non-blocking):
-- Root `vitest.workspace.ts` uses deprecated `defineWorkspace` pattern (fixed during audit)
+- Playwright E2E tests require a seeded dev environment for full validation
 - Minor TypeScript cross-package path-mapping warnings in `packages/pipeline` IDE diagnostics
 - Pipeline integration tests require live `DATABASE_URL` and skip gracefully when absent
 
@@ -122,4 +130,4 @@ This document evolves at phase transitions and milestone boundaries.
 
 ---
 
-*Last updated: 2026-04-09 after v1.0 milestone completion*
+*Last updated: 2026-04-16 after v1.1 milestone completion*
