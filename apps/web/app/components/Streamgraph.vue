@@ -2,7 +2,7 @@
 import type { DailyRow } from '~/utils/d3Helpers'
 import { extent, max, min } from 'd3-array'
 import { axisBottom, axisLeft } from 'd3-axis'
-import { brushX as d3BrushX } from 'd3-brush'
+import { brushSelection, brushX as d3BrushX } from 'd3-brush'
 import { scaleLinear, scaleUtc } from 'd3-scale'
 import { pointer as d3Pointer, select } from 'd3-selection'
 import { curveBasis, area as d3Area } from 'd3-shape'
@@ -682,7 +682,7 @@ function updateLayers() {
   // Reset brush to full range if it's the first render
   if (brushGroup && brushBehavior) {
     const brushSel = select(brushGroup)
-    const currentSelection = d3BrushX.selection(brushSel) as [number, number] | null
+    const currentSelection = brushSelection(brushSel) as [number, number] | null
     // Only move brush to full range on initial setup (no existing selection)
     if (!currentSelection) {
       brushSel.call(brushBehavior.move, xBase.range())
