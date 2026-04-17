@@ -17,6 +17,7 @@ interface Props {
   hasData: boolean
   isAllHistory?: boolean
   previousMonthCommits?: number
+  rangeLabel?: string
 }
 
 const props = defineProps<Props>()
@@ -81,7 +82,7 @@ function goNext() {
         >
           &#8249;
         </button>
-        <span class="text-sm font-semibold text-slate-100 min-w-[80px] text-center">{{ selectedMonth ?? '—' }}</span>
+        <span class="text-sm font-semibold text-slate-100 min-w-[80px] text-center">{{ rangeLabel || selectedMonth || '—' }}</span>
         <button
           class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
           aria-label="Next month"
@@ -108,7 +109,7 @@ function goNext() {
         <div class="text-2xl font-semibold text-slate-100 tabular-nums">
           {{ commitsThisMonth }}
           <span
-            v-if="monthDelta"
+            v-if="monthDelta && !rangeLabel"
             class="text-xs font-medium tabular-nums ml-1"
             :class="monthDelta.change >= 0 ? 'text-emerald-400' : 'text-red-400'"
           >
@@ -128,8 +129,14 @@ function goNext() {
 
     <!-- Contributors section -->
     <div class="flex-1 min-h-0 flex flex-col">
-      <div class="text-xs text-slate-400 font-medium px-4 py-2 border-t border-slate-800">
-        Contributors
+      <div class="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-800">
+        <span class="text-xs text-slate-400 font-medium">
+          Contributors
+        </span>
+        <div class="flex items-center gap-3">
+          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Monthly</span>
+          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider w-12 text-right">Total</span>
+        </div>
       </div>
       <div class="overflow-y-auto flex-1 px-4 pb-4">
         <div
