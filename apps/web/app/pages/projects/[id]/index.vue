@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { ContributorMeta } from '~/composables/useContributorColors'
-import type { DailyRow } from '~/utils/d3Helpers'
+import type { DailyRow, Granularity } from '~/utils/d3Helpers'
 import type { HealthSignal } from '~/utils/healthRules'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import { useResizeObserver, useThrottleFn } from '@vueuse/core'
@@ -11,7 +11,8 @@ import Streamgraph from '~/components/Streamgraph.vue'
 import StreamgraphTooltip from '~/components/StreamgraphTooltip.vue'
 import { useContributorColors } from '~/composables/useContributorColors'
 import { useStreamgraphData } from '~/composables/useStreamgraphData'
-import { getAllContributors, getMonthContributors } from '~/utils/monthDetailHelpers'
+import { aggregateRows } from '~/utils/d3Helpers'
+import { getAllContributors, getMonthContributors, getRangeContributors } from '~/utils/monthDetailHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
 
 interface ProjectMeta {
@@ -42,7 +43,8 @@ const selectedMonth = ref<string | null>(null)
 const dataLoading = ref(true)
 const dataError = ref<string | null>(null)
 const healthSignals = ref<HealthSignal[]>([])
-
+const visibleRange = ref<{ start: string, end: string } | null>(null)
+const granularity = ref<Granularity>('month')
 // -- Derived: loading & error aggregates --
 const loading = computed(() => metaLoading.value || dataLoading.value)
 const error = computed(() => metaError.value || dataError.value)
@@ -96,6 +98,7 @@ const tooltip = ref({
   linesDeleted: 0,
   filesTouched: 0,
   percentage: 0,
+  totalCommits: 0,
 })
 
 // -- Chart sizing --
@@ -120,6 +123,7 @@ const graphContainerRef = ref<HTMLDivElement | null>(null)
 const streamgraphRef = ref<{ getSvg: () => SVGSVGElement | null } | null>(null)
 
 const streamgraphData = computed(() => useStreamgraphData(dailyData.value).filteredRows)
+const aggregatedData = computed(() => aggregateRows(streamgraphData.value, granularity.value))
 
 const contributorMetaList = computed<ContributorMeta[]>(() => {
   const firstDateMap = new Map<string, string>()
@@ -206,12 +210,27 @@ const recentActivityDotClass = computed(() => {
 })
 
 const panelContributors = computed(() => {
+  if (visibleRange.value) {
+    return getRangeContributors(dailyData.value, visibleRange.value.start, visibleRange.value.end, colorMap.value)
+  }
   if (!selectedMonth.value)
     return getAllContributors(monthlyData.value, dailyData.value, colorMap.value)
   return getMonthContributors(monthlyData.value, dailyData.value, selectedMonth.value, colorMap.value)
 })
 const commitsThisMonth = computed(() => panelContributors.value.reduce((sum, c) => sum + c.monthlyCommits, 0))
 const totalCommitsToDate = computed(() => panelContributors.value.reduce((sum, c) => sum + c.cumulativeCommits, 0))
+
+/** Label for panel header — date range when brush diverges from month boundary */
+const panelRangeLabel = computed(() => {
+  if (!visibleRange.value)
+    return undefined
+  const { start, end } = visibleRange.value
+  const startMonth = start.substring(0, 7)
+  const endMonth = end.substring(0, 7)
+  if (startMonth === endMonth)
+    return undefined
+  return `${start} ~ ${end}`
+})
 
 /** Commits from the month before the selected month */
 const previousMonthCommits = computed(() => {
@@ -364,7 +383,7 @@ async function handleReanalyze() {
   }
 }
 
-function onHover(event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number } | null) {
+function onHover(event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number, totalCommits?: number } | null) {
   if (!payload || !graphContainerRef.value) {
     tooltip.value.visible = false
     return
@@ -388,9 +407,14 @@ function onHover(event: PointerEvent, payload: { contributor: string, date: stri
   tooltip.value.linesDeleted = payload.linesDeleted
   tooltip.value.filesTouched = payload.filesTouched
   tooltip.value.percentage = payload.percentage
+  tooltip.value.totalCommits = payload.totalCommits ?? 0
 }
 
 // -- Helpers --
+function handleRangeChange(range: { start: string, end: string } | null) {
+  visibleRange.value = range
+}
+
 function formatShortDate(dateStr: string): string {
   const d = new Date(dateStr)
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -405,17 +429,17 @@ function formatNumber(n: number): string {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-950 flex flex-col">
-    <div class="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex flex-col flex-1 w-full">
+  <div class="flex flex-col bg-slate-950 h-screen overflow">
+    <div class="flex flex-col flex-1 px-6 lg:px-10 py-6 w-full w-full">
       <!-- ============================================================ -->
       <!-- Loading: project metadata or chart data -->
       <!-- ============================================================ -->
       <div
         v-if="loading"
-        class="flex flex-col items-center justify-center py-24"
+        class="flex flex-col justify-center items-center py-24"
       >
-        <div class="flex items-center gap-3 text-sm text-slate-400">
-          <span class="inline-block h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+        <div class="flex items-center gap-3 text-slate-400 text-sm">
+          <span class="inline-block bg-sky-400 rounded-full w-2 h-2 animate-pulse" />
           {{ isProcessing ? stageLabel : 'Loading project...' }}
         </div>
       </div>
@@ -425,14 +449,14 @@ function formatNumber(n: number): string {
       <!-- ============================================================ -->
       <div
         v-else-if="error"
-        class="flex flex-col items-center justify-center py-24"
+        class="flex flex-col justify-center items-center py-24"
       >
-        <div class="rounded-md border border-red-800/60 bg-red-950/30 p-5 max-w-md text-center">
-          <p class="text-sm font-medium text-red-300">
+        <div class="bg-red-950/30 p-5 border border-red-800/60 rounded-md max-w-md text-center">
+          <p class="font-medium text-red-300 text-sm">
             {{ error }}
           </p>
           <button
-            class="mt-3 text-xs text-red-300 underline underline-offset-2 hover:text-red-200"
+            class="mt-3 text-red-300 hover:text-red-200 text-xs underline underline-offset-2"
             @click="$router.push('/')"
           >
             Back to projects
@@ -445,27 +469,27 @@ function formatNumber(n: number): string {
       <!-- ============================================================ -->
       <div
         v-else-if="isError"
-        class="flex flex-col items-center justify-center py-24"
+        class="flex flex-col justify-center items-center py-24"
       >
-        <div class="rounded-md border border-red-800/60 bg-red-950/30 p-5 max-w-md">
-          <p class="text-sm font-medium text-red-300">
+        <div class="bg-red-950/30 p-5 border border-red-800/60 rounded-md max-w-md">
+          <p class="font-medium text-red-300 text-sm">
             {{ errorGuidance?.title || 'Analysis failed' }}
           </p>
           <p
             v-if="errorGuidance?.hint"
-            class="mt-1 text-xs text-red-400/80"
+            class="mt-1 text-red-400/80 text-xs"
           >
             {{ errorGuidance.hint }}
           </p>
-          <div class="mt-4 flex items-center gap-4">
+          <div class="flex items-center gap-4 mt-4">
             <button
-              class="text-xs text-red-300 underline underline-offset-2 hover:text-red-200"
+              class="text-red-300 hover:text-red-200 text-xs underline underline-offset-2"
               @click="handleReanalyze"
             >
               Retry analysis
             </button>
             <button
-              class="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-200"
+              class="text-slate-400 hover:text-slate-200 text-xs underline underline-offset-2"
               @click="$router.push('/')"
             >
               Back to projects
@@ -479,23 +503,23 @@ function formatNumber(n: number): string {
       <!-- ============================================================ -->
       <div
         v-else-if="isReady && dailyData.length === 0 && !dataLoading"
-        class="flex flex-col items-center justify-center py-24"
+        class="flex flex-col justify-center items-center py-24"
       >
-        <h2 class="text-lg font-medium text-slate-300 mb-2">
+        <h2 class="mb-2 font-medium text-slate-300 text-lg">
           No commit data available
         </h2>
-        <p class="text-sm text-slate-500 mb-4">
+        <p class="mb-4 text-slate-500 text-sm">
           The project was analyzed but no commits were found.
         </p>
         <div class="flex items-center gap-4">
           <button
-            class="text-xs text-slate-300 underline underline-offset-2 hover:text-white"
+            class="text-slate-300 hover:text-white text-xs underline underline-offset-2"
             @click="handleReanalyze"
           >
             Re-analyze
           </button>
           <button
-            class="text-xs text-slate-400 underline underline-offset-2 hover:text-slate-200"
+            class="text-slate-400 hover:text-slate-200 text-xs underline underline-offset-2"
             @click="$router.push('/')"
           >
             Back to projects
@@ -511,19 +535,19 @@ function formatNumber(n: number): string {
 
         <!-- 1. Project identity -->
         <header class="mb-3">
-          <h1 class="text-xl font-semibold text-slate-100 tracking-tight">
+          <h1 class="font-semibold text-slate-100 text-xl tracking-tight">
             {{ projectMeta?.fullName || projectMeta?.name || projectId }}
           </h1>
           <p
             v-if="projectMeta?.description"
-            class="mt-1 text-sm text-slate-400 line-clamp-1"
+            class="mt-1 text-slate-400 text-sm line-clamp-1"
           >
             {{ projectMeta.description }}
           </p>
         </header>
 
         <!-- 2. Status bar -->
-        <div class="flex items-center gap-4 mb-4 text-xs text-slate-400 flex-wrap">
+        <div class="flex flex-wrap items-center gap-4 mb-4 text-slate-400 text-xs">
           <!-- Time range -->
           <span
             v-if="formattedDateRange"
@@ -650,7 +674,7 @@ function formatNumber(n: number): string {
             class="flex items-center gap-1.5"
           >
             <span
-              class="inline-block h-1.5 w-1.5 rounded-full"
+              class="inline-block rounded-full w-1.5 h-1.5"
               :class="recentActivityDotClass"
             />
             {{ recentActivityLabel }}
@@ -666,16 +690,33 @@ function formatNumber(n: number): string {
         </div>
 
         <!-- 4. Timeline controls -->
-        <div class="flex items-center gap-3 mb-3">
+        <div class="flex items-center gap-2 bg-slate-900/50 mb-3 px-3 py-2 border border-slate-800 rounded-lg">
+          <span class="mr-1 font-medium text-slate-500 text-xs select-none">Granularity</span>
+          <div class="inline-flex bg-slate-800 p-0.5 rounded-md">
+            <button
+              v-for="g in (['day', 'week', 'month'] as Granularity[])"
+              :key="g"
+              class="px-2.5 py-1 rounded font-medium text-xs transition-all"
+              :class="granularity === g ? 'bg-slate-600 text-slate-100 shadow-sm' : 'text-slate-400 hover:text-slate-200'"
+              @click="granularity = g"
+            >
+              {{ g === 'day' ? 'Day' : g === 'week' ? 'Week' : 'Month' }}
+            </button>
+          </div>
+
+          <span class="mx-1 text-slate-700 select-none">|</span>
+
           <MonthSelector
             v-model="selectedMonth"
             :months="availableMonths"
           />
+
           <button
-            class="px-3 py-1.5 text-sm text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-md transition-colors"
+            class="hover:bg-slate-800 px-2.5 py-1 rounded text-slate-500 hover:text-slate-200 text-xs transition-colors"
+            :class="{ 'text-slate-200 bg-slate-800': !selectedMonth }"
             @click="selectedMonth = null"
           >
-            Show All History
+            Reset
           </button>
         </div>
 
@@ -688,12 +729,13 @@ function formatNumber(n: number): string {
             >
               <Streamgraph
                 ref="streamgraphRef"
-                :data="streamgraphData"
+                :data="aggregatedData"
                 :width="chartWidth"
                 :height="chartHeight"
                 :selected-month="selectedMonth"
                 :colors="colorMap"
                 @update:selected-month="selectedMonth = $event"
+                @range-change="handleRangeChange"
                 @hover="onHover"
               />
               <StreamgraphTooltip
@@ -707,6 +749,7 @@ function formatNumber(n: number): string {
                 :lines-deleted="tooltip.linesDeleted"
                 :files-touched="tooltip.filesTouched"
                 :percentage="tooltip.percentage"
+                :total-commits="tooltip.totalCommits"
               />
             </div>
           </template>
@@ -721,6 +764,7 @@ function formatNumber(n: number): string {
               :has-data="hasData"
               :is-all-history="isAllHistory"
               :previous-month-commits="previousMonthCommits"
+              :range-label="panelRangeLabel"
               @export="handleExport"
             />
           </template>

@@ -29,7 +29,8 @@ const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:selectedMonth', value: string | null): void
-  (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number } | null): void
+  (e: 'rangeChange', range: { start: string, end: string } | null): void
+  (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number, totalCommits?: number } | null): void
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
@@ -147,7 +148,10 @@ let areaGenerator: D3AreaGenerator | null = null
 let hitAreaGenerator: D3AreaGenerator | null = null
 let monthHighlight: SVGRectElement | null = null
 let isProgrammaticZoom = false
+let isMonthDrivenZoom = false
 let brushCleanupFallback: ((e: PointerEvent) => void) | null = null
+let crosshairGroup: ReturnType<typeof select> | null = null
+let hoverHighlightEl: ReturnType<typeof select> | null = null
 
 // D3 selections that persist across updates
 let svgSelection: ReturnType<typeof select> | null = null
@@ -178,6 +182,16 @@ function smartTimeFormat(date: Date): string {
   return `${months[date.getMonth()]} ${date.getDate()}`
 }
 
+/** Emit current visible date range to parent */
+function emitVisibleRange() {
+  if (!xScale || !xBase)
+    return
+  const [d0, d1] = xScale.domain()
+  const start = new Date(d0 as number).toISOString().split('T')[0]!
+  const end = new Date(d1 as number).toISOString().split('T')[0]!
+  emit('rangeChange', { start, end })
+}
+
 /** Dark theme axis colors */
 const AXIS_COLOR = '#94a3b8' // slate-400
 const TICK_COLOR = '#94a3b8' // slate-400
@@ -190,32 +204,63 @@ const BRUSH_STROKE = '#475569' // slate-600
 
 function handleHover(event: PointerEvent, d: any) {
   event.preventDefault()
-  if (!xScale || !svgSelection)
+  if (!xScale || !svgSelection || !yScale)
     return
   const contributor = d.key as string
-  const [px] = d3Pointer(event, svgSelection.node())
+  const [px, py] = d3Pointer(event, svgSelection.node())
   const date = xScale.invert(px)
   const isoDate = date.toISOString().split('T')[0]
+  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+
+  // Crosshair lines
+  if (crosshairGroup) {
+    crosshairGroup.select('.crosshair-h')
+      .style('display', 'block')
+      .attr('x1', marginLeft)
+      .attr('x2', props.width - marginRight)
+      .attr('y1', py)
+      .attr('y2', py)
+    crosshairGroup.select('.crosshair-v')
+      .style('display', 'block')
+      .attr('x1', px)
+      .attr('x2', px)
+      .attr('y1', marginTop)
+      .attr('y2', marginTop + chartHeight)
+  }
+
+  // Highlight hovered layer path
+  if (hoverHighlightEl && areaGenerator) {
+    // Find the series for this contributor
+    const layer = series.value.find(s => s.key === contributor)
+    if (layer) {
+      hoverHighlightEl
+        .datum(layer)
+        .attr('d', areaGenerator)
+        .style('opacity', 0.85)
+    }
+  }
 
   const lookup = dataLookup.value
   const dateMap = lookup.get(contributor)
-  if (!dateMap)
+  if (!dateMap || dateMap.size === 0)
     return
 
-  // O(1) exact match first, then nearest-day fallback
+  // O(1) exact match first, then nearest-date fallback
   let row = dateMap.get(isoDate) ?? null
   if (!row) {
     const targetTime = date.getTime()
     let minDelta = Infinity
+    let nearest: DailyRow | null = null
     for (const r of dateMap.values()) {
       const delta = Math.abs(new Date(r.date).getTime() - targetTime)
       if (delta < minDelta) {
         minDelta = delta
-        row = r
+        nearest = r
       }
     }
-    if (minDelta > 86400000)
-      row = null
+    // Accept nearest within ~31 days (covers month granularity)
+    if (nearest && minDelta <= 31 * 86400000)
+      row = nearest
   }
 
   if (row) {
@@ -229,11 +274,33 @@ function handleHover(event: PointerEvent, d: any) {
       linesDeleted: row.linesDeleted,
       filesTouched: row.filesTouched,
       percentage,
+      totalCommits: totalDay,
+    })
+  }
+  else {
+    // Still show tooltip with date + contributor, even without data point
+    emit('hover', event, {
+      contributor,
+      date: isoDate,
+      commits: 0,
+      linesAdded: 0,
+      linesDeleted: 0,
+      filesTouched: 0,
+      percentage: 0,
     })
   }
 }
 
 function handleLeave(event: PointerEvent) {
+  // Hide crosshair
+  if (crosshairGroup) {
+    crosshairGroup.select('.crosshair-h').style('display', 'none')
+    crosshairGroup.select('.crosshair-v').style('display', 'none')
+  }
+  // Hide highlight
+  if (hoverHighlightEl) {
+    hoverHighlightEl.style('opacity', 0)
+  }
   emit('hover', event, null)
 }
 
@@ -313,6 +380,34 @@ function initSvg() {
 
   // Inline labels container (contributor names at widest points)
   gLabelsSelection = gChartSelection.append('g').attr('class', 'labels')
+
+  // Crosshair lines (X + Y guide lines following cursor)
+  const crosshair = gChartSelection.append('g').attr('class', 'crosshair')
+  crosshair.append('line')
+    .attr('class', 'crosshair-h')
+    .attr('stroke', '#64748b')
+    .attr('stroke-width', 0.5)
+    .attr('stroke-dasharray', '4,3')
+    .style('display', 'none')
+    .style('pointer-events', 'none')
+  crosshair.append('line')
+    .attr('class', 'crosshair-v')
+    .attr('stroke', '#64748b')
+    .attr('stroke-width', 0.5)
+    .attr('stroke-dasharray', '4,3')
+    .style('display', 'none')
+    .style('pointer-events', 'none')
+
+  crosshairGroup = gChartSelection.select('.crosshair')
+
+  gChartSelection.append('path')
+    .attr('class', 'hover-highlight')
+    .attr('fill', 'none')
+    .attr('stroke', '#fff')
+    .attr('stroke-width', 2)
+    .style('pointer-events', 'none')
+    .style('opacity', 0)
+  hoverHighlightEl = gChartSelection.select('.hover-highlight')
 
   // X-axis group
   gXAxisSelection = svg.append('g')
@@ -415,6 +510,9 @@ function handleZoom(event: any) {
     select(brushGroup).call(brushBehavior.move, xBase.range().map(event.transform.invertX, event.transform))
     isProgrammaticZoom = false
   }
+
+  if (!isMonthDrivenZoom)
+    emitVisibleRange()
 }
 
 // -- Brush handlers --
@@ -467,6 +565,8 @@ function handleBrushMove(event: any) {
   isProgrammaticZoom = true
   svgSelection.call(zoomBehavior.transform, zoomIdentity.translate(tx, 0).scale(k))
   isProgrammaticZoom = false
+
+  emitVisibleRange()
 }
 
 // -- Scale computation (called on init, resize, and data change) --
@@ -615,7 +715,7 @@ function updateLayers() {
   // Main chart layers — group-based data-join with hit area + visual path
   const layersContainer = gChartSelection.select('.layers')
 
-  layersContainer.selectAll('g.layer-group')
+  const groups = layersContainer.selectAll('g.layer-group')
     .data(series.value, (d: any) => d.key)
     .join(
       (enter) => {
@@ -642,14 +742,13 @@ function updateLayers() {
       exit => exit.remove(),
     )
 
-  // Update visual paths
-  layersContainer.selectAll('path.layer-visual')
+  // select (not selectAll) propagates parent data to child
+  groups.select('path.layer-visual')
     .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
     .attr('d', areaGenerator)
 
-  // Update hit area paths
   if (hitAreaGenerator) {
-    layersContainer.selectAll('path.layer-hitarea')
+    groups.select('path.layer-hitarea')
       .attr('d', hitAreaGenerator)
   }
 
@@ -806,49 +905,54 @@ function zoomToMonth(month: string | null) {
   if (!zoomBehavior || !xBase || !svgSelection)
     return
 
-  if (!month) {
-    // Reset to full range
-    svgSelection.call(zoomBehavior.transform, zoomIdentity)
-    return
+  isMonthDrivenZoom = true
+
+  try {
+    if (!month) {
+      svgSelection.call(zoomBehavior.transform, zoomIdentity)
+      return
+    }
+
+    const domain = xBase.domain()
+    let start = new Date(`${month}-01T00:00:00Z`)
+    let end = new Date(start)
+    end.setUTCMonth(end.getUTCMonth() + 1)
+
+    if (start < domain[0])
+      start = domain[0]
+    if (end > domain[1])
+      end = domain[1]
+    if (start >= end) {
+      svgSelection.call(zoomBehavior.transform, zoomIdentity)
+      return
+    }
+
+    const [xMin, xMax] = xBase.range()
+    const chartWidth = xMax - xMin
+    const monthWidth = xBase(end) - xBase(start)
+
+    if (!Number.isFinite(monthWidth) || monthWidth <= 0) {
+      svgSelection.call(zoomBehavior.transform, zoomIdentity)
+      return
+    }
+
+    const k = Math.min(50, Math.max(1, chartWidth / monthWidth))
+    const tx = xMin - xBase(start) * k
+
+    if (!Number.isFinite(k) || !Number.isFinite(tx)) {
+      svgSelection.call(zoomBehavior.transform, zoomIdentity)
+      return
+    }
+
+    svgSelection.call(
+      zoomBehavior.transform,
+      zoomIdentity.translate(tx, 0).scale(k),
+    )
   }
-
-  const domain = xBase.domain()
-  let start = new Date(`${month}-01T00:00:00Z`)
-  let end = new Date(start)
-  end.setUTCMonth(end.getUTCMonth() + 1)
-
-  // Clamp to available data domain to avoid invalid scales
-  if (start < domain[0])
-    start = domain[0]
-  if (end > domain[1])
-    end = domain[1]
-  if (start >= end) {
-    svgSelection.call(zoomBehavior.transform, zoomIdentity)
-    return
+  finally {
+    isMonthDrivenZoom = false
+    emitVisibleRange()
   }
-
-  const [xMin, xMax] = xBase.range()
-  const chartWidth = xMax - xMin
-  const monthWidth = xBase(end) - xBase(start)
-
-  // Safety guards against invalid dates or degenerate domains
-  if (!Number.isFinite(monthWidth) || monthWidth <= 0) {
-    svgSelection.call(zoomBehavior.transform, zoomIdentity)
-    return
-  }
-
-  const k = Math.min(50, Math.max(1, chartWidth / monthWidth))
-  const tx = xMin - xBase(start) * k
-
-  if (!Number.isFinite(k) || !Number.isFinite(tx)) {
-    svgSelection.call(zoomBehavior.transform, zoomIdentity)
-    return
-  }
-
-  svgSelection.call(
-    zoomBehavior.transform,
-    zoomIdentity.translate(tx, 0).scale(k),
-  )
 }
 
 // -- Lifecycle & watchers --
@@ -865,9 +969,21 @@ watch([() => props.width, () => props.height], () => {
 watch(() => props.data, () => {
   if (!svgNode)
     return
-  // Data change: only update scales + layers, NO SVG rebuild
+  // Reset zoom to identity — block cascading handleZoom/handleBrushMove
+  isProgrammaticZoom = true
+  if (zoomBehavior && svgSelection) {
+    svgSelection.call(zoomBehavior.transform, zoomIdentity)
+  }
+  // updateScales creates new xBase/xScale/yScale/areaGenerator
   updateScales()
+  // Now reset brush to match the new xBase full range
+  if (brushGroup && brushBehavior && xBase) {
+    select(brushGroup).call(brushBehavior.move, xBase.range())
+  }
+  isProgrammaticZoom = false
   updateLayers()
+  // Emit full range so panel data matches the reset view
+  emitVisibleRange()
 }, { deep: true })
 
 watch(() => props.selectedMonth, () => {
@@ -908,7 +1024,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="relative w-full h-full">
+  <div class="relative w-full h-full" :style="{ padding: '20px' }">
     <div ref="chartRef" class="w-full h-full" />
   </div>
 </template>

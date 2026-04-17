@@ -10,6 +10,7 @@ interface Props {
   linesDeleted: number
   filesTouched: number
   percentage: number
+  totalCommits?: number
 }
 
 defineProps<Props>()
@@ -58,6 +59,14 @@ defineProps<Props>()
         </div>
         <div class="text-slate-200 font-medium">
           {{ filesTouched }}
+        </div>
+      </div>
+      <div v-if="totalCommits !== undefined">
+        <div class="text-slate-500">
+          Total
+        </div>
+        <div class="text-slate-200 font-medium">
+          {{ totalCommits }}
         </div>
       </div>
     </div>
