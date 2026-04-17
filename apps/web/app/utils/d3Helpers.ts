@@ -54,3 +54,60 @@ export function buildStack(contributors: string[], data: PivotedRow[]) {
     .order(stackOrderInsideOut)
     .offset(stackOffsetWiggle)(data)
 }
+
+export type Granularity = 'day' | 'week' | 'month'
+
+/** Get the ISO week Monday date for a given date string */
+function toWeekKey(dateStr: string): string {
+  const d = new Date(dateStr)
+  const day = d.getUTCDay()
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)
+  const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff))
+  return monday.toISOString().split('T')[0]!
+}
+
+/** Aggregate daily rows by granularity */
+export function aggregateRows(rows: DailyRow[], granularity: Granularity): DailyRow[] {
+  if (granularity === 'day')
+    return rows
+
+  const bucketMap = new Map<string, Map<string, DailyRow>>()
+
+  for (const row of rows) {
+    const bucket = granularity === 'week' ? toWeekKey(row.date) : row.date.substring(0, 7)
+    let contributorMap = bucketMap.get(bucket)
+    if (!contributorMap) {
+      contributorMap = new Map()
+      bucketMap.set(bucket, contributorMap)
+    }
+
+    const existing = contributorMap.get(row.contributor)
+    if (existing) {
+      existing.commits += row.commits
+      existing.linesAdded += row.linesAdded
+      existing.linesDeleted += row.linesDeleted
+      existing.filesTouched += row.filesTouched
+      if (row.cumulativeCommits > existing.cumulativeCommits)
+        existing.cumulativeCommits = row.cumulativeCommits
+    }
+    else {
+      contributorMap.set(row.contributor, {
+        date: granularity === 'month' ? `${bucket}-01` : bucket,
+        contributor: row.contributor,
+        commits: row.commits,
+        linesAdded: row.linesAdded,
+        linesDeleted: row.linesDeleted,
+        filesTouched: row.filesTouched,
+        cumulativeCommits: row.cumulativeCommits,
+      })
+    }
+  }
+
+  const result: DailyRow[] = []
+  for (const contributorMap of bucketMap.values()) {
+    for (const row of contributorMap.values()) {
+      result.push(row)
+    }
+  }
+  return result
+}
