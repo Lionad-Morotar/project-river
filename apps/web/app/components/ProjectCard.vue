@@ -18,6 +18,8 @@ const emit = defineEmits<{
 
 const isDeleting = ref(false)
 const isReanalyzing = ref(false)
+const deleteDialogOpen = ref(false)
+const reanalyzeDialogOpen = ref(false)
 
 const statusColor = computed(() => {
   switch (props.project.status) {
@@ -63,6 +65,7 @@ const isInProgress = computed(() =>
 )
 
 async function handleDelete() {
+  deleteDialogOpen.value = false
   if (isDeleting.value)
     return
   isDeleting.value = true
@@ -70,6 +73,7 @@ async function handleDelete() {
 }
 
 async function handleReanalyze() {
+  reanalyzeDialogOpen.value = false
   if (isReanalyzing.value)
     return
   isReanalyzing.value = true
@@ -136,7 +140,7 @@ async function handleReanalyze() {
         icon="i-lucide-refresh-cw"
         :loading="isReanalyzing"
         :disabled="isInProgress"
-        @click.prevent="handleReanalyze"
+        @click.prevent="reanalyzeDialogOpen = true"
       >
         Re-analyze
       </UButton>
@@ -146,8 +150,28 @@ async function handleReanalyze() {
         color="error"
         icon="i-lucide-trash-2"
         :loading="isDeleting"
-        @click.prevent="handleDelete"
+        @click.prevent="deleteDialogOpen = true"
       />
     </div>
+
+    <!-- Confirm dialogs -->
+    <ConfirmDialog
+      v-model:open="deleteDialogOpen"
+      title="Delete project"
+      :description="`This will permanently delete ${project.fullName || project.name} and all its analysis data.`"
+      confirm-label="Delete"
+      confirm-color="error"
+      :loading="isDeleting"
+      @confirm="handleDelete"
+    />
+    <ConfirmDialog
+      v-model:open="reanalyzeDialogOpen"
+      title="Re-analyze project"
+      :description="`This will re-clone and re-analyze ${project.fullName || project.name}. Existing data will be replaced.`"
+      confirm-label="Re-analyze"
+      confirm-color="warning"
+      :loading="isReanalyzing"
+      @confirm="handleReanalyze"
+    />
   </div>
 </template>
