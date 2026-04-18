@@ -2,25 +2,11 @@ import type { Ref } from 'vue'
 import type { DailyRow } from '~/utils/d3Helpers'
 import { computed } from 'vue'
 
-// -- 工具函数 --
-
-/** 格式化日期为 "Jan 2023" 形式 */
-export function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr)
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${months[d.getMonth()]} ${d.getFullYear()}`
-}
-
-/** 千位格式化：1200 → "1.2k"，999 → "999" */
-export function formatNumber(n: number): string {
-  if (n >= 1000)
-    return `${(n / 1000).toFixed(1)}k`
-  return String(n)
-}
-
 // -- Composable --
 
 export function useProjectStats(dailyData: Ref<DailyRow[]>) {
+  const { formatShortDate, formatCompactNumber, formatActivityLabel, activityDotClass } = useLocale()
+
   /** 从 dailyData 派生基础统计 */
   const stats = computed(() => {
     if (dailyData.value.length === 0) {
@@ -63,32 +49,14 @@ export function useProjectStats(dailyData: Ref<DailyRow[]>) {
   })
 
   /** 最近活跃度文字标签 */
-  const recentActivityLabel = computed(() => {
-    const days = stats.value.recentDaysSinceLastCommit
-    if (days === null)
-      return null
-    if (days <= 1)
-      return 'Active today'
-    if (days <= 7)
-      return `${days} days ago`
-    if (days <= 30)
-      return `${Math.round(days / 7)} weeks ago`
-    if (days <= 365)
-      return `${Math.round(days / 30)} months ago`
-    return `${Math.round(days / 365)} years ago`
-  })
+  const recentActivityLabel = computed(() =>
+    formatActivityLabel(stats.value.recentDaysSinceLastCommit),
+  )
 
   /** 最近活跃度指示点颜色 */
-  const recentActivityDotClass = computed(() => {
-    const days = stats.value.recentDaysSinceLastCommit
-    if (days === null)
-      return ''
-    if (days <= 7)
-      return 'bg-emerald-400'
-    if (days <= 30)
-      return 'bg-amber-400'
-    return 'bg-slate-500'
-  })
+  const recentActivityDotClass = computed(() =>
+    activityDotClass(stats.value.recentDaysSinceLastCommit),
+  )
 
   return {
     stats: stats as Readonly<Ref<typeof stats.value>>,
@@ -96,6 +64,6 @@ export function useProjectStats(dailyData: Ref<DailyRow[]>) {
     recentActivityLabel: recentActivityLabel as Readonly<Ref<string | null>>,
     recentActivityDotClass: recentActivityDotClass as Readonly<Ref<string>>,
     formatShortDate,
-    formatNumber,
+    formatNumber: formatCompactNumber,
   }
 }

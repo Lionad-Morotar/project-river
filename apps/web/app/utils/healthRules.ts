@@ -3,6 +3,7 @@ export interface HealthSignal {
   label: string
   severity: 'info' | 'warning' | 'positive'
   evidence: string
+  evidenceParams?: Record<string, string | number>
 }
 
 export interface HealthStatsInput {
@@ -29,9 +30,13 @@ export function evaluateHealthRules(stats: HealthStatsInput): HealthSignal[] {
       const top3Names = stats.topContributors.slice(0, 3).map(c => c.contributor).join(', ')
       signals.push({
         id: 'concentration',
-        label: '贡献集中',
+        label: 'health.concentration',
         severity: 'warning',
-        evidence: `Top 3 贡献者 (${top3Names}) 占总提交的 ${Math.round(concentration * 100)}%`,
+        evidence: 'health.concentrationEvidence',
+        evidenceParams: {
+          names: top3Names,
+          pct: String(Math.round(concentration * 100)),
+        },
       })
     }
   }
@@ -43,9 +48,13 @@ export function evaluateHealthRules(stats: HealthStatsInput): HealthSignal[] {
     if (ratio < 0.3) {
       signals.push({
         id: 'activity-drop',
-        label: '活跃度下降',
+        label: 'health.activityDrop',
         severity: 'warning',
-        evidence: `近 90 天日均 ${recent90DailyAvg.toFixed(1)} 次提交，为前期日均的 ${Math.round(ratio * 100)}%`,
+        evidence: 'health.activityDropEvidence',
+        evidenceParams: {
+          avg: recent90DailyAvg.toFixed(1),
+          pct: String(Math.round(ratio * 100)),
+        },
       })
     }
   }
@@ -54,9 +63,12 @@ export function evaluateHealthRules(stats: HealthStatsInput): HealthSignal[] {
   if (stats.avgLinesPerCommit > 500) {
     signals.push({
       id: 'code-churn',
-      label: '代码动荡',
+      label: 'health.codeChurn',
       severity: 'warning',
-      evidence: `平均每次提交变更 ${Math.round(stats.avgLinesPerCommit)} 行`,
+      evidence: 'health.codeChurnEvidence',
+      evidenceParams: {
+        lines: String(Math.round(stats.avgLinesPerCommit)),
+      },
     })
   }
 
@@ -67,9 +79,14 @@ export function evaluateHealthRules(stats: HealthStatsInput): HealthSignal[] {
     )
     signals.push({
       id: 'distribution-growth',
-      label: '贡献者增长',
+      label: 'health.distributionGrowth',
       severity: 'positive',
-      evidence: `贡献者数量季度环比增长 ${growth}%（${stats.previousQuarterContributors} → ${stats.recentQuarterContributors}）`,
+      evidence: 'health.distributionGrowthEvidence',
+      evidenceParams: {
+        pct: String(growth),
+        prev: String(stats.previousQuarterContributors),
+        curr: String(stats.recentQuarterContributors),
+      },
     })
   }
 
@@ -77,11 +94,14 @@ export function evaluateHealthRules(stats: HealthStatsInput): HealthSignal[] {
   if (stats.daysSinceLastCommit !== null && stats.daysSinceLastCommit <= 30) {
     signals.push({
       id: 'sustained-activity',
-      label: '持续活跃',
+      label: 'health.sustainedActivity',
       severity: 'info',
       evidence: stats.daysSinceLastCommit <= 1
-        ? '最近一天内有提交'
-        : `最近提交于 ${stats.daysSinceLastCommit} 天前`,
+        ? 'health.sustainedActivityEvidenceToday'
+        : 'health.sustainedActivityEvidence',
+      evidenceParams: stats.daysSinceLastCommit <= 1
+        ? undefined
+        : { days: String(stats.daysSinceLastCommit) },
     })
   }
 

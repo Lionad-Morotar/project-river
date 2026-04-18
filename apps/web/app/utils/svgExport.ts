@@ -2,6 +2,9 @@ export interface ExportMeta {
   projectName: string
   dateRange: string | null
   healthSignals?: Array<{ label: string, severity: string }>
+  localeStrings?: {
+    more?: string
+  }
 }
 
 export function serializeSvgWithLegend(
@@ -112,7 +115,8 @@ export function serializeSvgWithLegend(
     const moreText = document.createElementNS('http://www.w3.org/2000/svg', 'text')
     moreText.setAttribute('x', String(padding))
     moreText.setAttribute('y', String(nextY + swatchSize - 1))
-    moreText.textContent = `+${moreCount} more`
+    const moreTemplate = meta?.localeStrings?.more ?? '+{count} more'
+    moreText.textContent = moreTemplate.replace('{count}', String(moreCount))
     legendGroup.appendChild(moreText)
     nextY += lineHeight
   }

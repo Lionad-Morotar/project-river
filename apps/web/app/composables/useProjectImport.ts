@@ -1,4 +1,5 @@
 import type { ParseResult } from '~/utils/githubUrl'
+import { useI18n } from 'vue-i18n'
 import { parseGitHubUrl } from '~/utils/githubUrl'
 
 export type ImportStatus = 'idle' | 'importing' | 'analyzing' | 'redirecting' | 'error'
@@ -25,15 +26,17 @@ export function useProjectImport() {
     return 'idle'
   }
 
+  const { t } = useI18n()
+
   /** Derive human-readable stage label for the current status */
   const stageLabel = computed(() => {
     switch (status.value) {
       case 'importing':
-        return 'Cloning repository...'
+        return t('import.cloning')
       case 'analyzing':
-        return 'Analyzing commits...'
+        return t('import.analyzing')
       case 'redirecting':
-        return 'Analysis complete. Redirecting...'
+        return t('import.complete')
       default:
         return ''
     }

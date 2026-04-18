@@ -1,24 +1,25 @@
 export interface ErrorGuidance {
   title: string
   hint: string
+  hintParams?: Record<string, string>
 }
 
 export function getErrorGuidance(errorMessage: string | null | undefined): ErrorGuidance | null {
   if (!errorMessage)
     return null
   if (errorMessage.startsWith('GH_NOT_INSTALLED'))
-    return { title: 'GitHub CLI not found', hint: 'Install gh CLI from cli.github.com and restart the server.' }
+    return { title: 'error.ghNotInstalled.title', hint: 'error.ghNotInstalled.hint' }
   if (errorMessage.startsWith('GH_AUTH'))
-    return { title: 'GitHub CLI not authenticated', hint: 'Run `gh auth login` in your terminal and restart the server.' }
+    return { title: 'error.ghAuth.title', hint: 'error.ghAuth.hint' }
   if (errorMessage.startsWith('GH_NOT_FOUND'))
-    return { title: 'Repository not found', hint: 'Check the URL. The repository may be private or deleted.' }
+    return { title: 'error.ghNotFound.title', hint: 'error.ghNotFound.hint' }
   if (errorMessage.startsWith('GH_PRIVATE'))
-    return { title: 'Private repository', hint: 'You don\'t have access to this repository. Ensure gh auth has the `repo` scope.' }
+    return { title: 'error.ghPrivate.title', hint: 'error.ghPrivate.hint' }
   if (errorMessage.startsWith('CLONE_FAILED'))
-    return { title: 'Clone failed', hint: errorMessage.replace('CLONE_FAILED: ', '') }
+    return { title: 'error.cloneFailed.title', hint: 'error.cloneFailed.hint', hintParams: { detail: errorMessage.replace('CLONE_FAILED: ', '') } }
   if (errorMessage.startsWith('ANALYSIS_FAILED'))
-    return { title: 'Analysis failed', hint: errorMessage.replace('ANALYSIS_FAILED: ', '') }
+    return { title: 'error.analysisFailed.title', hint: 'error.analysisFailed.hint', hintParams: { detail: errorMessage.replace('ANALYSIS_FAILED: ', '') } }
   if (errorMessage.startsWith('ANALYSIS_TIMEOUT'))
-    return { title: 'Analysis timed out', hint: 'The repository may be too large. Try again or use a smaller repository.' }
-  return { title: 'Error', hint: errorMessage }
+    return { title: 'error.analysisTimeout.title', hint: 'error.analysisTimeout.hint' }
+  return { title: 'error.generic.title', hint: 'error.generic.hint', hintParams: { detail: errorMessage } }
 }
