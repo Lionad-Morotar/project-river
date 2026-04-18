@@ -55,7 +55,7 @@ export default defineEventHandler(async (event) => {
         ds.date,
         CASE
           WHEN tc.contributor IS NOT NULL THEN ds.contributor
-          ELSE 'Others'
+          ELSE 'Other contributors'
         END AS contributor,
         ds.commits,
         ds.insertions,

@@ -1,7 +1,7 @@
 import type { DailyRow } from '~/utils/d3Helpers'
 
 export const STREAMGRAPH_TOP_CONTRIBUTORS = 30
-export const OTHERS_LABEL = 'Others'
+export const OTHERS_LABEL = 'Other contributors'
 
 /**
  * Passthrough for daily rows now that the backend handles Top-49 + Others aggregation.
