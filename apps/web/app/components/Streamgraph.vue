@@ -17,6 +17,7 @@ interface Props {
   data: DailyRow[]
   selectedMonth: string | null
   colors: Map<string, string>
+  monthNames?: string[]
 }
 
 const props = defineProps<Props>()
@@ -153,6 +154,9 @@ let clipRectSelection: ReturnType<typeof select> | null = null
 let gAnnotationsSelection: ReturnType<typeof select> | null = null
 let gLabelsSelection: ReturnType<typeof select> | null = null
 
+const defaultMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const monthNames = computed(() => props.monthNames ?? defaultMonths)
+
 /** Smart time format adapting to visible time span */
 function smartTimeFormat(date: Date): string {
   if (!xScale)
@@ -160,7 +164,7 @@ function smartTimeFormat(date: Date): string {
   const domain = xScale.domain()
   const span = (domain[1] as number) - (domain[0] as number)
   const oneYear = 365.25 * 86400000
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  const months = monthNames.value
 
   if (span > 5 * oneYear)
     return date.getMonth() === 0 ? `${date.getFullYear()}` : ''
@@ -979,6 +983,11 @@ watch(() => props.data, () => {
 watch(() => props.selectedMonth, () => {
   zoomToMonth(props.selectedMonth)
 })
+
+watch(monthNames, () => {
+  if (svgNode)
+    updateScales()
+}, { flush: 'post' })
 
 onMounted(() => {
   initSvg()

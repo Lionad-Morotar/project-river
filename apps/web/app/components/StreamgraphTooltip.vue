@@ -68,7 +68,7 @@ const formattedDate = computed(() => {
     <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
       <div>
         <div class="text-slate-500">
-          Commits
+          {{ $t('tooltip.commits') }}
         </div>
         <div class="text-slate-200 font-medium">
           {{ commits }}
@@ -76,7 +76,7 @@ const formattedDate = computed(() => {
       </div>
       <div>
         <div class="text-slate-500">
-          Lines changed
+          {{ $t('tooltip.linesChanged') }}
         </div>
         <div class="text-slate-200 font-medium">
           {{ linesAdded + linesDeleted }}
@@ -84,7 +84,7 @@ const formattedDate = computed(() => {
       </div>
       <div>
         <div class="text-slate-500">
-          Files changed
+          {{ $t('tooltip.filesChanged') }}
         </div>
         <div class="text-slate-200 font-medium">
           {{ filesTouched }}
@@ -92,7 +92,7 @@ const formattedDate = computed(() => {
       </div>
       <div v-if="totalCommits !== undefined">
         <div class="text-slate-500">
-          Day total
+          {{ $t('tooltip.dayTotal') }}
         </div>
         <div class="text-slate-200 font-medium">
           {{ totalCommits }}

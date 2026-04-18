@@ -1,20 +1,22 @@
 <script setup lang="ts">
-interface Props {
-  months: string[]
-  modelValue: string | null
-}
-
 const props = defineProps<Props>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string | null): void
 }>()
 
+const { t } = useI18n()
+
+interface Props {
+  months: string[]
+  modelValue: string | null
+}
+
 const isOpen = ref(false)
 
 const currentLabel = computed(() => {
   if (!props.modelValue)
-    return 'All history'
+    return t('monthSelector.allHistory')
   return props.modelValue
 })
 
@@ -84,7 +86,7 @@ function select(value: string | null) {
             :class="{ 'bg-slate-800 text-slate-100': !modelValue }"
             @click="select(null)"
           >
-            All history
+            {{ $t('monthSelector.allHistory') }}
           </button>
           <div class="border-t border-slate-800 my-1" />
           <button

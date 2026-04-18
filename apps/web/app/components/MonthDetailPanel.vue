@@ -96,7 +96,7 @@ function goNext() {
         class="px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-slate-100 hover:bg-slate-800 border border-slate-700 rounded-md transition-colors"
         @click="emit('export')"
       >
-        Export SVG
+        {{ $t('common.export') }}
       </button>
     </div>
 
@@ -104,7 +104,7 @@ function goNext() {
     <div class="grid grid-cols-2 gap-4 px-4 py-3">
       <div>
         <div class="text-xs text-slate-400 font-medium">
-          {{ isAllHistory ? 'Total commits' : 'Commits this year' }}
+          {{ isAllHistory ? $t('project.totalCommits') : $t('project.commitsThisYear') }}
         </div>
         <div class="text-2xl font-semibold text-slate-100 tabular-nums">
           {{ commitsThisMonth }}
@@ -119,7 +119,7 @@ function goNext() {
       </div>
       <div>
         <div class="text-xs text-slate-400 font-medium">
-          {{ isAllHistory ? 'Total commits to date' : 'All-time total' }}
+          {{ isAllHistory ? $t('project.totalCommitsToDate') : $t('project.allTimeTotal') }}
         </div>
         <div class="text-2xl font-semibold text-slate-100 tabular-nums">
           {{ totalCommitsToDate }}
@@ -131,11 +131,11 @@ function goNext() {
     <div class="flex-1 min-h-0 flex flex-col">
       <div class="flex items-center justify-between gap-3 px-4 py-2 border-t border-slate-800">
         <span class="text-xs text-slate-400 font-medium">
-          Contributors
+          {{ $t('panel.contributors') }}
         </span>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Yearly</span>
-          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider w-12 text-right">Total</span>
+          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">{{ $t('panel.yearly') }}</span>
+          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider w-12 text-right">{{ $t('panel.total') }}</span>
         </div>
       </div>
       <div class="overflow-y-auto flex-1 px-4 pb-4">
@@ -166,10 +166,10 @@ function goNext() {
     class="flex flex-col items-center justify-center py-12 px-6 text-center h-full bg-slate-900"
   >
     <h2 class="text-sm font-medium text-slate-300 mb-2">
-      No contributor data yet
+      {{ $t('panel.noContributorData') }}
     </h2>
     <p class="text-xs text-slate-500">
-      There is no contributor data for this project yet. Re-import the project to populate statistics.
+      {{ $t('panel.noContributorDataHint') }}
     </p>
   </div>
 </template>

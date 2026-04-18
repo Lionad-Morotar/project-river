@@ -1,12 +1,4 @@
 <script setup lang="ts">
-interface Project {
-  id: number
-  name: string
-  fullName: string | null
-  status: string
-  lastAnalyzedAt: Date | null
-}
-
 const props = defineProps<{
   project: Project
 }>()
@@ -15,6 +7,16 @@ const emit = defineEmits<{
   (e: 'reanalyze', id: number): void
   (e: 'delete', id: number): void
 }>()
+
+const { t } = useI18n()
+
+interface Project {
+  id: number
+  name: string
+  fullName: string | null
+  status: string
+  lastAnalyzedAt: Date | null
+}
 
 const isDeleting = ref(false)
 const isReanalyzing = ref(false)
@@ -38,26 +40,24 @@ const statusColor = computed(() => {
 const statusLabel = computed(() => {
   switch (props.project.status) {
     case 'ready':
-      return 'Ready'
+      return t('status.ready')
     case 'cloning':
-      return 'Cloning'
+      return t('status.cloning')
     case 'analyzing':
-      return 'Analyzing'
+      return t('status.analyzing')
     case 'error':
-      return 'Error'
+      return t('status.error')
     default:
       return props.project.status
   }
 })
 
+const { formatShortDate } = useLocale()
+
 const formattedDate = computed(() => {
   if (!props.project.lastAnalyzedAt)
     return null
-  return new Date(props.project.lastAnalyzedAt).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return formatShortDate(props.project.lastAnalyzedAt.toISOString())
 })
 
 const isInProgress = computed(() =>
@@ -127,7 +127,7 @@ async function handleReanalyze() {
         v-if="formattedDate"
         class="mt-2 text-xs text-slate-500"
       >
-        Analyzed {{ formattedDate }}
+        {{ $t('project.analyzed', { time: formattedDate }) }}
       </div>
     </NuxtLink>
 
@@ -142,7 +142,7 @@ async function handleReanalyze() {
         :disabled="isInProgress"
         @click.prevent="reanalyzeDialogOpen = true"
       >
-        Re-analyze
+        {{ $t('common.reanalyze') }}
       </UButton>
       <UButton
         size="xs"
@@ -157,18 +157,18 @@ async function handleReanalyze() {
     <!-- Confirm dialogs -->
     <ConfirmDialog
       v-model:open="deleteDialogOpen"
-      title="Delete project"
-      :description="`This will permanently delete ${project.fullName || project.name} and all its analysis data.`"
-      confirm-label="Delete"
+      :title="$t('dialog.deleteTitle')"
+      :description="$t('dialog.deleteDescription', { name: project.fullName || project.name })"
+      :confirm-label="$t('common.delete')"
       confirm-color="error"
       :loading="isDeleting"
       @confirm="handleDelete"
     />
     <ConfirmDialog
       v-model:open="reanalyzeDialogOpen"
-      title="Re-analyze project"
-      :description="`This will re-clone and re-analyze ${project.fullName || project.name}. Existing data will be replaced.`"
-      confirm-label="Re-analyze"
+      :title="$t('dialog.reanalyzeTitle')"
+      :description="$t('dialog.reanalyzeDescription', { name: project.fullName || project.name })"
+      :confirm-label="$t('common.reanalyze')"
       confirm-color="warning"
       :loading="isReanalyzing"
       @confirm="handleReanalyze"
