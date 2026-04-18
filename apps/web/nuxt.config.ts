@@ -3,8 +3,25 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   ssr: false,
-  modules: ['@nuxt/ui', '@vueuse/nuxt'],
+  modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
   css: ['~/assets/css/main.css'],
+  i18n: {
+    defaultLocale: 'zh-CN',
+    strategy: 'no_prefix',
+    langDir: 'locales',
+    locales: [
+      { code: 'zh-CN', file: 'zh-CN.ts', name: '简体中文' },
+      { code: 'en', file: 'en.ts', name: 'English' },
+    ],
+    detectBrowserLanguage: {
+      useCookie: true,
+      cookieKey: 'i18n_redirected',
+      redirectOn: 'root',
+    },
+    experimental: {
+      typedOptionsAndMessages: 'all',
+    },
+  },
   vite: {
     optimizeDeps: {
       include: [
