@@ -51,8 +51,11 @@ describe('evaluateHealthRules', () => {
       const concentration = signals.find(s => s.id === 'concentration')
       expect(concentration).toBeDefined()
       expect(concentration!.severity).toBe('warning')
-      expect(concentration!.evidence).toContain('95%')
-      expect(concentration!.evidence).toContain('alice')
+      expect(concentration!.label).toBe('health.concentration')
+      expect(concentration!.evidence).toBe('health.concentrationEvidence')
+      expect(concentration!.evidenceParams).toBeDefined()
+      expect(concentration!.evidenceParams!.pct).toBe('95')
+      expect(concentration!.evidenceParams!.names).toContain('alice')
     })
 
     it('does not trigger when top 3 contributors are below 80%', () => {
@@ -79,7 +82,7 @@ describe('evaluateHealthRules', () => {
       const signals = evaluateHealthRules(stats)
       const concentration = signals.find(s => s.id === 'concentration')
       expect(concentration).toBeDefined()
-      expect(concentration!.evidence).toContain('100%')
+      expect(concentration!.evidenceParams!.pct).toBe('100')
     })
 
     it('skips when total commits is zero', () => {
@@ -99,7 +102,10 @@ describe('evaluateHealthRules', () => {
       const drop = signals.find(s => s.id === 'activity-drop')
       expect(drop).toBeDefined()
       expect(drop!.severity).toBe('warning')
-      expect(drop!.evidence).toContain('11%')
+      expect(drop!.label).toBe('health.activityDrop')
+      expect(drop!.evidence).toBe('health.activityDropEvidence')
+      expect(drop!.evidenceParams).toBeDefined()
+      expect(drop!.evidenceParams!.pct).toBe('11')
     })
 
     it('does not trigger when activity is sustained', () => {
@@ -125,7 +131,10 @@ describe('evaluateHealthRules', () => {
       const churn = signals.find(s => s.id === 'code-churn')
       expect(churn).toBeDefined()
       expect(churn!.severity).toBe('warning')
-      expect(churn!.evidence).toContain('800')
+      expect(churn!.label).toBe('health.codeChurn')
+      expect(churn!.evidence).toBe('health.codeChurnEvidence')
+      expect(churn!.evidenceParams).toBeDefined()
+      expect(churn!.evidenceParams!.lines).toBe('800')
     })
 
     it('does not trigger for normal churn levels', () => {
@@ -145,8 +154,12 @@ describe('evaluateHealthRules', () => {
       const growth = signals.find(s => s.id === 'distribution-growth')
       expect(growth).toBeDefined()
       expect(growth!.severity).toBe('positive')
-      expect(growth!.evidence).toContain('60%')
-      expect(growth!.evidence).toContain('5 → 8')
+      expect(growth!.label).toBe('health.distributionGrowth')
+      expect(growth!.evidence).toBe('health.distributionGrowthEvidence')
+      expect(growth!.evidenceParams).toBeDefined()
+      expect(growth!.evidenceParams!.pct).toBe('60')
+      expect(growth!.evidenceParams!.prev).toBe('5')
+      expect(growth!.evidenceParams!.curr).toBe('8')
     })
 
     it('does not trigger when contributor count is stable', () => {
@@ -175,15 +188,19 @@ describe('evaluateHealthRules', () => {
       const activity = signals.find(s => s.id === 'sustained-activity')
       expect(activity).toBeDefined()
       expect(activity!.severity).toBe('info')
-      expect(activity!.evidence).toContain('7 天前')
+      expect(activity!.label).toBe('health.sustainedActivity')
+      expect(activity!.evidence).toBe('health.sustainedActivityEvidence')
+      expect(activity!.evidenceParams).toBeDefined()
+      expect(activity!.evidenceParams!.days).toBe('7')
     })
 
-    it('shows "最近一天内有提交" for very recent activity', () => {
+    it('shows today evidence for very recent activity', () => {
       const stats = makeStats({ daysSinceLastCommit: 0 })
       const signals = evaluateHealthRules(stats)
       const activity = signals.find(s => s.id === 'sustained-activity')
       expect(activity).toBeDefined()
-      expect(activity!.evidence).toContain('最近一天内')
+      expect(activity!.evidence).toBe('health.sustainedActivityEvidenceToday')
+      expect(activity!.evidenceParams).toBeUndefined()
     })
 
     it('does not trigger when last commit is over 30 days ago', () => {
