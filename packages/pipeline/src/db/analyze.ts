@@ -46,12 +46,12 @@ export async function analyzeRepo(
   let projectId: number
 
   if (existing && options.force) {
-    await db.delete(projects).where(eq(projects.id, existing.id))
-    const inserted = await db
-      .insert(projects)
-      .values({ name, path: normalizedPath })
-      .returning({ id: projects.id })
-    projectId = inserted[0]!.id
+    // Clear associated data but keep the project record (preserves fullName, url, etc.)
+    await db.delete(commit_files).where(sql`${commit_files.commitId} IN (SELECT ${commits.id} FROM ${commits} WHERE ${commits.projectId} = ${existing.id})`)
+    await db.delete(commits).where(eq(commits.projectId, existing.id))
+    await db.delete(daily_stats).where(eq(daily_stats.projectId, existing.id))
+    await db.update(projects).set({ name }).where(eq(projects.id, existing.id))
+    projectId = existing.id
   }
   else if (!existing) {
     const inserted = await db

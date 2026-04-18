@@ -127,6 +127,12 @@ export async function importProject(
     try {
       const realPath = await realpath(cloneDir)
 
+      // Set the resolved path so analyzeRepo can find this record by path
+      await db
+        .update(projects)
+        .set({ path: realPath })
+        .where(eq(projects.id, projectId))
+
       await analyzeRepo(realPath, repo, {
         batchSize: 500,
         force: true,
@@ -276,6 +282,12 @@ export async function reanalyzeProject(
 
     try {
       const realPath = await realpath(cloneDir)
+
+      // Ensure path is set so analyzeRepo can find this record
+      await db
+        .update(projects)
+        .set({ path: realPath })
+        .where(eq(projects.id, projectId))
 
       await analyzeRepo(realPath, repo, {
         batchSize: 500,
