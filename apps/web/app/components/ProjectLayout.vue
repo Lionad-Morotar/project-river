@@ -11,13 +11,13 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   panelWidth: 360,
-  panelHeight: 280,
+  panelHeight: 0,
 })
 
 const layoutRef = ref<HTMLDivElement | null>(null)
 const { width: layoutWidth, height: layoutHeight } = useElementSize(layoutRef)
 
-const dockedEdge = useStorage<'top' | 'left' | 'right' | 'bottom' | null>('pr:dockedEdge', null)
+const dockedEdge = useStorage<'top' | 'left' | 'right' | 'bottom' | null>('pr:dockedEdge', 'bottom')
 const storedPanelW = useStorage<number>('pr:panelW', props.panelWidth)
 const storedPanelH = useStorage<number>('pr:panelH', props.panelHeight)
 const storedFloatX = useStorage<number>('pr:floatX', 0)
@@ -28,6 +28,14 @@ const panelH = ref(storedPanelH.value)
 const floatX = ref(storedFloatX.value)
 const floatY = ref(storedFloatY.value)
 const previewEdge = ref<'top' | 'left' | 'right' | 'bottom' | null>(null)
+
+// Initialize panelH to 50% of layout on first real size
+watch(layoutHeight, (h) => {
+  if (h > 0 && panelH.value === 0) {
+    panelH.value = Math.floor(h / 2)
+    storedPanelH.value = panelH.value
+  }
+}, { once: true })
 
 const CHART_MIN = 300
 const PANEL_MIN_V = 200
@@ -228,8 +236,9 @@ function onDockedPointerUp(e: PointerEvent) {
         :class="[panelGridClass, dockedEdge === 'top' || dockedEdge === 'bottom' ? 'border-t border-b' : 'border-l border-r']"
         :style="panelStyle"
       >
-        <!-- Undock handle -->
+        <!-- Undock handle (disabled: drag has bugs) -->
         <div
+          v-if="false"
           class="hover:bg-slate-800/50 transition-colors"
           :class="undockHandleClass"
           aria-label="Drag panel"

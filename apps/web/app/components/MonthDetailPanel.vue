@@ -76,7 +76,7 @@ function goNext() {
       <div class="flex items-center gap-2">
         <button
           class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-          aria-label="Previous month"
+          aria-label="Previous year"
           :disabled="!canGoPrevious"
           @click="goPrevious"
         >
@@ -85,7 +85,7 @@ function goNext() {
         <span class="text-sm font-semibold text-slate-100 min-w-[80px] text-center">{{ rangeLabel || selectedMonth || '—' }}</span>
         <button
           class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
-          aria-label="Next month"
+          aria-label="Next year"
           :disabled="!canGoNext"
           @click="goNext"
         >
@@ -104,7 +104,7 @@ function goNext() {
     <div class="grid grid-cols-2 gap-4 px-4 py-3">
       <div>
         <div class="text-xs text-slate-400 font-medium">
-          {{ isAllHistory ? 'Total commits' : 'Commits this month' }}
+          {{ isAllHistory ? 'Total commits' : 'Commits this year' }}
         </div>
         <div class="text-2xl font-semibold text-slate-100 tabular-nums">
           {{ commitsThisMonth }}
@@ -119,7 +119,7 @@ function goNext() {
       </div>
       <div>
         <div class="text-xs text-slate-400 font-medium">
-          {{ isAllHistory ? 'Total commits to date' : 'Total commits to date' }}
+          {{ isAllHistory ? 'Total commits to date' : 'All-time total' }}
         </div>
         <div class="text-2xl font-semibold text-slate-100 tabular-nums">
           {{ totalCommitsToDate }}
@@ -134,7 +134,7 @@ function goNext() {
           Contributors
         </span>
         <div class="flex items-center gap-3">
-          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Monthly</span>
+          <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider">Yearly</span>
           <span class="text-[10px] text-slate-500 font-medium uppercase tracking-wider w-12 text-right">Total</span>
         </div>
       </div>
@@ -169,7 +169,7 @@ function goNext() {
       No contributor data yet
     </h2>
     <p class="text-xs text-slate-500">
-      There is no contributor data for this project yet. Run the analyzer to populate statistics.
+      There is no contributor data for this project yet. Re-import the project to populate statistics.
     </p>
   </div>
 </template>
