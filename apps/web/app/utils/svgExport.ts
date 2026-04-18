@@ -12,6 +12,15 @@ export function serializeSvgWithLegend(
 ): string {
   const clone = svgNode.cloneNode(true) as SVGSVGElement
 
+  // Add dark background rect to match page theme
+  const svgW = Number(svgNode.getAttribute('width')) || 800
+  const svgH = Number(svgNode.getAttribute('height')) || 400
+  const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+  bgRect.setAttribute('width', String(svgW))
+  bgRect.setAttribute('height', String(svgH))
+  bgRect.setAttribute('fill', '#0f172a')
+  clone.insertBefore(bgRect, clone.firstChild)
+
   // Inline explicit font styling for standalone use
   const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
   style.textContent = `
@@ -21,7 +30,12 @@ export function serializeSvgWithLegend(
       .export-title .subtitle { font-size: 11px; font-weight: 400; fill: #94a3b8; }
       .export-health text { font-size: 10px; }
     `
-  clone.prepend(style)
+  clone.insertBefore(style, clone.firstChild)
+
+  // Remove paint-order stroke from all text elements (causes visual artifacts on dark bg)
+  clone.querySelectorAll('text[style*="paint-order"]').forEach((el) => {
+    el.removeAttribute('style')
+  })
 
   // Title section at top-left
   if (meta) {
@@ -138,9 +152,11 @@ export function serializeSvgWithLegend(
     }
   }
 
-  const svgWidth = Number(svgNode.getAttribute('width')) || 800
-  const legendX = svgWidth - legendWidth - 16
-  legendGroup.setAttribute('transform', `translate(${legendX}, 16)`)
+  // Place legend below the chart, expand SVG height to fit
+  const legendY = svgH + 8
+  clone.setAttribute('height', String(svgH + legendHeight + 24))
+  bgRect.setAttribute('height', String(svgH + legendHeight + 24))
+  legendGroup.setAttribute('transform', `translate(16, ${legendY})`)
   clone.appendChild(legendGroup)
 
   return new XMLSerializer().serializeToString(clone)
