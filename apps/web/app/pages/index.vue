@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ProjectCard from '~/components/ProjectCard.vue'
 import { useProjectImport } from '~/composables/useProjectImport'
+import { getErrorGuidance } from '~/utils/errorGuidance'
 
 interface Project {
   id: number
@@ -92,24 +93,7 @@ async function handleDelete(projectId: number) {
 }
 
 /** Get human-friendly error guidance based on error prefix */
-const errorGuidance = computed(() => {
-  const msg = importError.value
-  if (!msg)
-    return null
-
-  if (msg.startsWith('GH_NOT_INSTALLED'))
-    return { title: 'GitHub CLI not found', hint: 'Install gh CLI from cli.github.com and restart the server.' }
-  if (msg.startsWith('GH_AUTH'))
-    return { title: 'GitHub CLI not authenticated', hint: 'Run `gh auth login` in your terminal and restart the server.' }
-  if (msg.startsWith('GH_NOT_FOUND'))
-    return { title: 'Repository not found', hint: 'Check the URL. The repository may be private or deleted.' }
-  if (msg.startsWith('GH_PRIVATE'))
-    return { title: 'Private repository', hint: 'You don\'t have access to this repository. Ensure gh auth has the `repo` scope.' }
-  if (msg.startsWith('CLONE_FAILED'))
-    return { title: 'Clone failed', hint: msg.replace('CLONE_FAILED: ', '') }
-
-  return null
-})
+const errorGuidance = computed(() => getErrorGuidance(importError.value))
 </script>
 
 <template>
@@ -118,10 +102,10 @@ const errorGuidance = computed(() => {
       <!-- Header -->
       <header class="mb-12 text-center">
         <h1 class="text-2xl font-semibold text-slate-100 tracking-tight">
-          Project River
+          {{ $t('home.title') }}
         </h1>
         <p class="mt-2 text-sm text-slate-400">
-          Paste a GitHub repository URL to visualize its contribution history.
+          {{ $t('home.subtitle') }}
         </p>
       </header>
 
@@ -133,7 +117,7 @@ const errorGuidance = computed(() => {
         >
           <UInput
             v-model="url"
-            placeholder="https://github.com/owner/repo"
+            :placeholder="$t('home.placeholder')"
             :disabled="isImportActive"
             icon="i-lucide-link"
             size="lg"
@@ -149,7 +133,7 @@ const errorGuidance = computed(() => {
             trailing
           >
             <template v-if="!isImportActive">
-              Import
+              {{ $t('home.import') }}
             </template>
             <template v-else>
               {{ stageLabel }}
@@ -173,13 +157,13 @@ const errorGuidance = computed(() => {
         >
           <div class="rounded-md border border-red-800/60 bg-red-950/30 p-4">
             <p class="text-sm font-medium text-red-300">
-              {{ errorGuidance?.title || 'Import failed' }}
+              {{ errorGuidance?.title ? $t(errorGuidance.title) : $t('import.failed') }}
             </p>
             <p
               v-if="errorGuidance?.hint"
               class="mt-1 text-xs text-red-400/80"
             >
-              {{ errorGuidance.hint }}
+              {{ errorGuidance.hintParams ? $t(errorGuidance.hint, errorGuidance.hintParams) : $t(errorGuidance.hint) }}
             </p>
             <p
               v-else-if="importError"
@@ -191,7 +175,7 @@ const errorGuidance = computed(() => {
               class="mt-3 text-xs text-red-300 underline underline-offset-2 hover:text-red-200"
               @click="resetImport"
             >
-              Try again
+              {{ $t('common.tryAgain') }}
             </button>
           </div>
         </div>
@@ -201,13 +185,13 @@ const errorGuidance = computed(() => {
       <section>
         <div class="mb-4 flex items-center justify-between">
           <h2 class="text-sm font-medium text-slate-300">
-            Projects
+            {{ $t('home.projects') }}
           </h2>
           <span
             v-if="projects.length > 0"
             class="text-xs text-slate-500"
           >
-            {{ projects.length }} project{{ projects.length !== 1 ? 's' : '' }}
+            {{ $t('home.projectCount', { count: projects.length }) }}
           </span>
         </div>
 
@@ -216,7 +200,7 @@ const errorGuidance = computed(() => {
           v-if="projectsLoading"
           class="py-8 text-center text-sm text-slate-500"
         >
-          Loading projects...
+          {{ $t('home.loadingProjects') }}
         </div>
 
         <!-- Projects error -->
@@ -233,10 +217,10 @@ const errorGuidance = computed(() => {
           class="rounded-lg border border-dashed border-slate-800 py-12 text-center"
         >
           <p class="text-sm text-slate-400">
-            No projects yet.
+            {{ $t('home.noProjects') }}
           </p>
           <p class="mt-1 text-xs text-slate-500">
-            Paste a GitHub URL above to get started.
+            {{ $t('home.noProjectsHint') }}
           </p>
         </div>
 

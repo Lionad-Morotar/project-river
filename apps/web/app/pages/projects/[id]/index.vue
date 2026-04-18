@@ -18,6 +18,8 @@ import { getAllContributors, getMonthContributors, getRangeContributors } from '
 import { yearToRange } from '~/utils/periodHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
 
+const { t } = useI18n()
+const { monthNames, formatRelativeTime } = useLocale()
 const route = useRoute()
 const projectId = route.params.id as string
 
@@ -42,7 +44,7 @@ const {
 } = useProjectData(projectId)
 
 // -- Stats --
-const { stats, formattedDateRange, recentActivityLabel, recentActivityDotClass, formatNumber } = useProjectStats(dailyData as Ref<DailyRow[]>)
+const { stats, formattedDateRange, recentActivityLabel, recentActivityDotClass } = useProjectStats(dailyData as Ref<DailyRow[]>)
 
 // -- Chart container (tooltip anchor) --
 const graphContainerRef = ref<HTMLDivElement | null>(null)
@@ -124,27 +126,6 @@ const previousPeriodCommits = computed(() => {
 const streamgraphRef = ref<{ getSvg: () => SVGSVGElement | null } | null>(null)
 const reanalyzeDialogOpen = ref(false)
 
-function formatRelativeTime(date: Date | null): string {
-  if (!date)
-    return ''
-  const ms = Date.now() - new Date(date).getTime()
-  const minutes = Math.floor(ms / 60000)
-  if (minutes < 1)
-    return 'just now'
-  if (minutes < 60)
-    return `${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24)
-    return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 30)
-    return `${days}d ago`
-  const months = Math.floor(days / 30)
-  if (months < 12)
-    return `${months}mo ago`
-  return `${Math.floor(months / 12)}y ago`
-}
-
 // -- Actions --
 function handleExport() {
   const contributors = Array.from(new Set(streamgraphData.value.map((d: DailyRow) => d.contributor))).sort()
@@ -157,7 +138,10 @@ function handleExport() {
     {
       projectName: projectMeta.value?.fullName || projectMeta.value?.name || 'Project',
       dateRange: formattedDateRange.value,
-      healthSignals: healthSignals.value.map(s => ({ label: s.label, severity: s.severity })),
+      healthSignals: healthSignals.value.map(s => ({ label: t(s.label), severity: s.severity })),
+      localeStrings: {
+        more: t('export.more'),
+      },
     },
   )
 }
@@ -185,7 +169,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
       >
         <div class="flex items-center gap-3 text-slate-400 text-sm">
           <span class="inline-block bg-sky-400 rounded-full w-2 h-2 animate-pulse" />
-          {{ isProcessing ? stageLabel : 'Loading project...' }}
+          {{ isProcessing ? stageLabel : $t('project.loadingProject') }}
         </div>
       </div>
 
@@ -202,7 +186,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
             class="mt-3 text-red-300 hover:text-red-200 text-xs underline underline-offset-2"
             @click="$router.push('/')"
           >
-            Back to projects
+            {{ $t('common.backToProjects') }}
           </button>
         </div>
       </div>
@@ -214,26 +198,26 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
       >
         <div class="bg-red-950/30 p-5 border border-red-800/60 rounded-md max-w-md">
           <p class="font-medium text-red-300 text-sm">
-            {{ errorGuidance?.title || 'Analysis failed' }}
+            {{ errorGuidance?.title ? $t(errorGuidance.title) : $t('import.failed') }}
           </p>
           <p
             v-if="errorGuidance?.hint"
             class="mt-1 text-red-400/80 text-xs"
           >
-            {{ errorGuidance.hint }}
+            {{ errorGuidance.hintParams ? $t(errorGuidance.hint, errorGuidance.hintParams) : $t(errorGuidance.hint) }}
           </p>
           <div class="flex items-center gap-4 mt-4">
             <button
               class="text-red-300 hover:text-red-200 text-xs underline underline-offset-2"
               @click="reanalyzeDialogOpen = true"
             >
-              Retry analysis
+              {{ $t('common.retry') }}
             </button>
             <button
               class="text-slate-400 hover:text-slate-200 text-xs underline underline-offset-2"
               @click="$router.push('/')"
             >
-              Back to projects
+              {{ $t('common.backToProjects') }}
             </button>
           </div>
         </div>
@@ -245,23 +229,23 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
         class="flex flex-col justify-center items-center py-24"
       >
         <h2 class="mb-2 font-medium text-slate-300 text-lg">
-          No commit data available
+          {{ $t('project.noCommitData') }}
         </h2>
         <p class="mb-4 text-slate-500 text-sm">
-          The project was analyzed but no commits were found.
+          {{ $t('project.noCommitDataHint') }}
         </p>
         <div class="flex items-center gap-4">
           <button
             class="text-slate-300 hover:text-white text-xs underline underline-offset-2"
             @click="reanalyzeDialogOpen = true"
           >
-            Re-analyze
+            {{ $t('project.reAnalyze') }}
           </button>
           <button
             class="text-slate-400 hover:text-slate-200 text-xs underline underline-offset-2"
             @click="$router.push('/')"
           >
-            Back to projects
+            {{ $t('common.backToProjects') }}
           </button>
         </div>
       </div>
@@ -322,7 +306,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
                 <path d="M16 3.13a4 4 0 0 1 0 7.75" />
               </svg>
             </span>
-            {{ stats.totalContributors }} contributors
+            {{ $t('project.contributors', { count: stats.totalContributors }) }}
           </span>
           <span class="text-slate-700">/</span>
           <span class="flex items-center gap-1.5">
@@ -333,7 +317,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
                 <line x1="17.01" y1="12" x2="22.96" y2="12" />
               </svg>
             </span>
-            {{ formatNumber(stats.totalCommits) }} commits
+            {{ $t('project.commits', { count: stats.totalCommits }) }}
           </span>
           <span class="text-slate-700">/</span>
           <span
@@ -357,7 +341,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
                 <polyline points="12 6 12 12 16 14" />
               </svg>
             </span>
-            Analyzed {{ formatRelativeTime(projectMeta.lastAnalyzedAt) }}
+            {{ $t('project.analyzed', { time: formatRelativeTime(projectMeta.lastAnalyzedAt) }) }}
           </span>
         </div>
 
@@ -371,7 +355,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
 
         <!-- Timeline controls -->
         <div class="flex items-center gap-2 bg-slate-900/50 mb-3 px-3 py-2 border border-slate-800 rounded-lg">
-          <span class="mr-1 font-medium text-slate-500 text-xs select-none">Granularity</span>
+          <span class="mr-1 font-medium text-slate-500 text-xs select-none">{{ $t('granularity.label') }}</span>
           <div class="inline-flex bg-slate-800 p-0.5 rounded-md">
             <button
               v-for="g in (['day', 'week', 'month'] as Granularity[])"
@@ -380,7 +364,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
               :class="granularity === g ? 'bg-slate-600 text-slate-100 shadow-sm' : 'text-slate-400 hover:text-slate-200'"
               @click="granularity = g"
             >
-              {{ g === 'day' ? 'Day' : g === 'week' ? 'Week' : 'Month' }}
+              {{ g === 'day' ? $t('granularity.day') : g === 'week' ? $t('granularity.week') : $t('granularity.month') }}
             </button>
           </div>
 
@@ -396,7 +380,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
             :class="{ 'text-slate-200 bg-slate-800': !selectedMonth }"
             @click="selectedMonth = null"
           >
-            Reset
+            {{ $t('common.reset') }}
           </button>
         </div>
 
@@ -412,6 +396,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
                 :data="aggregatedData"
                 :selected-month="selectedMonth"
                 :colors="colorMap"
+                :month-names="monthNames"
                 @update:selected-month="selectedMonth = $event"
                 @range-change="handleRangeChange"
                 @hover="onHover"
@@ -454,9 +439,9 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
     <!-- Re-analyze confirmation -->
     <ConfirmDialog
       v-model:open="reanalyzeDialogOpen"
-      title="Re-analyze project"
-      :description="`This will re-clone and re-analyze ${projectMeta?.fullName || projectMeta?.name || 'this project'}. Existing data will be replaced.`"
-      confirm-label="Re-analyze"
+      :title="$t('dialog.reanalyzeTitle')"
+      :description="$t('dialog.reanalyzeDescription', { name: projectMeta?.fullName || projectMeta?.name || $t('project.thisProject') })"
+      :confirm-label="$t('common.reanalyze')"
       confirm-color="warning"
       @confirm="handleReanalyze"
     />
