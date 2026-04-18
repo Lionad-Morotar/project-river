@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { D3AreaGenerator, D3BrushXBehavior, D3ScaleLinear, D3ScaleUtc, D3ZoomBehavior } from '~/utils/d3ChartTypes'
 import type { DailyRow } from '~/utils/d3Helpers'
+import { useElementSize } from '@vueuse/core'
 import { extent, max, min } from 'd3-array'
 import { axisBottom, axisLeft } from 'd3-axis'
 import { brushSelection, brushX as d3BrushX } from 'd3-brush'
@@ -8,19 +10,11 @@ import { pointer as d3Pointer, select } from 'd3-selection'
 import { curveBasis, area as d3Area } from 'd3-shape'
 import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { AXIS_COLOR, BRUSH_BG, BRUSH_GAP, BRUSH_HEIGHT, BRUSH_STROKE, GRID_COLOR, HIGHLIGHT_COLOR, HIT_AREA_PX, MARGIN, MAX_CONTRIBUTOR_LABELS, MAX_SPIKE_MARKERS, MIN_THICKNESS_PX, TICK_COLOR } from '~/utils/d3ChartTypes'
 import { buildStack, pivotDailyData } from '~/utils/d3Helpers'
-
-/** Type aliases for D3 internals (sub-packages lack built-in .d.ts) */
-type D3ScaleLinear = ReturnType<typeof scaleLinear>
-type D3ScaleUtc = ReturnType<typeof scaleUtc>
-type D3AreaGenerator = ReturnType<typeof d3Area<any>>
-type D3BrushXBehavior = ReturnType<typeof d3BrushX>
-type D3ZoomBehavior = ReturnType<typeof d3Zoom>
 
 interface Props {
   data: DailyRow[]
-  width: number
-  height: number
   selectedMonth: string | null
   colors: Map<string, string>
 }
@@ -34,17 +28,12 @@ const emit = defineEmits<{
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
+const { width: svgWidth, height: svgHeight } = useElementSize(chartRef)
 
-const marginTop = 24
-const marginRight = 24
-const marginBottom = 24
-const marginLeft = 48
-const brushHeight = 50
-const brushGap = 16
-const MIN_THICKNESS_PX = 2
-const HIT_AREA_PX = 6
-const MAX_SPIKE_MARKERS = 5
-const MAX_CONTRIBUTOR_LABELS = 8
+// Local aliases from centralized constants
+const { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft } = MARGIN
+const brushHeight = BRUSH_HEIGHT
+const brushGap = BRUSH_GAP
 
 const contributors = computed(() => {
   const set = new Set<string>()
@@ -192,14 +181,6 @@ function emitVisibleRange() {
   emit('rangeChange', { start, end })
 }
 
-/** Dark theme axis colors */
-const AXIS_COLOR = '#94a3b8' // slate-400
-const TICK_COLOR = '#94a3b8' // slate-400
-const GRID_COLOR = '#334155' // slate-700
-const HIGHLIGHT_COLOR = 'rgba(56,189,248,0.15)'
-const BRUSH_BG = '#0f172a' // slate-900
-const BRUSH_STROKE = '#475569' // slate-600
-
 // -- Hover handlers (extracted so they can be reused in data-join) --
 
 function handleHover(event: PointerEvent, d: any) {
@@ -210,14 +191,14 @@ function handleHover(event: PointerEvent, d: any) {
   const [px, py] = d3Pointer(event, svgSelection.node())
   const date = xScale.invert(px)
   const isoDate = date.toISOString().split('T')[0]
-  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+  const chartHeight = svgHeight.value - marginTop - marginBottom - brushHeight - brushGap
 
   // Crosshair lines
   if (crosshairGroup) {
     crosshairGroup.select('.crosshair-h')
       .style('display', 'block')
       .attr('x1', marginLeft)
-      .attr('x2', props.width - marginRight)
+      .attr('x2', svgWidth.value - marginRight)
       .attr('y1', py)
       .attr('y2', py)
     crosshairGroup.select('.crosshair-v')
@@ -307,7 +288,7 @@ function handleLeave(event: PointerEvent) {
 // -- SVG skeleton: only runs once per mount / resize --
 
 function initSvg() {
-  if (!chartRef.value || !props.width || !props.height)
+  if (!chartRef.value || !svgWidth.value || !svgHeight.value)
     return
 
   // Preserve current zoom transform before clearing (resize re-render)
@@ -324,16 +305,16 @@ function initSvg() {
 
   const svg = container
     .append('svg')
-    .attr('width', props.width)
-    .attr('height', props.height)
-    .attr('viewBox', [0, 0, props.width, props.height])
+    .attr('width', svgWidth.value)
+    .attr('height', svgHeight.value)
+    .attr('viewBox', [0, 0, svgWidth.value, svgHeight.value])
     .attr('style', 'max-width: 100%; height: auto; user-select: none; -webkit-user-select: none;')
 
   svgNode = svg.node() as SVGSVGElement
   svgSelection = svg
 
-  const chartWidth = props.width - marginLeft - marginRight
-  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+  const chartWidth = svgWidth.value - marginLeft - marginRight
+  const chartHeight = svgHeight.value - marginTop - marginBottom - brushHeight - brushGap
 
   // defs / clipPath
   const clipRect = svg.append('defs')
@@ -341,9 +322,9 @@ function initSvg() {
     .attr('id', 'clip')
     .append('rect')
     .attr('x', marginLeft)
-    .attr('y', marginTop)
+    .attr('y', 0)
     .attr('width', chartWidth)
-    .attr('height', chartHeight)
+    .attr('height', marginTop + chartHeight)
   clipRectSelection = clipRect
 
   // Chart group (clipped)
@@ -428,7 +409,7 @@ function initSvg() {
   // Brush group
   gBrushGroupSelection = svg.append('g')
     .attr('class', 'brush-group')
-    .attr('transform', `translate(0, ${props.height - brushHeight})`)
+    .attr('transform', `translate(0, ${svgHeight.value - brushHeight})`)
 
   // Brush background rect
   gBrushGroupSelection.append('rect')
@@ -455,8 +436,8 @@ function initSvg() {
   // Setup zoom behavior
   zoomBehavior = d3Zoom()
     .scaleExtent([1, 50])
-    .extent([[marginLeft, 0], [props.width - marginRight, marginTop + chartHeight]])
-    .translateExtent([[marginLeft, -Infinity], [props.width - marginRight, Infinity]])
+    .extent([[marginLeft, 0], [svgWidth.value - marginRight, marginTop + chartHeight]])
+    .translateExtent([[marginLeft, -Infinity], [svgWidth.value - marginRight, Infinity]])
     .on('zoom', handleZoom)
 
   svg.call(zoomBehavior)
@@ -470,7 +451,7 @@ function initSvg() {
 
   // Setup brush behavior
   brushBehavior = d3BrushX()
-    .extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
+    .extent([[marginLeft, 0.5], [svgWidth.value - marginRight, brushHeight - 0.5]])
     .on('start end', handleBrushStartEnd)
     .on('brush end', handleBrushMove)
 
@@ -493,14 +474,14 @@ function handleZoom(event: any) {
   if (event.sourceEvent?.type === 'brush')
     return
 
-  const chartWidth = props.width - marginLeft - marginRight
+  const chartWidth = svgWidth.value - marginLeft - marginRight
   const newX = event.transform.rescaleX(xBase)
   xScale!.domain(newX.domain())
 
   gXAxisSelection.call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
   gXAxisSelection.call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
   gXAxisSelection.call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
-  gXAxisSelection.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+  gXAxisSelection.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', '#0f172a').style('stroke-width', '3px').style('stroke-linejoin', 'round'))
 
   updateLayerPaths()
   updateMonthHighlight()
@@ -572,17 +553,17 @@ function handleBrushMove(event: any) {
 // -- Scale computation (called on init, resize, and data change) --
 
 function updateScales() {
-  if (!svgSelection || !props.width || !props.height)
+  if (!svgSelection || !svgWidth.value || !svgHeight.value)
     return
 
-  const chartWidth = props.width - marginLeft - marginRight
-  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+  const chartWidth = svgWidth.value - marginLeft - marginRight
+  const chartHeight = svgHeight.value - marginTop - marginBottom - brushHeight - brushGap
 
   // Update clipPath dimensions
   if (clipRectSelection) {
     clipRectSelection
       .attr('width', chartWidth)
-      .attr('height', chartHeight)
+      .attr('height', marginTop + chartHeight)
   }
 
   // Update chart background rect dimensions
@@ -596,7 +577,7 @@ function updateScales() {
   const dateExtent = extent(pivotedData.value, d => d.date) as [Date, Date]
   xBase = scaleUtc()
     .domain(dateExtent)
-    .range([marginLeft, props.width - marginRight])
+    .range([marginLeft, svgWidth.value - marginRight])
 
   // Preserve current zoom domain if we have a zoom transform
   const existingZoom = svgNode ? (svgNode as any).__zoom : null
@@ -631,22 +612,6 @@ function updateScales() {
     .y0((d: any) => currentYScale(d[0]) + HIT_AREA_PX)
     .y1((d: any) => clampedY1(d) - HIT_AREA_PX)
 
-  // Update horizontal grid lines
-  if (gChartSelection) {
-    const gridLines = gChartSelection.select('.grid-lines')
-    gridLines.selectAll('*').remove()
-    const yTicks = yScale.ticks(5)
-    for (const tick of yTicks) {
-      gridLines.append('line')
-        .attr('x1', marginLeft)
-        .attr('x2', marginLeft + chartWidth)
-        .attr('y1', yScale(tick))
-        .attr('y2', yScale(tick))
-        .attr('stroke', GRID_COLOR)
-        .attr('stroke-width', 0.5)
-    }
-  }
-
   // Update X-axis
   if (gXAxisSelection) {
     gXAxisSelection
@@ -654,7 +619,7 @@ function updateScales() {
       .call(axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80))).tickFormat(smartTimeFormat))
       .call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
       .call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
-      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', '#0f172a').style('stroke-width', '3px').style('stroke-linejoin', 'round'))
   }
 
   // Update Y-axis grid
@@ -681,12 +646,12 @@ function updateScales() {
           .tickSize(0),
       )
       .call(g => g.select('.domain').remove())
-      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px'))
+      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', '#0f172a').style('stroke-width', '3px').style('stroke-linejoin', 'round'))
   }
 
   // Update brush group position and internal elements
   if (gBrushGroupSelection) {
-    gBrushGroupSelection.attr('transform', `translate(0, ${props.height - brushHeight})`)
+    gBrushGroupSelection.attr('transform', `translate(0, ${svgHeight.value - brushHeight})`)
 
     gBrushGroupSelection.select('.brush-bg')
       .attr('width', chartWidth)
@@ -696,7 +661,7 @@ function updateScales() {
 
     // Update brush extent
     if (brushBehavior) {
-      brushBehavior.extent([[marginLeft, 0.5], [props.width - marginRight, brushHeight - 0.5]])
+      brushBehavior.extent([[marginLeft, 0.5], [svgWidth.value - marginRight, brushHeight - 0.5]])
     }
   }
 
@@ -811,13 +776,22 @@ function updateMonthHighlight() {
       select(monthHighlight).style('display', 'none')
     return
   }
-  const start = new Date(`${props.selectedMonth}-01T00:00:00Z`)
-  const end = new Date(start)
-  end.setUTCMonth(end.getUTCMonth() + 1)
+  let start: Date
+  let end: Date
+  if (/^\d{4}$/.test(props.selectedMonth)) {
+    const year = Number(props.selectedMonth)
+    start = new Date(Date.UTC(year, 0, 1))
+    end = new Date(Date.UTC(year + 1, 0, 1))
+  }
+  else {
+    start = new Date(`${props.selectedMonth}-01T00:00:00Z`)
+    end = new Date(start)
+    end.setUTCMonth(end.getUTCMonth() + 1)
+  }
 
   const x0 = xScale(start)
   const x1 = xScale(end)
-  const cw = props.width - marginLeft - marginRight
+  const cw = svgWidth.value - marginLeft - marginRight
 
   // clamp to visible chart area inside clip
   const visibleX0 = Math.max(marginLeft, Math.min(x0, marginLeft + cw))
@@ -838,7 +812,7 @@ function updateMonthHighlight() {
 function updateAnnotations() {
   if (!gAnnotationsSelection || !xScale || !yScale)
     return
-  const chartHeight = props.height - marginTop - marginBottom - brushHeight - brushGap
+  const chartHeight = svgHeight.value - marginTop - marginBottom - brushHeight - brushGap
 
   const spikeData = spikeDates.value.map(date => ({
     date,
@@ -891,8 +865,12 @@ function updateLabels() {
         .attr('fill', (d: any) => props.colors.get(d.contributor) || '#999')
         .attr('font-size', '10px')
         .attr('font-weight', 500)
-        .attr('opacity', 0.65)
+        .attr('opacity', 0.85)
         .style('pointer-events', 'none')
+        .style('paint-order', 'stroke')
+        .style('stroke', '#0f172a')
+        .style('stroke-width', '3px')
+        .style('stroke-linejoin', 'round')
         .text((d: any) => d.contributor),
       update => update,
       exit => exit.remove(),
@@ -914,9 +892,19 @@ function zoomToMonth(month: string | null) {
     }
 
     const domain = xBase.domain()
-    let start = new Date(`${month}-01T00:00:00Z`)
-    let end = new Date(start)
-    end.setUTCMonth(end.getUTCMonth() + 1)
+    let start: Date
+    let end: Date
+
+    if (/^\d{4}$/.test(month)) {
+      const year = Number(month)
+      start = new Date(Date.UTC(year, 0, 1))
+      end = new Date(Date.UTC(year + 1, 0, 1))
+    }
+    else {
+      start = new Date(`${month}-01T00:00:00Z`)
+      end = new Date(start)
+      end.setUTCMonth(end.getUTCMonth() + 1)
+    }
 
     if (start < domain[0])
       start = domain[0]
@@ -957,11 +945,13 @@ function zoomToMonth(month: string | null) {
 
 // -- Lifecycle & watchers --
 
-watch([() => props.width, () => props.height], () => {
+watch([svgWidth, svgHeight], () => {
+  if (!svgWidth.value || !svgHeight.value)
+    return
+  // Build (first real size) or rebuild (resize) SVG skeleton
+  initSvg()
   if (!svgNode)
     return
-  // Resize: rebuild SVG skeleton (dimensions changed), then update scales + layers
-  initSvg()
   updateScales()
   updateLayers()
 })
