@@ -1,6 +1,6 @@
 .planning/
 node_modules
 .DS_Store
-data/
+/data/
 .gstack/
 apps/web/test-results/
