@@ -124,6 +124,10 @@ export default defineI18nLocale(() => ({
     week: '周',
     month: '月',
   },
+  topN: {
+    label: 'Top {n}',
+    custom: '自定义',
+  },
   monthSelector: {
     allHistory: '全部历史',
     previousYear: '上一年',
@@ -187,6 +191,12 @@ export default defineI18nLocale(() => ({
       activity_drop: '连续 {days} 天提交低于均值',
       major_refactor: '单日删除 {lines} 行代码',
       commit_milestone: '累计提交突破 {threshold}',
+    },
+    group: {
+      contributors: '人员变动',
+      activity: '活动趋势',
+      code: '代码演进',
+      milestones: '里程碑',
     },
     panel: {
       title: '关键节点 ({count})',

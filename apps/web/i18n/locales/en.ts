@@ -124,6 +124,10 @@ export default defineI18nLocale(() => ({
     week: 'Week',
     month: 'Month',
   },
+  topN: {
+    label: 'Top {n}',
+    custom: 'Custom',
+  },
   monthSelector: {
     allHistory: 'All history',
     previousYear: 'Previous year',
@@ -187,6 +191,12 @@ export default defineI18nLocale(() => ({
       activity_drop: 'Low activity for {days} consecutive days',
       major_refactor: '{lines} lines deleted in one day',
       commit_milestone: 'Passed {threshold} total commits',
+    },
+    group: {
+      contributors: 'Contributors',
+      activity: 'Activity',
+      code: 'Code',
+      milestones: 'Milestones',
     },
     panel: {
       title: 'Key Events ({count})',
