@@ -10,7 +10,8 @@ import { pointer as d3Pointer, select } from 'd3-selection'
 import { curveBasis, area as d3Area } from 'd3-shape'
 import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { AXIS_COLOR, BRUSH_BG, BRUSH_GAP, BRUSH_HEIGHT, BRUSH_STROKE, GRID_COLOR, HIGHLIGHT_COLOR, HIT_AREA_PX, MARGIN, MAX_CONTRIBUTOR_LABELS, MAX_SPIKE_MARKERS, MIN_THICKNESS_PX, TICK_COLOR } from '~/utils/d3ChartTypes'
+import { useChartTheme } from '~/composables/useChartTheme'
+import { BRUSH_GAP, BRUSH_HEIGHT, HIT_AREA_PX, MARGIN, MAX_CONTRIBUTOR_LABELS, MAX_SPIKE_MARKERS, MIN_THICKNESS_PX } from '~/utils/d3ChartTypes'
 import { buildStack, pivotDailyData } from '~/utils/d3Helpers'
 
 interface Props {
@@ -30,6 +31,9 @@ const emit = defineEmits<{
 
 const chartRef = ref<HTMLDivElement | null>(null)
 const { width: svgWidth, height: svgHeight } = useElementSize(chartRef)
+
+// -- Theme-aware colors (D3 cannot use Tailwind tokens) --
+const { isDark, colors } = useChartTheme()
 
 // Local aliases from centralized constants
 const { top: marginTop, right: marginRight, bottom: marginBottom, left: marginLeft } = MARGIN
@@ -350,7 +354,7 @@ function initSvg() {
   // Month highlight overlay
   const highlightSel = gChartSelection.append('rect')
     .attr('class', 'month-highlight')
-    .attr('fill', HIGHLIGHT_COLOR)
+    .attr('fill', colors.value.highlightColor)
     .attr('y', marginTop)
     .attr('height', chartHeight)
     .style('display', 'none')
@@ -370,14 +374,14 @@ function initSvg() {
   const crosshair = gChartSelection.append('g').attr('class', 'crosshair')
   crosshair.append('line')
     .attr('class', 'crosshair-h')
-    .attr('stroke', '#64748b')
+    .attr('stroke', colors.value.crosshair)
     .attr('stroke-width', 0.5)
     .attr('stroke-dasharray', '4,3')
     .style('display', 'none')
     .style('pointer-events', 'none')
   crosshair.append('line')
     .attr('class', 'crosshair-v')
-    .attr('stroke', '#64748b')
+    .attr('stroke', colors.value.crosshair)
     .attr('stroke-width', 0.5)
     .attr('stroke-dasharray', '4,3')
     .style('display', 'none')
@@ -388,7 +392,7 @@ function initSvg() {
   gChartSelection.append('path')
     .attr('class', 'hover-highlight')
     .attr('fill', 'none')
-    .attr('stroke', '#fff')
+    .attr('stroke', colors.value.hoverStroke)
     .attr('stroke-width', 2)
     .style('pointer-events', 'none')
     .style('opacity', 0)
@@ -421,7 +425,7 @@ function initSvg() {
     .attr('x', marginLeft)
     .attr('width', chartWidth)
     .attr('height', brushHeight)
-    .attr('fill', BRUSH_BG)
+    .attr('fill', colors.value.brushBg)
     .attr('rx', 4)
 
   // Brush mini layers container
@@ -434,7 +438,7 @@ function initSvg() {
     .attr('x2', marginLeft + chartWidth)
     .attr('y1', -brushGap / 2)
     .attr('y2', -brushGap / 2)
-    .attr('stroke', GRID_COLOR)
+    .attr('stroke', colors.value.gridColor)
     .attr('stroke-width', 1)
 
   // Setup zoom behavior
@@ -466,8 +470,8 @@ function initSvg() {
   brushGroup = brushGroupSel.node() as SVGGElement
 
   // Style brush handles
-  brushGroupSel.selectAll('.selection').attr('fill', 'rgba(59,130,246,0.1)').attr('stroke', BRUSH_STROKE)
-  brushGroupSel.selectAll('.handle').attr('fill', '#94a3b8').attr('rx', 2)
+  brushGroupSel.selectAll('.selection').attr('fill', colors.value.brushFill).attr('stroke', colors.value.brushStroke)
+  brushGroupSel.selectAll('.handle').attr('fill', colors.value.brushHandle).attr('rx', 2)
 }
 
 // -- Zoom handler --
@@ -483,9 +487,9 @@ function handleZoom(event: any) {
   xScale!.domain(newX.domain())
 
   gXAxisSelection.call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
-  gXAxisSelection.call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
-  gXAxisSelection.call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
-  gXAxisSelection.call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', '#0f172a').style('stroke-width', '3px').style('stroke-linejoin', 'round'))
+  gXAxisSelection.call(g => g.select('.domain').attr('stroke', colors.value.axisColor))
+  gXAxisSelection.call(g => g.selectAll('.tick line').attr('stroke', colors.value.axisColor))
+  gXAxisSelection.call(g => g.selectAll('.tick text').attr('fill', colors.value.tickColor).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', colors.value.textStroke).style('stroke-width', '3px').style('stroke-linejoin', 'round'))
 
   updateLayerPaths()
   updateMonthHighlight()
@@ -621,9 +625,9 @@ function updateScales() {
     gXAxisSelection
       .attr('transform', `translate(0,${marginTop + chartHeight})`)
       .call(axisBottom(xScale).ticks(Math.max(2, Math.floor(chartWidth / 80))).tickFormat(smartTimeFormat))
-      .call(g => g.select('.domain').attr('stroke', AXIS_COLOR))
-      .call(g => g.selectAll('.tick line').attr('stroke', AXIS_COLOR))
-      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', '#0f172a').style('stroke-width', '3px').style('stroke-linejoin', 'round'))
+      .call(g => g.select('.domain').attr('stroke', colors.value.axisColor))
+      .call(g => g.selectAll('.tick line').attr('stroke', colors.value.axisColor))
+      .call(g => g.selectAll('.tick text').attr('fill', colors.value.tickColor).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', colors.value.textStroke).style('stroke-width', '3px').style('stroke-linejoin', 'round'))
   }
 
   // Update Y-axis grid
@@ -637,7 +641,7 @@ function updateScales() {
           .tickFormat(() => ''),
       )
       .call(g => g.select('.domain').remove())
-      .call(g => g.selectAll('.tick line').attr('stroke', GRID_COLOR).attr('stroke-width', 0.5))
+      .call(g => g.selectAll('.tick line').attr('stroke', colors.value.gridColor).attr('stroke-width', 0.5))
   }
 
   // Update Y-axis labels
@@ -650,7 +654,7 @@ function updateScales() {
           .tickSize(0),
       )
       .call(g => g.select('.domain').remove())
-      .call(g => g.selectAll('.tick text').attr('fill', TICK_COLOR).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', '#0f172a').style('stroke-width', '3px').style('stroke-linejoin', 'round'))
+      .call(g => g.selectAll('.tick text').attr('fill', colors.value.tickColor).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', colors.value.textStroke).style('stroke-width', '3px').style('stroke-linejoin', 'round'))
   }
 
   // Update brush group position and internal elements
@@ -702,7 +706,7 @@ function updateLayers() {
         // Visual path (in front, no pointer events)
         g.append('path')
           .attr('class', 'layer-visual')
-          .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
+          .attr('fill', (d: any) => props.colors.get(d.key) || colors.value.fallback)
           .style('pointer-events', 'none')
 
         return g
@@ -713,7 +717,7 @@ function updateLayers() {
 
   // select (not selectAll) propagates parent data to child
   groups.select('path.layer-visual')
-    .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
+    .attr('fill', (d: any) => props.colors.get(d.key) || colors.value.fallback)
     .attr('d', areaGenerator)
 
   if (hitAreaGenerator) {
@@ -739,10 +743,10 @@ function updateLayers() {
     .join(
       enter => enter.append('path')
         .attr('class', 'brush-layer')
-        .attr('fill', (d: any) => props.colors.get(d.key) || '#999')
+        .attr('fill', (d: any) => props.colors.get(d.key) || colors.value.fallback)
         .attr('opacity', 0.4),
       update => update
-        .attr('fill', (d: any) => props.colors.get(d.key) || '#999'),
+        .attr('fill', (d: any) => props.colors.get(d.key) || colors.value.fallback),
       exit => exit.remove(),
     )
     .attr('d', brushAreaGen)
@@ -828,7 +832,7 @@ function updateAnnotations() {
     .join(
       enter => enter.append('line')
         .attr('class', 'spike')
-        .attr('stroke', '#94a3b8')
+        .attr('stroke', colors.value.tickColor)
         .attr('stroke-width', 0.5)
         .attr('stroke-dasharray', '3,3')
         .attr('opacity', 0.4)
@@ -866,13 +870,13 @@ function updateLabels() {
     .join(
       enter => enter.append('text')
         .attr('class', 'label')
-        .attr('fill', (d: any) => props.colors.get(d.contributor) || '#999')
+        .attr('fill', (d: any) => props.colors.get(d.contributor) || colors.value.fallback)
         .attr('font-size', '10px')
         .attr('font-weight', 500)
         .attr('opacity', 0.85)
         .style('pointer-events', 'none')
         .style('paint-order', 'stroke')
-        .style('stroke', '#0f172a')
+        .style('stroke', colors.value.textStroke)
         .style('stroke-width', '3px')
         .style('stroke-linejoin', 'round')
         .text((d: any) => d.contributor),
@@ -949,10 +953,10 @@ function zoomToMonth(month: string | null) {
 
 // -- Lifecycle & watchers --
 
-watch([svgWidth, svgHeight], () => {
+watch([svgWidth, svgHeight, isDark], () => {
   if (!svgWidth.value || !svgHeight.value)
     return
-  // Build (first real size) or rebuild (resize) SVG skeleton
+  // Build (first real size) or rebuild (resize/theme change) SVG skeleton
   initSvg()
   if (!svgNode)
     return

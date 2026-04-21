@@ -8,9 +8,9 @@ interface Props {
 defineProps<Props>()
 
 const severityConfig = {
-  warning: { bg: 'bg-amber-950/40', border: 'border-amber-800/50', text: 'text-amber-300', dot: 'bg-amber-400' },
-  positive: { bg: 'bg-emerald-950/40', border: 'border-emerald-800/50', text: 'text-emerald-300', dot: 'bg-emerald-400' },
-  info: { bg: 'bg-sky-950/40', border: 'border-sky-800/50', text: 'text-sky-300', dot: 'bg-sky-400' },
+  warning: { bg: 'bg-amber-50 dark:bg-amber-950/40', border: 'border-amber-200 dark:border-amber-800/50', text: 'text-amber-600 dark:text-amber-300', dot: 'bg-amber-400' },
+  positive: { bg: 'bg-emerald-50 dark:bg-emerald-950/40', border: 'border-emerald-200 dark:border-emerald-800/50', text: 'text-emerald-600 dark:text-emerald-300', dot: 'bg-emerald-400' },
+  info: { bg: 'bg-sky-50 dark:bg-sky-950/40', border: 'border-sky-200 dark:border-sky-800/50', text: 'text-sky-600 dark:text-sky-300', dot: 'bg-sky-400' },
 } as const
 </script>
 
@@ -36,7 +36,7 @@ const severityConfig = {
       </span>
       <!-- Tooltip on hover -->
       <span
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-300 opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-accented bg-muted px-3 py-1.5 text-xs text-toned opacity-0 shadow-md transition-opacity group-hover:opacity-100"
       >
         {{ signal.evidenceParams ? $t(signal.evidence, signal.evidenceParams) : $t(signal.evidence) }}
       </span>

@@ -201,11 +201,11 @@ defineExpose({
   >
     <div
       ref="handleRef"
-      class="absolute left-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-l"
+      class="absolute left-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-elevated/50 transition-colors rounded-l"
       aria-label="Drag panel"
     >
-      <div class="w-0.5 h-5 bg-slate-500 rounded-full" />
-      <div class="w-0.5 h-5 bg-slate-500 rounded-full" />
+      <div class="w-0.5 h-5 bg-accented rounded-full" />
+      <div class="w-0.5 h-5 bg-accented rounded-full" />
     </div>
     <div class="pl-6 h-full">
       <slot />

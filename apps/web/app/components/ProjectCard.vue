@@ -15,7 +15,7 @@ interface Project {
   name: string
   fullName: string | null
   status: string
-  lastAnalyzedAt: Date | null
+  lastAnalyzedAt: string | null
 }
 
 const isDeleting = ref(false)
@@ -33,7 +33,7 @@ const statusColor = computed(() => {
     case 'error':
       return 'text-red-400'
     default:
-      return 'text-slate-500'
+      return 'text-dimmed'
   }
 })
 
@@ -57,7 +57,7 @@ const { formatShortDate } = useLocale()
 const formattedDate = computed(() => {
   if (!props.project.lastAnalyzedAt)
     return null
-  return formatShortDate(props.project.lastAnalyzedAt.toISOString())
+  return formatShortDate(props.project.lastAnalyzedAt)
 })
 
 const isInProgress = computed(() =>
@@ -83,7 +83,7 @@ async function handleReanalyze() {
 
 <template>
   <div
-    class="group relative rounded-lg border border-slate-800 bg-slate-900 p-4 transition-colors hover:border-slate-700 hover:bg-slate-800/60"
+    class="group relative rounded-lg border border-default bg-muted p-4 transition-colors hover:border-accented hover:bg-elevated/60"
   >
     <!-- Clickable area for navigation -->
     <NuxtLink
@@ -92,12 +92,12 @@ async function handleReanalyze() {
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
-          <h3 class="truncate text-sm font-medium text-slate-100">
+          <h3 class="truncate text-sm font-medium text-highlighted">
             {{ project.fullName || project.name }}
           </h3>
           <p
             v-if="project.fullName && project.name !== project.fullName"
-            class="mt-0.5 truncate text-xs text-slate-500"
+            class="mt-0.5 truncate text-xs text-dimmed"
           >
             {{ project.name }}
           </p>
@@ -125,14 +125,14 @@ async function handleReanalyze() {
 
       <div
         v-if="formattedDate"
-        class="mt-2 text-xs text-slate-500"
+        class="mt-2 text-xs text-dimmed"
       >
         {{ $t('project.analyzed', { time: formattedDate }) }}
       </div>
     </NuxtLink>
 
     <!-- Action buttons — visible on hover -->
-    <div class="mt-3 flex items-center gap-2 border-t border-slate-800 pt-3 opacity-0 transition-opacity group-hover:opacity-100">
+    <div class="mt-3 flex items-center gap-2 border-t border-default pt-3 opacity-0 transition-opacity group-hover:opacity-100">
       <UButton
         size="xs"
         variant="ghost"

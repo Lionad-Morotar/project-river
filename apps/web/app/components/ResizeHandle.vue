@@ -63,7 +63,7 @@ function onKeyDown(event: KeyboardEvent) {
     role="separator"
     tabindex="0"
     :aria-orientation="orientation"
-    class="shrink-0 bg-slate-700 hover:bg-slate-500 focus:outline-none focus:bg-sky-500 transition-colors"
+    class="shrink-0 bg-accented hover:bg-accented focus:outline-none focus:bg-sky-500 transition-colors"
     :class="orientation === 'horizontal'
       ? 'w-full h-1.5 cursor-row-resize'
       : 'w-1.5 h-full cursor-col-resize'"

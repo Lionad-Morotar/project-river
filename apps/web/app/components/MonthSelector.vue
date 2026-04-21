@@ -42,11 +42,11 @@ function select(value: string | null) {
 <template>
   <div class="relative">
     <button
-      class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-300 bg-slate-800/80 border border-slate-700 rounded-md hover:bg-slate-750 hover:text-slate-100 hover:border-slate-600 transition-all"
+      class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-toned bg-elevated/80 border border-accented rounded-md hover:bg-elevated hover:text-highlighted hover:border-accented transition-all"
       @click="toggle"
     >
       <svg
-        class="w-3.5 h-3.5 text-slate-500"
+        class="w-3.5 h-3.5 text-dimmed"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -61,7 +61,7 @@ function select(value: string | null) {
       </svg>
       <span class="max-w-[120px] truncate tabular-nums">{{ currentLabel }}</span>
       <svg
-        class="w-3 h-3 text-slate-500 transition-transform"
+        class="w-3 h-3 text-dimmed transition-transform"
         :class="{ 'rotate-180': isOpen }"
         viewBox="0 0 24 24"
         fill="none"
@@ -80,20 +80,20 @@ function select(value: string | null) {
         class="fixed z-50"
         :style="dropdownPosition"
       >
-        <div class="max-h-[280px] overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-xl shadow-black/40 min-w-[160px] py-1">
+        <div class="max-h-[280px] overflow-y-auto bg-muted border border-accented rounded-lg shadow-xl shadow-sm min-w-[160px] py-1">
           <button
-            class="w-full px-3 py-1.5 text-left text-sm text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition-colors"
-            :class="{ 'bg-slate-800 text-slate-100': !modelValue }"
+            class="w-full px-3 py-1.5 text-left text-sm text-toned hover:bg-elevated hover:text-highlighted transition-colors"
+            :class="{ 'bg-elevated text-highlighted': !modelValue }"
             @click="select(null)"
           >
             {{ $t('monthSelector.allHistory') }}
           </button>
-          <div class="border-t border-slate-800 my-1" />
+          <div class="border-t border-default my-1" />
           <button
             v-for="m in months"
             :key="m"
-            class="w-full px-3 py-1.5 text-left text-sm tabular-nums text-slate-300 hover:bg-slate-800 hover:text-slate-100 transition-colors"
-            :class="{ 'bg-slate-800 text-slate-100': modelValue === m }"
+            class="w-full px-3 py-1.5 text-left text-sm tabular-nums text-toned hover:bg-elevated hover:text-highlighted transition-colors"
+            :class="{ 'bg-elevated text-highlighted': modelValue === m }"
             @click="select(m)"
           >
             {{ m }}

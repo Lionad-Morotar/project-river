@@ -25,12 +25,12 @@ const open = defineModel<boolean>('open', { required: true })
   <UModal v-model:open="open">
     <template #content>
       <div class="p-5">
-        <h3 class="text-sm font-semibold text-slate-100">
+        <h3 class="text-sm font-semibold text-highlighted">
           {{ title }}
         </h3>
         <p
           v-if="description"
-          class="mt-2 text-xs text-slate-400"
+          class="mt-2 text-xs text-muted"
         >
           {{ description }}
         </p>

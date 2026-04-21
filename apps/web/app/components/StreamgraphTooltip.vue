@@ -48,11 +48,11 @@ const formattedDate = computed(() => {
 <template>
   <div
     v-if="visible"
-    class="absolute z-50 min-w-[170px] rounded-md border border-slate-700 bg-slate-900 px-3 py-2 shadow-md"
+    class="absolute z-50 min-w-[170px] rounded-md border border-accented bg-muted px-3 py-2 shadow-md"
     :style="{ left: `${x}px`, top: `${y}px`, pointerEvents: 'none' }"
   >
     <div class="mb-1 flex items-center justify-between gap-3">
-      <span class="text-xs font-semibold text-slate-100 truncate max-w-[140px]">
+      <span class="text-xs font-semibold text-highlighted truncate max-w-[140px]">
         {{ contributor }}
       </span>
       <span
@@ -62,39 +62,39 @@ const formattedDate = computed(() => {
         {{ percentage }}%
       </span>
     </div>
-    <div class="mb-2 text-xs text-slate-400">
+    <div class="mb-2 text-xs text-muted">
       {{ formattedDate }}
     </div>
     <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
       <div>
-        <div class="text-slate-500">
+        <div class="text-dimmed">
           {{ $t('tooltip.commits') }}
         </div>
-        <div class="text-slate-200 font-medium">
+        <div class="text-default font-medium">
           {{ commits }}
         </div>
       </div>
       <div>
-        <div class="text-slate-500">
+        <div class="text-dimmed">
           {{ $t('tooltip.linesChanged') }}
         </div>
-        <div class="text-slate-200 font-medium">
+        <div class="text-default font-medium">
           {{ linesAdded + linesDeleted }}
         </div>
       </div>
       <div>
-        <div class="text-slate-500">
+        <div class="text-dimmed">
           {{ $t('tooltip.filesChanged') }}
         </div>
-        <div class="text-slate-200 font-medium">
+        <div class="text-default font-medium">
           {{ filesTouched }}
         </div>
       </div>
       <div v-if="totalCommits !== undefined">
-        <div class="text-slate-500">
+        <div class="text-dimmed">
           {{ $t('tooltip.dayTotal') }}
         </div>
-        <div class="text-slate-200 font-medium">
+        <div class="text-default font-medium">
           {{ totalCommits }}
         </div>
       </div>

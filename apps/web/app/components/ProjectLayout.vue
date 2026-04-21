@@ -112,13 +112,13 @@ const previewClass = computed(() => {
 const undockHandleClass = computed(() => {
   switch (dockedEdge.value) {
     case 'top':
-      return 'absolute top-0 left-0 right-0 h-6 cursor-grab active:cursor-grabbing flex flex-row items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-t'
+      return 'absolute top-0 left-0 right-0 h-6 cursor-grab active:cursor-grabbing flex flex-row items-center justify-center gap-1 z-50 hover:bg-elevated/50 transition-colors rounded-t'
     case 'bottom':
-      return 'absolute bottom-0 left-0 right-0 h-6 cursor-grab active:cursor-grabbing flex flex-row items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-b'
+      return 'absolute bottom-0 left-0 right-0 h-6 cursor-grab active:cursor-grabbing flex flex-row items-center justify-center gap-1 z-50 hover:bg-elevated/50 transition-colors rounded-b'
     case 'left':
-      return 'absolute left-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-l'
+      return 'absolute left-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-elevated/50 transition-colors rounded-l'
     case 'right':
-      return 'absolute right-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-slate-800/50 transition-colors rounded-r'
+      return 'absolute right-0 top-0 bottom-0 w-6 cursor-grab active:cursor-grabbing flex flex-col items-center justify-center gap-1 z-50 hover:bg-elevated/50 transition-colors rounded-r'
     default:
       return ''
   }
@@ -232,22 +232,22 @@ function onDockedPointerUp(e: PointerEvent) {
       <!-- Docked panel -->
       <div
         v-if="dockedEdge"
-        class="relative bg-slate-900 border-slate-800 flex flex-col"
+        class="relative bg-muted border-default flex flex-col"
         :class="[panelGridClass, dockedEdge === 'top' || dockedEdge === 'bottom' ? 'border-t border-b' : 'border-l border-r']"
         :style="panelStyle"
       >
         <!-- Undock handle (disabled: drag has bugs) -->
         <div
           v-if="false"
-          class="hover:bg-slate-800/50 transition-colors"
+          class="hover:bg-elevated/50 transition-colors"
           :class="undockHandleClass"
           aria-label="Drag panel"
           @pointerdown="onDockedPointerDown"
           @pointermove="onDockedPointerMove"
           @pointerup="onDockedPointerUp"
         >
-          <div class="w-0.5 h-5 bg-slate-500 rounded-full" />
-          <div class="w-0.5 h-5 bg-slate-500 rounded-full" />
+          <div class="w-0.5 h-5 bg-accented rounded-full" />
+          <div class="w-0.5 h-5 bg-accented rounded-full" />
         </div>
 
         <ResizeHandle
@@ -277,7 +277,7 @@ function onDockedPointerUp(e: PointerEvent) {
       @preview="previewEdge = $event"
     >
       <div
-        class="bg-slate-900 border border-slate-800 shadow-lg rounded-md flex flex-col max-h-[calc(100vh-80px)]"
+        class="bg-muted border border-default shadow-lg rounded-md flex flex-col max-h-[calc(100vh-80px)]"
         :style="{ width: `${panelW}px` }"
       >
         <slot name="panel" />
