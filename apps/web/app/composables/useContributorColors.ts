@@ -14,7 +14,9 @@ export interface ContributorMeta {
   totalCommits: number
 }
 
-const OTHERS_COLOR = '#94a3b8' // slate-400
+function othersColor(isDark = true): string {
+  return isDark ? '#94a3b8' : '#64748b'
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -24,6 +26,7 @@ export function getContributorHsl(
   meta: ContributorMeta,
   bounds: { minDate: string, maxDate: string },
   maxCommits: number,
+  isDark = true,
 ): string {
   const minTime = new Date(bounds.minDate).getTime()
   const maxTime = new Date(bounds.maxDate).getTime()
@@ -36,10 +39,11 @@ export function getContributorHsl(
   const tVolume = clamp(Math.log10(meta.totalCommits + 1) / denominator, 0, 1)
   const saturation = 15 + tVolume * 60
 
-  return `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, 55%)`
+  const lightness = isDark ? 55 : 42
+  return `hsl(${Math.round(hue)}, ${Math.round(saturation)}%, ${lightness}%)`
 }
 
-export function useContributorColors(contributors: ContributorMeta[]): Map<string, string> {
+export function useContributorColors(contributors: ContributorMeta[], isDark = true): Map<string, string> {
   if (contributors.length === 0) {
     return new Map<string, string>()
   }
@@ -55,10 +59,10 @@ export function useContributorColors(contributors: ContributorMeta[]): Map<strin
   const map = new Map<string, string>()
   for (const meta of unique) {
     if (meta.name === OTHERS_LABEL) {
-      map.set(meta.name, OTHERS_COLOR)
+      map.set(meta.name, othersColor(isDark))
     }
     else {
-      map.set(meta.name, getContributorHsl(meta, bounds, maxCommits))
+      map.set(meta.name, getContributorHsl(meta, bounds, maxCommits, isDark))
     }
   }
   return map

@@ -7,12 +7,46 @@ export interface ExportMeta {
   }
 }
 
+interface ExportThemeColors {
+  bg: string
+  text: string
+  title: string
+  subtitle: string
+  legendBg: string
+  separator: string
+  fallback: string
+}
+
+function getExportColors(isDark: boolean): ExportThemeColors {
+  return isDark
+    ? {
+        bg: '#0f172a',
+        text: '#e2e8f0',
+        title: '#f1f5f9',
+        subtitle: '#94a3b8',
+        legendBg: 'rgba(15,23,42,0.85)',
+        separator: '#334155',
+        fallback: '#999',
+      }
+    : {
+        bg: '#ffffff',
+        text: '#334155',
+        title: '#0f172a',
+        subtitle: '#64748b',
+        legendBg: 'rgba(241,245,249,0.85)',
+        separator: '#e2e8f0',
+        fallback: '#999',
+      }
+}
+
 export function serializeSvgWithLegend(
   svgNode: SVGSVGElement,
   contributors: string[],
   colorMap: Map<string, string>,
   meta?: ExportMeta,
+  isDark = true,
 ): string {
+  const theme = getExportColors(isDark)
   const clone = svgNode.cloneNode(true) as SVGSVGElement
 
   // Add dark background rect to match page theme
@@ -21,16 +55,16 @@ export function serializeSvgWithLegend(
   const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
   bgRect.setAttribute('width', String(svgW))
   bgRect.setAttribute('height', String(svgH))
-  bgRect.setAttribute('fill', '#0f172a')
+  bgRect.setAttribute('fill', theme.bg)
   clone.insertBefore(bgRect, clone.firstChild)
 
   // Inline explicit font styling for standalone use
   const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
   style.textContent = `
-      text { font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; fill: #e2e8f0; }
+      text { font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 12px; fill: ${theme.text}; }
       .export-legend text { font-size: 14px; }
-      .export-title text { font-size: 14px; font-weight: 600; fill: #f1f5f9; }
-      .export-title .subtitle { font-size: 11px; font-weight: 400; fill: #94a3b8; }
+      .export-title text { font-size: 14px; font-weight: 600; fill: ${theme.title}; }
+      .export-title .subtitle { font-size: 11px; font-weight: 400; fill: ${theme.subtitle}; }
       .export-health text { font-size: 10px; }
     `
   clone.insertBefore(style, clone.firstChild)
@@ -88,7 +122,7 @@ export function serializeSvgWithLegend(
   bg.setAttribute('height', String(legendHeight))
   bg.setAttribute('rx', '4')
   bg.setAttribute('ry', '4')
-  bg.setAttribute('fill', 'rgba(15,23,42,0.85)')
+  bg.setAttribute('fill', theme.legendBg)
   legendGroup.appendChild(bg)
 
   topContributors.forEach((name, i) => {
@@ -99,7 +133,7 @@ export function serializeSvgWithLegend(
     swatch.setAttribute('y', String(y))
     swatch.setAttribute('width', String(swatchSize))
     swatch.setAttribute('height', String(swatchSize))
-    swatch.setAttribute('fill', colorMap.get(name) || '#999')
+    swatch.setAttribute('fill', colorMap.get(name) || theme.fallback)
     legendGroup.appendChild(swatch)
 
     const label = document.createElementNS('http://www.w3.org/2000/svg', 'text')
@@ -128,7 +162,7 @@ export function serializeSvgWithLegend(
     separator.setAttribute('x2', String(legendWidth - padding))
     separator.setAttribute('y1', String(nextY))
     separator.setAttribute('y2', String(nextY))
-    separator.setAttribute('stroke', '#334155')
+    separator.setAttribute('stroke', theme.separator)
     separator.setAttribute('stroke-width', '0.5')
     legendGroup.appendChild(separator)
     nextY += padding / 2
@@ -172,13 +206,14 @@ export function downloadStreamgraphSvg(
   contributors: string[],
   colorMap: Map<string, string>,
   meta?: ExportMeta,
+  isDark = true,
 ) {
   if (!svgNode) {
     console.warn('[svgExport] No SVG node available')
     return
   }
 
-  const source = serializeSvgWithLegend(svgNode, contributors, colorMap, meta)
+  const source = serializeSvgWithLegend(svgNode, contributors, colorMap, meta, isDark)
   const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

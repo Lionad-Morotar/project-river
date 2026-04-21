@@ -13,9 +13,9 @@ interface ProjectMeta {
   fullName: string | null
   status: string
   description: string | null
-  lastAnalyzedAt: Date | null
+  lastAnalyzedAt: string | null
   errorMessage: string | null
-  createdAt: Date
+  createdAt: string
 }
 
 const POLL_INTERVAL_MS = 3000

@@ -24,7 +24,7 @@ export function useLocale() {
   }
 
   /** 相对时间格式化，如 "5 分钟前" / "5m ago" */
-  function formatRelativeTime(date: Date | null): string {
+  function formatRelativeTime(date: string | Date | null): string {
     if (!date)
       return ''
     const ms = Date.now() - new Date(date).getTime()
@@ -70,7 +70,7 @@ export function useLocale() {
       return 'bg-emerald-400'
     if (daysSinceLastCommit <= 30)
       return 'bg-amber-400'
-    return 'bg-slate-500'
+    return 'bg-accented'
   }
 
   return {

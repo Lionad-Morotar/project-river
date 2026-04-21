@@ -1,8 +1,9 @@
 import type { D3AreaGenerator, D3BrushXBehavior, D3ScaleLinear, D3ScaleUtc, D3ZoomBehavior } from './d3ChartTypes'
+import type { ChartColors } from '~/composables/useChartTheme'
 import { brushX as d3BrushX } from 'd3-brush'
 import { select } from 'd3-selection'
 import { zoom as d3Zoom } from 'd3-zoom'
-import { BRUSH_BG, BRUSH_GAP, BRUSH_HEIGHT, BRUSH_STROKE, GRID_COLOR, HIGHLIGHT_COLOR, MARGIN } from './d3ChartTypes'
+import { BRUSH_GAP, BRUSH_HEIGHT, MARGIN } from './d3ChartTypes'
 
 export interface D3State {
   svgNode: SVGSVGElement | null
@@ -65,6 +66,7 @@ export function initSvgSkeleton(
     onBrushStartEnd: (event: any) => void
     onBrushMove: (event: any) => void
   },
+  chartColors: ChartColors,
   savedTransform?: any,
 ): D3State {
   const state = createEmptyD3State()
@@ -115,7 +117,7 @@ export function initSvgSkeleton(
   // Month highlight overlay
   const highlightSel = state.gChartSelection.append('rect')
     .attr('class', 'month-highlight')
-    .attr('fill', HIGHLIGHT_COLOR)
+    .attr('fill', chartColors.highlightColor)
     .attr('y', MARGIN.top)
     .attr('height', chartHeight)
     .style('display', 'none')
@@ -135,14 +137,14 @@ export function initSvgSkeleton(
   const crosshair = state.gChartSelection.append('g').attr('class', 'crosshair')
   crosshair.append('line')
     .attr('class', 'crosshair-h')
-    .attr('stroke', '#64748b')
+    .attr('stroke', chartColors.crosshair)
     .attr('stroke-width', 0.5)
     .attr('stroke-dasharray', '4,3')
     .style('display', 'none')
     .style('pointer-events', 'none')
   crosshair.append('line')
     .attr('class', 'crosshair-v')
-    .attr('stroke', '#64748b')
+    .attr('stroke', chartColors.crosshair)
     .attr('stroke-width', 0.5)
     .attr('stroke-dasharray', '4,3')
     .style('display', 'none')
@@ -153,7 +155,7 @@ export function initSvgSkeleton(
   state.gChartSelection.append('path')
     .attr('class', 'hover-highlight')
     .attr('fill', 'none')
-    .attr('stroke', '#fff')
+    .attr('stroke', chartColors.hoverStroke)
     .attr('stroke-width', 2)
     .style('pointer-events', 'none')
     .style('opacity', 0)
@@ -186,7 +188,7 @@ export function initSvgSkeleton(
     .attr('x', MARGIN.left)
     .attr('width', chartWidth)
     .attr('height', BRUSH_HEIGHT)
-    .attr('fill', BRUSH_BG)
+    .attr('fill', chartColors.brushBg)
     .attr('rx', 4)
 
   // Brush mini layers container
@@ -199,7 +201,7 @@ export function initSvgSkeleton(
     .attr('x2', MARGIN.left + chartWidth)
     .attr('y1', -BRUSH_GAP / 2)
     .attr('y2', -BRUSH_GAP / 2)
-    .attr('stroke', GRID_COLOR)
+    .attr('stroke', chartColors.gridColor)
     .attr('stroke-width', 1)
 
   // Setup zoom behavior
@@ -231,8 +233,8 @@ export function initSvgSkeleton(
   state.brushGroup = brushGroupSel.node() as SVGGElement
 
   // Style brush handles
-  brushGroupSel.selectAll('.selection').attr('fill', 'rgba(59,130,246,0.1)').attr('stroke', BRUSH_STROKE)
-  brushGroupSel.selectAll('.handle').attr('fill', '#94a3b8').attr('rx', 2)
+  brushGroupSel.selectAll('.selection').attr('fill', chartColors.brushFill).attr('stroke', chartColors.brushStroke)
+  brushGroupSel.selectAll('.handle').attr('fill', chartColors.brushHandle).attr('rx', 2)
 
   return state
 }
