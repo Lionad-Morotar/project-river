@@ -15,6 +15,15 @@ export default defineI18nLocale(() => ({
   home: {
     title: 'Project River',
     subtitle: '粘贴 GitHub 仓库 URL，可视化其贡献历史。',
+    subtitleStatic: '交互式 Git 贡献历史可视化演示。',
+    featureStreamgraph: '河流图可视化',
+    featureStreamgraphDesc: '以 Streamgraph 形式展示贡献历史，直观感受代码流动的节奏与演变。',
+    featureContributors: '贡献者分析',
+    featureContributorsDesc: '识别核心贡献者、追踪人员变动，为团队决策提供数据依据。',
+    featureHealth: '健康度信号',
+    featureHealthDesc: '自动检测贡献集中度、活跃度下降等风险，提前发现项目隐患。',
+    footer: 'Git 历史可视化工具',
+    viewDemo: '查看示例',
     placeholder: 'https://github.com/owner/repo',
     import: '导入',
     projects: '项目',
@@ -150,5 +159,11 @@ export default defineI18nLocale(() => ({
     noContributorDataHint: '该项目尚无贡献者数据。请重新导入项目以填充统计信息。',
     yearly: '年度',
     total: '总计',
+  },
+  static: {
+    demoNotice: '当前为演示模式，展示 {name} 的数据。',
+    addProjectHint: '添加新项目需要本地部署才能启动服务端分析功能。',
+    viewSource: '查看源码',
+    localDeploy: '本地部署指南',
   },
 }))

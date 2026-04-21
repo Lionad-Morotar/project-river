@@ -15,6 +15,15 @@ export default defineI18nLocale(() => ({
   home: {
     title: 'Project River',
     subtitle: 'Paste a GitHub repository URL to visualize its contribution history.',
+    subtitleStatic: 'Interactive Git contribution history visualization demo.',
+    featureStreamgraph: 'Streamgraph Visualization',
+    featureStreamgraphDesc: 'View contribution history as a flowing streamgraph, revealing the rhythm and evolution of your codebase.',
+    featureContributors: 'Contributor Analytics',
+    featureContributorsDesc: 'Identify key contributors, track team dynamics, and make data-driven staffing decisions.',
+    featureHealth: 'Health Signals',
+    featureHealthDesc: 'Automatically detect risks like contribution concentration and activity drops before they become problems.',
+    footer: 'Git history visualization',
+    viewDemo: 'View Demo',
     placeholder: 'https://github.com/owner/repo',
     import: 'Import',
     projects: 'Projects',
@@ -150,5 +159,11 @@ export default defineI18nLocale(() => ({
     noContributorDataHint: 'There is no contributor data for this project yet. Re-import the project to populate statistics.',
     yearly: 'Yearly',
     total: 'Total',
+  },
+  static: {
+    demoNotice: 'Demo mode showing data for {name}.',
+    addProjectHint: 'Adding projects requires local deployment to run the server-side analysis pipeline.',
+    viewSource: 'View source',
+    localDeploy: 'Local deployment guide',
   },
 }))
