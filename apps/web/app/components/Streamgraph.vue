@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { EventSeverity } from '~/composables/useProjectEvents'
 import type { D3AreaGenerator, D3BrushXBehavior, D3ScaleLinear, D3ScaleUtc, D3ZoomBehavior } from '~/utils/d3ChartTypes'
 import type { DailyRow } from '~/utils/d3Helpers'
 import { useElementSize } from '@vueuse/core'
@@ -14,11 +15,20 @@ import { useChartTheme } from '~/composables/useChartTheme'
 import { BRUSH_GAP, BRUSH_HEIGHT, HIT_AREA_PX, MARGIN, MAX_CONTRIBUTOR_LABELS, MAX_SPIKE_MARKERS, MIN_THICKNESS_PX } from '~/utils/d3ChartTypes'
 import { buildStack, pivotDailyData } from '~/utils/d3Helpers'
 
+interface MarkerItem {
+  id: string
+  date: string
+  priority: number
+  severity: EventSeverity
+  selected?: boolean
+}
+
 interface Props {
   data: DailyRow[]
   selectedMonth: string | null
   colors: Map<string, string>
   monthNames?: string[]
+  eventMarkers?: MarkerItem[]
 }
 
 const props = defineProps<Props>()
@@ -27,6 +37,7 @@ const emit = defineEmits<{
   (e: 'update:selectedMonth', value: string | null): void
   (e: 'rangeChange', range: { start: string, end: string } | null): void
   (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number, totalCommits?: number } | null): void
+  (e: 'markerHover', event: PointerEvent, marker: MarkerItem | null): void
 }>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
@@ -156,7 +167,36 @@ let gYAxisLabelsSelection: ReturnType<typeof select> | null = null
 let gXAxisSelection: ReturnType<typeof select> | null = null
 let clipRectSelection: ReturnType<typeof select> | null = null
 let gAnnotationsSelection: ReturnType<typeof select> | null = null
+let gEventMarkersSelection: ReturnType<typeof select> | null = null
 let gLabelsSelection: ReturnType<typeof select> | null = null
+
+// Trackpad gesture state
+let gestureStartScale = 1
+let isGestureActive = false
+let wheelCleanup: (() => void) | null = null
+let gestureCleanup: (() => void) | null = null
+
+// Interaction state — suppress hover & throttle range emission during pan/zoom
+const isInteracting = ref(false)
+let interactionTimer: ReturnType<typeof setTimeout> | null = null
+let rangeRafId: number | null = null
+
+function markInteracting() {
+  isInteracting.value = true
+  // Hide crosshair & highlight immediately
+  if (crosshairGroup) {
+    crosshairGroup.select('.crosshair-h').style('display', 'none')
+    crosshairGroup.select('.crosshair-v').style('display', 'none')
+  }
+  if (hoverHighlightEl)
+    hoverHighlightEl.style('opacity', 0)
+
+  if (interactionTimer)
+    clearTimeout(interactionTimer)
+  interactionTimer = setTimeout(() => {
+    isInteracting.value = false
+  }, 120)
+}
 
 const defaultMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const monthNames = computed(() => props.monthNames ?? defaultMonths)
@@ -179,27 +219,49 @@ function smartTimeFormat(date: Date): string {
   return `${months[date.getMonth()]} ${date.getDate()}`
 }
 
-/** Emit current visible date range to parent */
+/** Emit current visible date range to parent (RAF-throttled) */
 function emitVisibleRange() {
   if (!xScale || !xBase)
     return
-  const [d0, d1] = xScale.domain()
-  const start = new Date(d0 as number).toISOString().split('T')[0]!
-  const end = new Date(d1 as number).toISOString().split('T')[0]!
-  emit('rangeChange', { start, end })
+  if (rangeRafId)
+    cancelAnimationFrame(rangeRafId)
+  rangeRafId = requestAnimationFrame(() => {
+    rangeRafId = null
+    const [d0, d1] = xScale!.domain()
+    const start = new Date(d0 as number).toISOString().split('T')[0]!
+    const end = new Date(d1 as number).toISOString().split('T')[0]!
+    emit('rangeChange', { start, end })
+  })
 }
 
 // -- Hover handlers (extracted so they can be reused in data-join) --
 
 function handleHover(event: PointerEvent, d: any) {
   event.preventDefault()
+  if (isInteracting.value)
+    return
   if (!xScale || !svgSelection || !yScale)
     return
   const contributor = d.key as string
   const [px, py] = d3Pointer(event, svgSelection.node())
   const date = xScale.invert(px)
-  const isoDate = date.toISOString().split('T')[0]
+  const isoDate = date.toISOString().split('T')[0]!
   const chartHeight = svgHeight.value - marginTop - marginBottom - brushHeight - brushGap
+
+  // Skip hover if band has negligible height at this position (0-commit segment)
+  const targetTime = date.getTime()
+  let bandHeight = 0
+  let minDt = Infinity
+  for (let i = 0; i < d.length; i++) {
+    const pt = d[i]!
+    const dt = Math.abs(pt.data.date.getTime() - targetTime)
+    if (dt < minDt) {
+      minDt = dt
+      bandHeight = pt[1] - pt[0]
+    }
+  }
+  if (bandHeight < 0.5)
+    return
 
   // Crosshair lines
   if (crosshairGroup) {
@@ -311,12 +373,18 @@ function initSvg() {
   const container = select(chartRef.value)
   container.selectAll('*').remove()
 
+  // Render at device pixel ratio for crisp paths at high zoom
+  const dpr = window.devicePixelRatio || 1
+  const cssW = svgWidth.value
+  const cssH = svgHeight.value
+
   const svg = container
     .append('svg')
-    .attr('width', svgWidth.value)
-    .attr('height', svgHeight.value)
-    .attr('viewBox', [0, 0, svgWidth.value, svgHeight.value])
-    .attr('style', 'max-width: 100%; height: auto; user-select: none; -webkit-user-select: none;')
+    .attr('width', cssW * dpr)
+    .attr('height', cssH * dpr)
+    .attr('viewBox', `0 0 ${cssW} ${cssH}`)
+    .attr('style', `max-width: 100%; width: ${cssW}px; height: ${cssH}px; display: block; user-select: none; -webkit-user-select: none;`)
+    .attr('shape-rendering', 'geometricPrecision')
 
   svgNode = svg.node() as SVGSVGElement
   svgSelection = svg
@@ -366,6 +434,9 @@ function initSvg() {
 
   // Annotations container (vertical spike markers)
   gAnnotationsSelection = gChartSelection.append('g').attr('class', 'annotations')
+
+  // Event markers container (project events from key-events panel)
+  gEventMarkersSelection = gChartSelection.append('g').attr('class', 'event-markers')
 
   // Inline labels container (contributor names at widest points)
   gLabelsSelection = gChartSelection.append('g').attr('class', 'labels')
@@ -449,8 +520,12 @@ function initSvg() {
     .on('zoom', handleZoom)
 
   svg.call(zoomBehavior)
-    // prevent scroll-to-zoom on the page
-    .on('wheel.zoom', null)
+
+  // -- Custom wheel / trackpad gesture handling --
+  // D3's built-in wheel.zoom is disabled in favor of native listeners so we
+  // can distinguish vertical scrolling (page scroll, do not intercept) from
+  // horizontal panning and pinch-to-zoom.
+  setupWheelAndGestureListeners()
 
   // Restore zoom transform after resize re-render
   if (savedTransform && zoomBehavior) {
@@ -481,9 +556,30 @@ function handleZoom(event: any) {
     return
   if (event.sourceEvent?.type === 'brush')
     return
+  markInteracting()
 
   const chartWidth = svgWidth.value - marginLeft - marginRight
-  const newX = event.transform.rescaleX(xBase)
+
+  // Clamp transform so visible range stays within data domain [firstCommit, lastAnalysis]
+  const [rMin, rMax] = xBase.range()
+  const k = event.transform.k
+  const rawX = event.transform.x
+  // At scale k, the visible left in original coords = (rMin - t.x) / k
+  // Must be ≥ rMin  →  t.x ≤ rMin * (1 - k)
+  // Visible right = (rMax - t.x) / k must be ≤ rMax  →  t.x ≥ rMax * (1 - k)
+  const clampedX = Math.max(rMax * (1 - k), Math.min(rMin * (1 - k), rawX))
+  const t = k === 1 && rawX === 0 ? event.transform : zoomIdentity.translate(clampedX, 0).scale(k)
+
+  // Sync D3 internal transform to clamped value to prevent state drift.
+  // Without this, panning past a boundary accumulates offset in D3's __zoom,
+  // making the user "undo" the phantom offset before the chart responds.
+  if (rawX !== clampedX && svgSelection) {
+    const node = svgSelection.node() as any
+    if (node)
+      node.__zoom = t
+  }
+
+  const newX = t.rescaleX(xBase)
   xScale!.domain(newX.domain())
 
   gXAxisSelection.call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
@@ -496,7 +592,11 @@ function handleZoom(event: any) {
 
   if (brushGroup && brushBehavior && !isProgrammaticZoom) {
     isProgrammaticZoom = true
-    select(brushGroup).call(brushBehavior.move, xBase.range().map(event.transform.invertX, event.transform))
+    // Clamp brush selection to data bounds
+    const sel = rMax > rMin
+      ? [Math.max(rMin, t.invertX(rMin)), Math.min(rMax, t.invertX(rMax))]
+      : [rMin, rMax]
+    select(brushGroup).call(brushBehavior.move, sel)
     isProgrammaticZoom = false
   }
 
@@ -556,6 +656,117 @@ function handleBrushMove(event: any) {
   isProgrammaticZoom = false
 
   emitVisibleRange()
+}
+
+// -- Wheel & trackpad gesture handlers --
+
+function setupWheelAndGestureListeners() {
+  const container = chartRef.value
+  if (!container)
+    return
+
+  // Remove any previous listeners first
+  if (wheelCleanup) {
+    wheelCleanup()
+    wheelCleanup = null
+  }
+  if (gestureCleanup) {
+    gestureCleanup()
+    gestureCleanup = null
+  }
+
+  // Disable D3's built-in wheel.zoom so it doesn't intercept before our
+  // custom handler.  Without this, D3 zooms on every wheel event (including
+  // two-finger pan), making pan feel like pinch-to-zoom.
+  svgSelection?.on('wheel.zoom', null)
+
+  const onWheel = (event: WheelEvent) => {
+    if (!zoomBehavior || !svgSelection || !svgNode || !xBase)
+      return
+    // During Safari pinch gesture, wheel events fire in parallel — skip them
+    // so only the dampened gesture handler controls zoom sensitivity.
+    if (isGestureActive)
+      return
+
+    const isHorizontal = Math.abs(event.deltaX) > Math.abs(event.deltaY)
+    const isZoom = event.ctrlKey || event.metaKey
+
+    if (isZoom) {
+      // Ctrl / Cmd + scroll  →  zoom
+      event.preventDefault()
+      markInteracting()
+      const t = (svgNode as any).__zoom || zoomIdentity
+      const factor = event.deltaY > 0 ? 0.92 : 1.08
+      const newK = Math.max(1, Math.min(50, t.k * factor))
+
+      // Zoom centred on pointer X
+      const rect = container.getBoundingClientRect()
+      const cx = event.clientX - rect.left
+      const newT = zoomIdentity
+        .translate(t.x + cx * (1 - newK / t.k), 0)
+        .scale(newK)
+
+      svgSelection.call(zoomBehavior.transform, newT)
+    }
+    else if (isHorizontal) {
+      // Two-finger horizontal swipe  →  pan
+      event.preventDefault()
+      markInteracting()
+      const t = (svgNode as any).__zoom || zoomIdentity
+      // Dampen delta so panning feels natural
+      const dx = -event.deltaX * 1.5
+      const newT = zoomIdentity.translate(t.x + dx, 0).scale(t.k)
+      svgSelection.call(zoomBehavior.transform, newT)
+    }
+    // Pure vertical scroll: do NOT intercept — let the page scroll normally
+  }
+
+  container.addEventListener('wheel', onWheel, { passive: false })
+  wheelCleanup = () => container.removeEventListener('wheel', onWheel)
+
+  // Safari pinch-to-zoom via gesture events
+  const onGestureStart = (e: Event) => {
+    isGestureActive = true
+    gestureStartScale = (e as any).scale
+  }
+  const onGestureChange = (e: Event) => {
+    e.preventDefault()
+    if (!zoomBehavior || !svgSelection || !svgNode)
+      return
+    const ge = e as any
+    // Ignore pure pan gestures: scale stays ~1.0 during two-finger drag
+    if (Math.abs(ge.scale - gestureStartScale) < 0.02)
+      return
+    markInteracting()
+    const t = (svgNode as any).__zoom || zoomIdentity
+    // Dampen raw pinch ratio so small finger movements don't over-zoom
+    const rawRatio = ge.scale / gestureStartScale
+    const dampenedRatio = 1 + (rawRatio - 1) * 0.35
+    const newK = Math.max(1, Math.min(50, t.k * dampenedRatio))
+    gestureStartScale = ge.scale
+
+    // Zoom centred on gesture centre (approximate with viewport centre)
+    const rect = container.getBoundingClientRect()
+    const cx = rect.width / 2
+    const newT = zoomIdentity
+      .translate(t.x + cx * (1 - newK / t.k), 0)
+      .scale(newK)
+
+    svgSelection.call(zoomBehavior.transform, newT)
+  }
+
+  const onGestureEnd = () => {
+    isGestureActive = false
+  }
+
+  container.addEventListener('gesturestart', onGestureStart)
+  container.addEventListener('gesturechange', onGestureChange)
+  container.addEventListener('gestureend', onGestureEnd)
+  gestureCleanup = () => {
+    container.removeEventListener('gesturestart', onGestureStart)
+    container.removeEventListener('gesturechange', onGestureChange)
+    container.removeEventListener('gestureend', onGestureEnd)
+  }
 }
 
 // -- Scale computation (called on init, resize, and data change) --
@@ -763,6 +974,7 @@ function updateLayers() {
 
   updateMonthHighlight()
   updateAnnotations()
+  updateEventMarkers()
   updateLabels()
 }
 
@@ -775,6 +987,7 @@ function updateLayerPaths() {
     gChartSelection.selectAll('path.layer-hitarea').attr('d', hitAreaGenerator)
   }
   updateAnnotations()
+  updateEventMarkers()
   updateLabels()
 }
 
@@ -844,6 +1057,61 @@ function updateAnnotations() {
     .attr('x2', (d: any) => d.x)
     .attr('y1', marginTop)
     .attr('y2', marginTop + chartHeight)
+}
+
+/** Render vertical marker lines for project events */
+function updateEventMarkers() {
+  if (!gEventMarkersSelection || !xScale)
+    return
+  const chartHeight = svgHeight.value - marginTop - marginBottom - brushHeight - brushGap
+
+  const markerData = (props.eventMarkers || [])
+    .map(m => ({ ...m, x: xScale(new Date(m.date)) }))
+    .filter(m => Number.isFinite(m.x))
+
+  const severityStroke = (s: EventSeverity) => {
+    switch (s) {
+      case 'warning': return '#f59e0b'
+      case 'positive': return '#34d399'
+      case 'info': return '#38bdf8'
+      default: return '#94a3b8'
+    }
+  }
+
+  const severityDash = (s: EventSeverity) => {
+    return s === 'info' ? '4,4' : 'none'
+  }
+
+  gEventMarkersSelection.selectAll('line.event-marker')
+    .data(markerData, (d: any) => d.id)
+    .join(
+      enter => enter.append('line')
+        .attr('class', 'event-marker')
+        .attr('stroke', (d: any) => severityStroke(d.severity))
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', (d: any) => severityDash(d.severity))
+        .attr('opacity', (d: any) => d.selected !== false ? 0.6 : 0)
+        .style('cursor', 'pointer')
+        .style('pointer-events', (d: any) => d.selected !== false ? 'stroke' : 'none'),
+      update => update
+        .attr('stroke', (d: any) => severityStroke(d.severity))
+        .attr('stroke-dasharray', (d: any) => severityDash(d.severity))
+        .attr('opacity', (d: any) => d.selected !== false ? 0.6 : 0)
+        .style('pointer-events', (d: any) => d.selected !== false ? 'stroke' : 'none'),
+      exit => exit.remove(),
+    )
+    .attr('x1', (d: any) => d.x)
+    .attr('x2', (d: any) => d.x)
+    .attr('y1', marginTop)
+    .attr('y2', marginTop + chartHeight)
+    .on('pointerenter pointermove', function (event: PointerEvent, d: any) {
+      select(this).attr('stroke-width', 3).attr('opacity', 1)
+      emit('markerHover', event, d as MarkerItem)
+    })
+    .on('pointerleave', function (event: PointerEvent, d: any) {
+      select(this).attr('stroke-width', 1.5).attr('opacity', d.selected !== false ? 0.6 : 0)
+      emit('markerHover', event, null)
+    })
 }
 
 /** Render contributor name labels at the widest point of their streams */
@@ -988,6 +1256,11 @@ watch(() => props.selectedMonth, () => {
   zoomToMonth(props.selectedMonth)
 })
 
+watch(() => props.eventMarkers, () => {
+  if (svgNode)
+    updateEventMarkers()
+}, { deep: true })
+
 watch(monthNames, () => {
   if (svgNode)
     updateScales()
@@ -1000,9 +1273,25 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (rangeRafId) {
+    cancelAnimationFrame(rangeRafId)
+    rangeRafId = null
+  }
+  if (interactionTimer) {
+    clearTimeout(interactionTimer)
+    interactionTimer = null
+  }
   if (brushCleanupFallback) {
     window.removeEventListener('pointerup', brushCleanupFallback, true)
     brushCleanupFallback = null
+  }
+  if (wheelCleanup) {
+    wheelCleanup()
+    wheelCleanup = null
+  }
+  if (gestureCleanup) {
+    gestureCleanup()
+    gestureCleanup = null
   }
   select(window).on('mousemove.brush mouseup.brush keydown.brush keyup.brush', null)
   select(window).on('mousemove.zoom mouseup.zoom', null)
@@ -1021,13 +1310,49 @@ onUnmounted(() => {
   gLabelsSelection = null
 })
 
+/** Externally highlight a contributor's river (from panel hover). */
+function highlightContributor(name: string | null) {
+  if (!hoverHighlightEl || !areaGenerator)
+    return
+  if (!name) {
+    hoverHighlightEl.style('opacity', 0)
+    return
+  }
+  const layer = series.value.find(s => s.key === name)
+  if (layer) {
+    hoverHighlightEl
+      .datum(layer)
+      .attr('d', areaGenerator)
+      .style('opacity', 0.85)
+  }
+}
+
+/** Externally highlight an event marker line (from event panel hover). */
+function highlightEventMarker(id: string | null) {
+  if (!gEventMarkersSelection)
+    return
+  gEventMarkersSelection.selectAll('line.event-marker')
+    .each(function (this: SVGLineElement, d: any) {
+      const el = select(this)
+      if (d.id === id) {
+        el.attr('stroke-width', 3).attr('opacity', 1)
+      }
+      else {
+        const isSelected = d.selected !== false
+        el.attr('stroke-width', 1.5).attr('opacity', isSelected ? 0.6 : 0)
+      }
+    })
+}
+
 defineExpose({
   getSvg: () => svgNode,
+  highlightContributor,
+  highlightEventMarker,
 })
 </script>
 
 <template>
   <div class="relative w-full h-full" :style="{ padding: '20px' }">
-    <div ref="chartRef" class="w-full h-full" />
+    <div ref="chartRef" class="w-full h-full overflow-hidden" />
   </div>
 </template>
