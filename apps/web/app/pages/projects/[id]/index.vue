@@ -18,6 +18,9 @@ import { getAllContributors, getMonthContributors, getRangeContributors } from '
 import { yearToRange } from '~/utils/periodHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
 
+const config = useRuntimeConfig()
+const isStatic = config.public.staticMode === true
+
 const { t } = useI18n()
 const { monthNames, formatRelativeTime } = useLocale()
 const route = useRoute()
@@ -208,6 +211,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
           </p>
           <div class="flex items-center gap-4 mt-4">
             <button
+              v-if="!isStatic"
               class="text-red-300 hover:text-red-200 text-xs underline underline-offset-2"
               @click="reanalyzeDialogOpen = true"
             >
@@ -236,6 +240,7 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
         </p>
         <div class="flex items-center gap-4">
           <button
+            v-if="!isStatic"
             class="text-slate-300 hover:text-white text-xs underline underline-offset-2"
             @click="reanalyzeDialogOpen = true"
           >
@@ -436,8 +441,9 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
       </template>
     </div>
 
-    <!-- Re-analyze confirmation -->
+    <!-- Re-analyze confirmation (hidden in static mode) -->
     <ConfirmDialog
+      v-if="!isStatic"
       v-model:open="reanalyzeDialogOpen"
       :title="$t('dialog.reanalyzeTitle')"
       :description="$t('dialog.reanalyzeDescription', { name: projectMeta?.fullName || projectMeta?.name || $t('project.thisProject') })"

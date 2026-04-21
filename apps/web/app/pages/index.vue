@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 import ProjectCard from '~/components/ProjectCard.vue'
 import { useProjectImport } from '~/composables/useProjectImport'
+import { useStaticData } from '~/composables/useStaticData'
 import { getErrorGuidance } from '~/utils/errorGuidance'
 
 interface Project {
@@ -9,8 +10,11 @@ interface Project {
   name: string
   fullName: string | null
   status: string
-  lastAnalyzedAt: string | null
+  lastAnalyzedAt: Date | null
 }
+
+const config = useRuntimeConfig()
+const isStatic = config.public.staticMode === true
 
 const { locale, setLocale } = useI18n()
 const colorMode = useColorMode()
@@ -44,6 +48,22 @@ function toggleLocale() {
   setLocale(locale.value === 'zh-CN' ? 'en' : 'zh-CN')
 }
 
+// -- Static mode: use pre-built demo data --
+const { bundle: staticBundle, loading: staticLoading } = useStaticData()
+
+const demoProject = computed<Project | null>(() => {
+  if (!staticBundle.value)
+    return null
+  const p = staticBundle.value.project
+  return {
+    id: p.id,
+    name: p.name,
+    fullName: p.fullName,
+    status: p.status,
+    lastAnalyzedAt: p.lastAnalyzedAt ? new Date(p.lastAnalyzedAt) : null,
+  }
+})
+
 /** Fetch project list */
 async function fetchProjects() {
   projectsLoading.value = true
@@ -61,7 +81,12 @@ async function fetchProjects() {
 }
 
 onMounted(() => {
-  fetchProjects()
+  if (!isStatic) {
+    fetchProjects()
+  }
+  else {
+    projectsLoading.value = false
+  }
 })
 
 /** Submit URL for import */
@@ -72,11 +97,9 @@ async function handleSubmit() {
   const result = await importRepo(url.value)
 
   if (result.success) {
-    // Import started or redirected — refresh list on next visit
     return
   }
 
-  // Import failed — refresh project list in case a new error-status project was created
   await fetchProjects()
 }
 
@@ -87,7 +110,6 @@ async function handleReanalyze(projectId: number) {
     await fetchProjects()
   }
   catch {
-    // Silently refresh — the card will show the current state
     await fetchProjects()
   }
 }
@@ -99,7 +121,6 @@ async function handleDelete(projectId: number) {
     projects.value = projects.value.filter(p => p.id !== projectId)
   }
   catch {
-    // Refresh to get accurate state
     await fetchProjects()
   }
 }
@@ -110,74 +131,79 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
 
 <template>
   <div class="min-h-screen bg-default flex flex-col">
-    <div class="max-w-3xl mx-auto px-6 lg:px-10 py-16 flex flex-col flex-1 w-full">
-      <!-- Header -->
-      <header class="mb-12">
-        <div class="flex items-start justify-between gap-4">
-          <div class="text-center flex-1">
-            <h1 class="text-2xl font-semibold text-highlighted tracking-tight">
-              {{ $t('home.title') }}
-            </h1>
-            <p class="mt-2 text-sm text-dimmed">
-              {{ $t('home.subtitle') }}
-            </p>
-          </div>
-          <!-- Theme & Locale toggles -->
-          <div class="shrink-0 flex items-center gap-1">
-            <button
-              class="p-1.5 text-muted hover:text-default hover:bg-elevated rounded-md transition-colors"
-              :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-              @click="toggleTheme"
-            >
-              <svg
-                v-if="colorMode.value === 'dark'"
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <circle cx="12" cy="12" r="5" />
-                <line x1="12" y1="1" x2="12" y2="3" />
-                <line x1="12" y1="21" x2="12" y2="23" />
-                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-                <line x1="1" y1="12" x2="3" y2="12" />
-                <line x1="21" y1="12" x2="23" y2="12" />
-                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-              </svg>
-              <svg
-                v-else
-                xmlns="http://www.w3.org/2000/svg"
-                class="w-4 h-4"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-              </svg>
-            </button>
-            <button
-              class="px-2 py-1 text-xs font-medium text-muted hover:text-default hover:bg-elevated rounded-md transition-colors"
-              @click="toggleLocale"
-            >
-              {{ locale === 'zh-CN' ? 'English' : '简体中文' }}
-            </button>
-          </div>
-        </div>
-      </header>
+    <!-- Floating controls -->
+    <div class="fixed top-4 right-4 z-50 flex items-center gap-1">
+      <button
+        class="p-1.5 text-muted hover:text-default hover:bg-elevated rounded-md transition-colors backdrop-blur-sm bg-default/50"
+        :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+        @click="toggleTheme"
+      >
+        <svg
+          v-if="colorMode.value === 'dark'"
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+        <svg
+          v-else
+          xmlns="http://www.w3.org/2000/svg"
+          class="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      </button>
+      <button
+        class="px-2 py-1 text-xs font-medium text-muted hover:text-default hover:bg-elevated rounded-md transition-colors backdrop-blur-sm bg-default/50"
+        @click="toggleLocale"
+      >
+        {{ locale === 'zh-CN' ? 'English' : '简体中文' }}
+      </button>
+    </div>
 
-      <!-- URL Input -->
-      <section class="mb-12">
+    <!-- Hero Section -->
+    <section class="relative overflow-hidden">
+      <!-- Ambient streamgraph background -->
+      <div class="absolute inset-0">
+        <HeroStreamgraph />
+      </div>
+
+      <!-- Gradient overlays for text readability -->
+      <div class="absolute inset-0 bg-gradient-to-b from-default/70 via-default/50 to-default pointer-events-none" />
+
+      <div class="relative z-10 max-w-3xl mx-auto px-6 lg:px-10 pt-20 pb-16 text-center">
+        <!-- Title -->
+        <h1 class="text-4xl sm:text-5xl font-bold text-highlighted tracking-tight">
+          Project River
+        </h1>
+        <p class="mt-4 text-base sm:text-lg text-dimmed max-w-lg mx-auto leading-relaxed">
+          {{ isStatic ? $t('home.subtitleStatic') : $t('home.subtitle') }}
+        </p>
+
+        <!-- URL Input CTA (server mode only) -->
         <form
-          class="flex gap-2"
+          v-if="!isStatic"
+          class="mt-8 flex gap-2 max-w-xl mx-auto"
           @submit.prevent="handleSubmit"
         >
           <UInput
@@ -206,10 +232,24 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
           </UButton>
         </form>
 
+        <!-- Static mode: CTA to demo -->
+        <div v-else class="mt-8 flex justify-center">
+          <NuxtLink
+            :to="demoProject ? `/projects/${demoProject.id}` : '/'"
+            class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+            {{ $t('home.viewDemo') }}
+          </NuxtLink>
+        </div>
+
         <!-- Import progress indicator -->
         <div
           v-if="isImportActive"
-          class="mt-4 flex items-center gap-3 text-sm text-dimmed"
+          class="mt-4 flex items-center justify-center gap-3 text-sm text-dimmed"
         >
           <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
           {{ stageLabel }}
@@ -218,7 +258,7 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
         <!-- Error display -->
         <div
           v-if="importStatus === 'error' && (errorGuidance || importError)"
-          class="mt-4"
+          class="mt-4 max-w-xl mx-auto"
         >
           <div class="rounded-md border border-red-800/60 bg-red-950/30 p-4">
             <p class="text-sm font-medium text-red-300">
@@ -244,26 +284,85 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
             </button>
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Project List -->
-      <section>
-        <div class="mb-4 flex items-center justify-between">
-          <h2 class="text-sm font-medium text-default">
+    <!-- Features Section -->
+    <section class="border-t border-default bg-muted/30">
+      <div class="max-w-5xl mx-auto px-6 lg:px-10 py-14">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+          <!-- Feature 1: Streamgraph -->
+          <div class="text-center sm:text-left">
+            <div class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-elevated border border-default mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12h20" />
+                <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
+                <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
+              </svg>
+            </div>
+            <h3 class="text-sm font-semibold text-default">
+              {{ $t('home.featureStreamgraph') }}
+            </h3>
+            <p class="mt-1.5 text-sm text-dimmed leading-relaxed">
+              {{ $t('home.featureStreamgraphDesc') }}
+            </p>
+          </div>
+
+          <!-- Feature 2: Contributors -->
+          <div class="text-center sm:text-left">
+            <div class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-elevated border border-default mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <h3 class="text-sm font-semibold text-default">
+              {{ $t('home.featureContributors') }}
+            </h3>
+            <p class="mt-1.5 text-sm text-dimmed leading-relaxed">
+              {{ $t('home.featureContributorsDesc') }}
+            </p>
+          </div>
+
+          <!-- Feature 3: Health -->
+          <div class="text-center sm:text-left">
+            <div class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-elevated border border-default mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+              </svg>
+            </div>
+            <h3 class="text-sm font-semibold text-default">
+              {{ $t('home.featureHealth') }}
+            </h3>
+            <p class="mt-1.5 text-sm text-dimmed leading-relaxed">
+              {{ $t('home.featureHealthDesc') }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Project List Section -->
+    <section class="flex-1">
+      <div class="max-w-3xl mx-auto px-6 lg:px-10 py-12">
+        <div class="mb-5 flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-default">
             {{ $t('home.projects') }}
           </h2>
           <span
-            v-if="projects.length > 0"
+            v-if="projects.length > 0 || (isStatic && demoProject)"
             class="text-xs text-muted"
           >
-            {{ $t('home.projectCount', { count: projects.length }) }}
+            {{ isStatic ? $t('home.projectCount', { count: 1 }) : $t('home.projectCount', { count: projects.length }) }}
           </span>
         </div>
 
         <!-- Loading -->
         <div
-          v-if="projectsLoading"
-          class="py-8 text-center text-sm text-muted"
+          v-if="projectsLoading || (isStatic && staticLoading)"
+          class="py-10 text-center text-sm text-muted"
         >
           {{ $t('home.loadingProjects') }}
         </div>
@@ -276,10 +375,25 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
           {{ projectsError }}
         </div>
 
+        <!-- Static mode: demo project -->
+        <template v-else-if="isStatic">
+          <div v-if="demoProject" class="grid gap-3 sm:grid-cols-2">
+            <ProjectCard
+              :project="demoProject"
+              :static-mode="true"
+            />
+          </div>
+          <div v-else class="rounded-lg border border-dashed border-default py-12 text-center">
+            <p class="text-sm text-dimmed">
+              {{ $t('home.noProjects') }}
+            </p>
+          </div>
+        </template>
+
         <!-- Empty state -->
         <div
           v-else-if="projects.length === 0"
-          class="rounded-lg border border-dashed border-default py-12 text-center"
+          class="rounded-lg border border-dashed border-default bg-muted/20 py-12 text-center"
         >
           <p class="text-sm text-dimmed">
             {{ $t('home.noProjects') }}
@@ -302,7 +416,16 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
             @delete="handleDelete"
           />
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-default py-6">
+      <div class="max-w-3xl mx-auto px-6 lg:px-10 text-center">
+        <p class="text-xs text-muted">
+          Project River — {{ $t('home.footer') }}
+        </p>
+      </div>
+    </footer>
   </div>
 </template>

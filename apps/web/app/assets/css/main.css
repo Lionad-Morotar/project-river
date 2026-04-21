@@ -7,7 +7,7 @@
   /* Custom theme tokens for project-river */
 }
 
-/* Dark mode override: deepen background to match original slate-950 style */
+/* Dark mode override: warm charcoal gray instead of pure black */
 .dark {
-  --ui-bg: var(--ui-color-neutral-950);
+  --ui-bg: #1e1e20;
 }

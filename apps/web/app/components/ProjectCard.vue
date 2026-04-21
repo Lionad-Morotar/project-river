@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
   project: Project
+  staticMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -131,8 +132,11 @@ async function handleReanalyze() {
       </div>
     </NuxtLink>
 
-    <!-- Action buttons — visible on hover -->
-    <div class="mt-3 flex items-center gap-2 border-t border-default pt-3 opacity-0 transition-opacity group-hover:opacity-100">
+    <!-- Action buttons — visible on hover (hidden in static mode) -->
+    <div
+      v-if="!staticMode"
+      class="mt-3 flex items-center gap-2 border-t border-default pt-3 opacity-0 transition-opacity group-hover:opacity-100"
+    >
       <UButton
         size="xs"
         variant="ghost"
@@ -156,6 +160,7 @@ async function handleReanalyze() {
 
     <!-- Confirm dialogs -->
     <ConfirmDialog
+      v-if="!staticMode"
       v-model:open="deleteDialogOpen"
       :title="$t('dialog.deleteTitle')"
       :description="$t('dialog.deleteDescription', { name: project.fullName || project.name })"
@@ -165,6 +170,7 @@ async function handleReanalyze() {
       @confirm="handleDelete"
     />
     <ConfirmDialog
+      v-if="!staticMode"
       v-model:open="reanalyzeDialogOpen"
       :title="$t('dialog.reanalyzeTitle')"
       :description="$t('dialog.reanalyzeDescription', { name: project.fullName || project.name })"

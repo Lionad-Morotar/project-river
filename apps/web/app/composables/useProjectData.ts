@@ -20,7 +20,7 @@ interface ProjectMeta {
 
 const POLL_INTERVAL_MS = 3000
 
-export function useProjectData(projectId: string) {
+function useApiProjectData(projectId: string) {
   // -- Project metadata --
   const projectMeta = ref<ProjectMeta | null>(null)
   const metaLoading = ref(true)
@@ -180,4 +180,65 @@ export function useProjectData(projectId: string) {
     // Actions
     handleReanalyze,
   }
+}
+
+function useStaticProjectData() {
+  const { bundle, loading: staticLoading, error: staticError } = useStaticData()
+
+  const projectMeta = computed(() => bundle.value?.project ?? null)
+  const dailyData = computed(() => bundle.value?.daily ?? [])
+  const monthlyData = computed(() => bundle.value?.monthly ?? [])
+  const healthSignals = computed(() => bundle.value?.health.signals ?? [])
+  const selectedMonth = ref<string | null>(null)
+  const visibleRange = ref<{ start: string, end: string } | null>(null)
+
+  const loading = computed(() => staticLoading.value)
+  const error = computed(() => staticError.value)
+
+  // 静态模式下数据总是 ready
+  const isReady = computed(() => bundle.value !== null && !staticLoading.value && !staticError.value)
+  const isError = computed(() => false)
+  const isProcessing = computed(() => false)
+  const stageLabel = computed(() => '')
+  const errorGuidance = computed(() => null)
+
+  const availableMonths = computed(() =>
+    Array.from(new Set(monthlyData.value.map(m => m.yearMonth))).sort(),
+  )
+  const availableYears = computed(() => generateYears(availableMonths.value))
+
+  // 静态模式下无服务端操作
+  async function handleReanalyze() {
+    // no-op in static mode
+  }
+
+  return {
+    projectMeta: readonly(projectMeta),
+    dailyData: readonly(dailyData),
+    monthlyData: readonly(monthlyData),
+    healthSignals: readonly(healthSignals),
+    selectedMonth,
+    visibleRange,
+    loading: readonly(loading),
+    error: readonly(error),
+    isReady: readonly(isReady),
+    isError: readonly(isError),
+    isProcessing: readonly(isProcessing),
+    stageLabel: readonly(stageLabel),
+    errorGuidance: readonly(errorGuidance),
+    availableMonths: readonly(availableMonths),
+    availableYears: readonly(availableYears),
+    handleReanalyze,
+  }
+}
+
+export function useProjectData(projectId: string) {
+  const config = useRuntimeConfig()
+  const isStatic = config.public.staticMode === true
+
+  if (isStatic) {
+    return useStaticProjectData()
+  }
+
+  return useApiProjectData(projectId)
 }
