@@ -11,7 +11,7 @@ interface Props {
 defineProps<Props>()
 
 const emit = defineEmits<{
-  (e: 'selectEvent', event: ProjectEvent): void
+  (e: 'hoverEvent', event: ProjectEvent | null): void
 }>()
 
 const isExpanded = ref(true)
@@ -21,7 +21,7 @@ function severityDotClass(severity: EventSeverity): string {
     case 'positive': return 'bg-emerald-400'
     case 'warning': return 'bg-amber-400'
     case 'info': return 'bg-sky-400'
-    default: return 'bg-slate-400'
+    default: return 'bg-dimmed'
   }
 }
 
@@ -30,7 +30,7 @@ function severityTextClass(severity: EventSeverity): string {
     case 'positive': return 'text-emerald-400'
     case 'warning': return 'text-amber-400'
     case 'info': return 'text-sky-400'
-    default: return 'text-slate-400'
+    default: return 'text-dimmed'
   }
 }
 
@@ -93,8 +93,9 @@ function formatDate(dateStr: string): string {
       <div
         v-for="event in events"
         :key="event.id"
-        class="flex items-start gap-3 px-4 py-2.5 hover:bg-elevated/40 cursor-pointer transition-colors border-b border-default/50 last:border-b-0"
-        @click="emit('selectEvent', event)"
+        class="flex items-start gap-3 px-4 py-2.5 hover:bg-accented transition-colors border-b border-default/50 last:border-b-0"
+        @pointerenter="emit('hoverEvent', event)"
+        @pointerleave="emit('hoverEvent', null)"
       >
         <span
           class="mt-1.5 rounded-full w-1.5 h-1.5 flex-shrink-0"

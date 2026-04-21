@@ -25,6 +25,7 @@ const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:selectedMonth', value: string | null): void
   (e: 'export'): void
+  (e: 'hoverContributor', name: string | null): void
 }>()
 
 const canGoPrevious = computed(() => {
@@ -143,6 +144,8 @@ function goNext() {
           v-for="c in contributors"
           :key="c.contributor"
           class="flex items-center justify-between gap-3 py-1.5 hover:bg-elevated rounded px-2 -mx-2 transition-colors"
+          @pointerenter="emit('hoverContributor', c.contributor)"
+          @pointerleave="emit('hoverContributor', null)"
         >
           <div class="flex items-center gap-2.5">
             <div

@@ -96,6 +96,50 @@ export function getRangeCommits(dailyRows: DailyRow[], startDate: string, endDat
   }, 0)
 }
 
+/** Compute contributors for a single month from daily rows only (no MonthlyRow dependency). */
+export function getMonthContributorsFromDaily(
+  dailyRows: DailyRow[],
+  yearMonth: string,
+  colorMap: Map<string, string>,
+): MonthContributor[] {
+  return getRangeContributors(dailyRows, `${yearMonth}-01`, `${yearMonth}-31`, colorMap)
+}
+
+/** Compute all-time contributors from daily rows only (no MonthlyRow dependency). */
+export function getAllContributorsFromDaily(
+  dailyRows: DailyRow[],
+  colorMap: Map<string, string>,
+): MonthContributor[] {
+  const commitsMap = new Map<string, number>()
+  const latestDateMap = new Map<string, string>()
+  const cumulativeMap = new Map<string, number>()
+
+  for (const row of dailyRows) {
+    commitsMap.set(row.contributor, (commitsMap.get(row.contributor) || 0) + row.commits)
+    const existing = latestDateMap.get(row.contributor)
+    if (!existing || row.date > existing) {
+      latestDateMap.set(row.contributor, row.date)
+      cumulativeMap.set(row.contributor, row.cumulativeCommits)
+    }
+  }
+
+  const result: MonthContributor[] = []
+  for (const [contributor, totalCommits] of commitsMap) {
+    result.push({
+      contributor,
+      monthlyCommits: totalCommits,
+      cumulativeCommits: cumulativeMap.get(contributor) || 0,
+      color: colorMap.get(contributor) ?? '#999',
+    })
+  }
+
+  return result.sort((a, b) => {
+    if (b.monthlyCommits !== a.monthlyCommits)
+      return b.monthlyCommits - a.monthlyCommits
+    return a.contributor.localeCompare(b.contributor)
+  })
+}
+
 export function getAllContributors(
   monthlyRows: MonthlyRow[],
   dailyRows: DailyRow[],
