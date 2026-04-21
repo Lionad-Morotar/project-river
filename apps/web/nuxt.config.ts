@@ -5,7 +5,11 @@ export default defineNuxtConfig({
   ssr: false,
   modules: ['@nuxt/ui', '@vueuse/nuxt', '@nuxtjs/i18n'],
   css: ['~/assets/css/main.css'],
+  colorMode: {
+    preference: 'system',
+  },
   i18n: {
+    baseUrl: 'http://localhost:10400',
     defaultLocale: 'zh-CN',
     strategy: 'no_prefix',
     langDir: 'locales',

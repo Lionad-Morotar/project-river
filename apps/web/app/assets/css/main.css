@@ -1,5 +1,13 @@
-@import 'tailwindcss';
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Custom theme tokens for project-river can be added here */
+  /* Custom theme tokens for project-river */
+}
+
+/* Dark mode override: deepen background to match original slate-950 style */
+.dark {
+  --ui-bg: var(--ui-color-neutral-950);
 }
