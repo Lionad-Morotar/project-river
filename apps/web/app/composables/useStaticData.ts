@@ -44,7 +44,7 @@ export function useStaticData() {
     loadPromise = (async () => {
       const config = useRuntimeConfig()
       const base = config.app.baseURL || '/'
-      const url = `${base}${BUNDLE_PATH}`.replace(/\/+/g, '/').replace(':/', '://')
+      const url = new URL(BUNDLE_PATH, window.location.origin + base).href
       const response = await fetch(url)
       if (!response.ok)
         throw new Error(`Failed to load demo data (HTTP ${response.status})`)

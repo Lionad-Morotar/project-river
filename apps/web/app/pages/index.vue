@@ -127,233 +127,408 @@ async function handleDelete(projectId: number) {
 
 /** Get human-friendly error guidance based on error prefix */
 const errorGuidance = computed(() => getErrorGuidance(importError.value))
+
+// Demo stats for static mode or empty state
+const demoStats = [
+  { value: 12473, labelKey: 'home.statCommits', suffix: '' },
+  { value: 847, labelKey: 'home.statContributors', suffix: '' },
+  { value: 2.4, labelKey: 'home.statYears', suffix: 'yr', decimals: 1 },
+  { value: 156, labelKey: 'home.statFiles', suffix: '' },
+]
 </script>
 
 <template>
-  <div class="min-h-screen bg-default flex flex-col">
-    <!-- Floating controls -->
-    <div class="fixed top-4 right-4 z-50 flex items-center gap-1">
-      <button
-        class="p-1.5 text-muted hover:text-default hover:bg-elevated rounded-md transition-colors backdrop-blur-sm bg-default/50"
-        :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
-        @click="toggleTheme"
-      >
-        <svg
-          v-if="colorMode.value === 'dark'"
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-4 h-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <circle cx="12" cy="12" r="5" />
-          <line x1="12" y1="1" x2="12" y2="3" />
-          <line x1="12" y1="21" x2="12" y2="23" />
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-          <line x1="1" y1="12" x2="3" y2="12" />
-          <line x1="21" y1="12" x2="23" y2="12" />
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-        </svg>
-        <svg
-          v-else
-          xmlns="http://www.w3.org/2000/svg"
-          class="w-4 h-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-        </svg>
-      </button>
-      <button
-        class="px-2 py-1 text-xs font-medium text-muted hover:text-default hover:bg-elevated rounded-md transition-colors backdrop-blur-sm bg-default/50"
-        @click="toggleLocale"
-      >
-        {{ locale === 'zh-CN' ? 'English' : '简体中文' }}
-      </button>
-    </div>
+  <div class="min-h-screen bg-default flex flex-col relative">
+    <!-- Full-page Git River background -->
+    <GitRiverCanvas />
 
-    <!-- Hero Section -->
-    <section class="relative overflow-hidden">
-      <!-- Ambient streamgraph background -->
-      <div class="absolute inset-0">
-        <HeroStreamgraph />
-      </div>
-
-      <!-- Gradient overlays for text readability -->
-      <div class="absolute inset-0 bg-gradient-to-b from-default/70 via-default/50 to-default pointer-events-none" />
-
-      <div class="relative z-10 max-w-3xl mx-auto px-6 lg:px-10 pt-20 pb-16 text-center">
-        <!-- Title -->
-        <h1 class="text-4xl sm:text-5xl font-bold text-highlighted tracking-tight">
-          Project River
-        </h1>
-        <p class="mt-4 text-base sm:text-lg text-dimmed max-w-lg mx-auto leading-relaxed">
-          {{ isStatic ? $t('home.subtitleStatic') : $t('home.subtitle') }}
-        </p>
-
-        <!-- URL Input CTA (server mode only) -->
-        <form
-          v-if="!isStatic"
-          class="mt-8 flex gap-2 max-w-xl mx-auto"
-          @submit.prevent="handleSubmit"
-        >
-          <UInput
-            v-model="url"
-            :placeholder="$t('home.placeholder')"
-            :disabled="isImportActive"
-            icon="i-lucide-link"
-            size="lg"
-            class="flex-1"
-            @keydown.enter.prevent="handleSubmit"
-          />
-          <UButton
-            type="submit"
-            size="lg"
-            :loading="isImportActive"
-            :disabled="!canSubmit"
-            icon="i-lucide-arrow-right"
-            trailing
-          >
-            <template v-if="!isImportActive">
-              {{ $t('home.import') }}
-            </template>
-            <template v-else>
-              {{ stageLabel }}
-            </template>
-          </UButton>
-        </form>
-
-        <!-- Static mode: CTA to demo -->
-        <div v-else class="mt-8 flex justify-center">
-          <NuxtLink
-            :to="demoProject ? `/projects/${demoProject.id}` : '/'"
-            class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
+    <!-- Navigation -->
+    <nav
+      class="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06] backdrop-blur-xl dark:border-white/[0.08]" style="background: rgba(255,255,255,0.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);"
+    >
+      <div class="max-w-6xl mx-auto px-6 lg:px-10 h-12 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-5 h-5 rounded-sm bg-accented/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12h20" />
+              <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
+              <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
             </svg>
-            {{ $t('home.viewDemo') }}
-          </NuxtLink>
+          </div>
+          <span class="text-sm font-semibold text-highlighted tracking-tight">Project River</span>
         </div>
-
-        <!-- Import progress indicator -->
-        <div
-          v-if="isImportActive"
-          class="mt-4 flex items-center justify-center gap-3 text-sm text-dimmed"
-        >
-          <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-          {{ stageLabel }}
+        <div class="flex items-center gap-1">
+          <button
+            class="p-1.5 text-muted hover:text-default hover:bg-elevated rounded-md transition-colors"
+            :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
+            @click="toggleTheme"
+          >
+            <svg
+              v-if="colorMode.value === 'dark'"
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="12" cy="12" r="5" />
+              <line x1="12" y1="1" x2="12" y2="3" />
+              <line x1="12" y1="21" x2="12" y2="23" />
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+              <line x1="1" y1="12" x2="3" y2="12" />
+              <line x1="21" y1="12" x2="23" y2="12" />
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            </svg>
+            <svg
+              v-else
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+            </svg>
+          </button>
+          <button
+            class="px-2 py-1 text-xs font-medium text-muted hover:text-default hover:bg-elevated rounded-md transition-colors"
+            @click="toggleLocale"
+          >
+            {{ locale === 'zh-CN' ? 'EN' : '中' }}
+          </button>
         </div>
+      </div>
+    </nav>
 
-        <!-- Error display -->
-        <div
-          v-if="importStatus === 'error' && (errorGuidance || importError)"
-          class="mt-4 max-w-xl mx-auto"
-        >
-          <div class="rounded-md border border-red-800/60 bg-red-950/30 p-4">
-            <p class="text-sm font-medium text-red-300">
-              {{ errorGuidance?.title ? $t(errorGuidance.title) : $t('import.failed') }}
+    <!-- Hero Section - Asymmetric 55/45 -->
+    <section class="relative overflow-hidden pt-12">
+      <!-- Background overlay for text readability over river -->
+      <div class="absolute inset-0 bg-gradient-to-b from-transparent via-default/25 to-default/60 pointer-events-none" />
+
+      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 pt-16 pb-20">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
+          <!-- Left: 55% - Content -->
+          <div class="lg:col-span-7">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-default bg-elevated/60 text-xs text-dimmed mb-6">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              {{ $t('home.tagline') }}
+            </div>
+
+            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-highlighted tracking-tighter leading-[1.1]">
+              Project River
+            </h1>
+            <p class="mt-5 text-base text-dimmed max-w-md leading-relaxed">
+              {{ isStatic ? $t('home.subtitleStatic') : $t('home.subtitle') }}
             </p>
-            <p
-              v-if="errorGuidance?.hint"
-              class="mt-1 text-xs text-red-400/80"
+
+            <!-- URL Input CTA -->
+            <form
+              v-if="!isStatic"
+              class="mt-8 flex gap-2 max-w-md"
+              @submit.prevent="handleSubmit"
             >
-              {{ errorGuidance.hintParams ? $t(errorGuidance.hint, errorGuidance.hintParams) : $t(errorGuidance.hint) }}
-            </p>
-            <p
-              v-else-if="importError"
-              class="mt-1 text-xs text-red-400/80"
+              <UInput
+                v-model="url"
+                :placeholder="$t('home.placeholder')"
+                :disabled="isImportActive"
+                icon="i-lucide-link"
+                size="lg"
+                class="flex-1"
+                @keydown.enter.prevent="handleSubmit"
+              />
+              <UButton
+                type="submit"
+                size="lg"
+                :loading="isImportActive"
+                :disabled="!canSubmit"
+                icon="i-lucide-arrow-right"
+                trailing
+              >
+                <template v-if="!isImportActive">
+                  {{ $t('home.import') }}
+                </template>
+                <template v-else>
+                  {{ stageLabel }}
+                </template>
+              </UButton>
+            </form>
+
+            <!-- Static mode CTA -->
+            <div v-else class="mt-8">
+              <NuxtLink
+                :to="demoProject ? `/projects/${demoProject.id}` : '/'"
+                class="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+                {{ $t('home.viewDemo') }}
+              </NuxtLink>
+            </div>
+
+            <!-- Import progress -->
+            <div
+              v-if="isImportActive"
+              class="mt-4 flex items-center gap-3 text-sm text-dimmed"
             >
-              {{ importError }}
-            </p>
-            <button
-              class="mt-3 text-xs text-red-300 underline underline-offset-2 hover:text-red-200"
-              @click="resetImport"
+              <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+              {{ stageLabel }}
+            </div>
+
+            <!-- Error -->
+            <div
+              v-if="importStatus === 'error' && (errorGuidance || importError)"
+              class="mt-4 max-w-md"
             >
-              {{ $t('common.tryAgain') }}
-            </button>
+              <div class="rounded-md border border-red-800/60 bg-red-950/30 p-4">
+                <p class="text-sm font-medium text-red-300">
+                  {{ errorGuidance?.title ? $t(errorGuidance.title) : $t('import.failed') }}
+                </p>
+                <p
+                  v-if="errorGuidance?.hint"
+                  class="mt-1 text-xs text-red-400/80"
+                >
+                  {{ errorGuidance.hintParams ? $t(errorGuidance.hint, errorGuidance.hintParams) : $t(errorGuidance.hint) }}
+                </p>
+                <p
+                  v-else-if="importError"
+                  class="mt-1 text-xs text-red-400/80"
+                >
+                  {{ importError }}
+                </p>
+                <button
+                  class="mt-3 text-xs text-red-300 underline underline-offset-2 hover:text-red-200"
+                  @click="resetImport"
+                >
+                  {{ $t('common.tryAgain') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: 45% - Stats Grid -->
+          <div class="lg:col-span-5">
+            <div class="grid grid-cols-2 gap-3">
+              <StatsCard
+                v-for="(stat, i) in demoStats"
+                :key="stat.labelKey"
+                :value="stat.value"
+                :label="$t(stat.labelKey)"
+                :suffix="stat.suffix"
+                :decimals="stat.decimals"
+                :delay="100 + i * 100"
+              />
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="border-t border-default bg-muted/30">
-      <div class="max-w-5xl mx-auto px-6 lg:px-10 py-14">
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8">
+    <!-- Features - Zig-Zag alternating layout -->
+    <section class="relative border-t border-default">
+      <div class="absolute inset-0 bg-gradient-to-b from-default/50 via-default/30 to-default/50 pointer-events-none" />
+      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 py-20">
+        <!-- Section header -->
+        <div class="mb-14">
+          <p class="text-xs font-medium text-accented uppercase tracking-widest mb-2">
+            {{ $t('home.featuresLabel') }}
+          </p>
+          <h2 class="text-2xl font-bold text-highlighted tracking-tight">
+            {{ $t('home.featuresTitle') }}
+          </h2>
+        </div>
+
+        <!-- Zig-zag feature rows -->
+        <div class="space-y-20">
           <!-- Feature 1: Streamgraph -->
-          <div class="text-center sm:text-left">
-            <div class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-elevated border border-default mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 12h20" />
-                <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
-                <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
-              </svg>
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div class="lg:col-span-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-elevated border border-default">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12h20" />
+                    <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
+                    <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
+                  </svg>
+                </div>
+                <span class="text-xs font-medium text-dimmed uppercase tracking-wider">01</span>
+              </div>
+              <h3 class="text-lg font-semibold text-highlighted mb-3">
+                {{ $t('home.featureStreamgraph') }}
+              </h3>
+              <p class="text-sm text-dimmed leading-relaxed max-w-sm">
+                {{ $t('home.featureStreamgraphDesc') }}
+              </p>
+              <div class="mt-5 flex items-baseline gap-2">
+                <span class="text-3xl font-bold text-highlighted tabular-nums">
+                  <AnimatedCounter :target="12473" />
+                </span>
+                <span class="text-xs text-dimmed">{{ $t('home.statCommits') }}</span>
+              </div>
             </div>
-            <h3 class="text-sm font-semibold text-default">
-              {{ $t('home.featureStreamgraph') }}
-            </h3>
-            <p class="mt-1.5 text-sm text-dimmed leading-relaxed">
-              {{ $t('home.featureStreamgraphDesc') }}
-            </p>
+            <div class="lg:col-span-7">
+              <div class="relative rounded-xl border border-white/[0.06] backdrop-blur-md overflow-hidden aspect-[16/9] dark:border-white/[0.08]" style="background: rgba(255,255,255,0.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.12);">
+                <HeroStreamgraph />
+                <div class="absolute inset-0 bg-gradient-to-t from-default/40 to-transparent" />
+              </div>
+            </div>
           </div>
 
           <!-- Feature 2: Contributors -->
-          <div class="text-center sm:text-left">
-            <div class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-elevated border border-default mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div class="lg:col-span-7 order-2 lg:order-1">
+              <div class="relative rounded-xl border border-white/[0.06] backdrop-blur-md p-6 dark:border-white/[0.08]" style="background: rgba(255,255,255,0.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.12);">
+                <!-- Contributor mini-chart -->
+                <div class="space-y-3">
+                  <div v-for="(name, i) in ['antfu', 'posva', 'yyx990803', 'kiaking', 'danielroe']" :key="name" class="flex items-center gap-3">
+                    <div class="w-20 text-xs text-dimmed text-right truncate">
+                      {{ name }}
+                    </div>
+                    <div class="flex-1 h-1.5 rounded-full bg-default overflow-hidden">
+                      <div
+                        class="h-full rounded-full bg-accented/60"
+                        :style="{ width: `${[38, 24, 18, 12, 8][i]}%` }"
+                      />
+                    </div>
+                    <div class="w-12 text-xs text-muted tabular-nums text-right">
+                      {{ [4738, 2984, 2239, 1493, 995][i] }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 class="text-sm font-semibold text-default">
-              {{ $t('home.featureContributors') }}
-            </h3>
-            <p class="mt-1.5 text-sm text-dimmed leading-relaxed">
-              {{ $t('home.featureContributorsDesc') }}
-            </p>
+            <div class="lg:col-span-5 order-1 lg:order-2">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-elevated border border-default">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+                <span class="text-xs font-medium text-dimmed uppercase tracking-wider">02</span>
+              </div>
+              <h3 class="text-lg font-semibold text-highlighted mb-3">
+                {{ $t('home.featureContributors') }}
+              </h3>
+              <p class="text-sm text-dimmed leading-relaxed max-w-sm">
+                {{ $t('home.featureContributorsDesc') }}
+              </p>
+              <div class="mt-5 flex items-baseline gap-2">
+                <span class="text-3xl font-bold text-highlighted tabular-nums">
+                  <AnimatedCounter :target="847" />
+                </span>
+                <span class="text-xs text-dimmed">{{ $t('home.statContributors') }}</span>
+              </div>
+            </div>
           </div>
 
           <!-- Feature 3: Health -->
-          <div class="text-center sm:text-left">
-            <div class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-elevated border border-default mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+            <div class="lg:col-span-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-elevated border border-default">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                </div>
+                <span class="text-xs font-medium text-dimmed uppercase tracking-wider">03</span>
+              </div>
+              <h3 class="text-lg font-semibold text-highlighted mb-3">
+                {{ $t('home.featureHealth') }}
+              </h3>
+              <p class="text-sm text-dimmed leading-relaxed max-w-sm">
+                {{ $t('home.featureHealthDesc') }}
+              </p>
+              <div class="mt-5 flex items-baseline gap-2">
+                <span class="text-3xl font-bold text-highlighted tabular-nums">
+                  <AnimatedCounter :target="94" suffix="%" />
+                </span>
+                <span class="text-xs text-dimmed">{{ $t('home.statHealthScore') }}</span>
+              </div>
             </div>
-            <h3 class="text-sm font-semibold text-default">
-              {{ $t('home.featureHealth') }}
-            </h3>
-            <p class="mt-1.5 text-sm text-dimmed leading-relaxed">
-              {{ $t('home.featureHealthDesc') }}
-            </p>
+            <div class="lg:col-span-7">
+              <div class="relative rounded-xl border border-white/[0.06] backdrop-blur-md p-6 dark:border-white/[0.08]" style="background: rgba(255,255,255,0.02); box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.12);">
+                <!-- Health signals mini -->
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="flex items-center gap-3 p-3 rounded-lg border border-white/[0.05] backdrop-blur-sm dark:border-white/[0.06]" style="background: rgba(255,255,255,0.015); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div>
+                      <p class="text-xs text-dimmed">
+                        {{ $t('health.sustainedActivity') }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        {{ $t('health.sustainedActivityEvidenceToday') }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 p-3 rounded-lg border border-white/[0.05] backdrop-blur-sm dark:border-white/[0.06]" style="background: rgba(255,255,255,0.015); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);">
+                    <div class="w-2 h-2 rounded-full bg-amber-400" />
+                    <div>
+                      <p class="text-xs text-dimmed">
+                        {{ $t('health.concentration') }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        Top 3: 38%
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 p-3 rounded-lg border border-white/[0.05] backdrop-blur-sm dark:border-white/[0.06]" style="background: rgba(255,255,255,0.015); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div>
+                      <p class="text-xs text-dimmed">
+                        {{ $t('health.distributionGrowth') }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        +12% QoQ
+                      </p>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 p-3 rounded-lg border border-white/[0.05] backdrop-blur-sm dark:border-white/[0.06]" style="background: rgba(255,255,255,0.015); box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);">
+                    <div class="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div>
+                      <p class="text-xs text-dimmed">
+                        {{ $t('health.codeChurn') }}
+                      </p>
+                      <p class="text-xs text-muted">
+                        142 lines/commit
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
     <!-- Project List Section -->
-    <section class="flex-1">
-      <div class="max-w-3xl mx-auto px-6 lg:px-10 py-12">
-        <div class="mb-5 flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-default">
-            {{ $t('home.projects') }}
-          </h2>
+    <section class="relative flex-1 border-t border-default">
+      <div class="absolute inset-0 bg-gradient-to-b from-default/50 via-default/30 to-default/50 pointer-events-none" />
+      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 py-16">
+        <div class="flex items-center justify-between mb-8">
+          <div>
+            <p class="text-xs font-medium text-accented uppercase tracking-widest mb-2">
+              {{ $t('home.projectsLabel') }}
+            </p>
+            <h2 class="text-2xl font-bold text-highlighted tracking-tight">
+              {{ $t('home.projects') }}
+            </h2>
+          </div>
           <span
             v-if="projects.length > 0 || (isStatic && demoProject)"
-            class="text-xs text-muted"
+            class="text-sm text-muted tabular-nums"
           >
             {{ isStatic ? $t('home.projectCount', { count: 1 }) : $t('home.projectCount', { count: projects.length }) }}
           </span>
@@ -362,9 +537,12 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
         <!-- Loading -->
         <div
           v-if="projectsLoading || (isStatic && staticLoading)"
-          class="py-10 text-center text-sm text-muted"
+          class="py-16 text-center"
         >
-          {{ $t('home.loadingProjects') }}
+          <div class="inline-flex items-center gap-3 text-sm text-muted">
+            <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accented" />
+            {{ $t('home.loadingProjects') }}
+          </div>
         </div>
 
         <!-- Projects error -->
@@ -377,13 +555,13 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
 
         <!-- Static mode: demo project -->
         <template v-else-if="isStatic">
-          <div v-if="demoProject" class="grid gap-3 sm:grid-cols-2">
+          <div v-if="demoProject" class="grid gap-4 sm:grid-cols-2">
             <ProjectCard
               :project="demoProject"
               :static-mode="true"
             />
           </div>
-          <div v-else class="rounded-lg border border-dashed border-default py-12 text-center">
+          <div v-else class="rounded-xl border border-dashed border-default py-16 text-center">
             <p class="text-sm text-dimmed">
               {{ $t('home.noProjects') }}
             </p>
@@ -393,7 +571,7 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
         <!-- Empty state -->
         <div
           v-else-if="projects.length === 0"
-          class="rounded-lg border border-dashed border-default bg-muted/20 py-12 text-center"
+          class="rounded-xl border border-dashed border-default bg-muted/20 py-16 text-center"
         >
           <p class="text-sm text-dimmed">
             {{ $t('home.noProjects') }}
@@ -406,7 +584,7 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
         <!-- Project cards grid -->
         <div
           v-else
-          class="grid gap-3 sm:grid-cols-2"
+          class="grid gap-4 sm:grid-cols-2"
         >
           <ProjectCard
             v-for="project in projects"
@@ -420,11 +598,24 @@ const errorGuidance = computed(() => getErrorGuidance(importError.value))
     </section>
 
     <!-- Footer -->
-    <footer class="border-t border-default py-6">
-      <div class="max-w-3xl mx-auto px-6 lg:px-10 text-center">
-        <p class="text-xs text-muted">
-          Project River — {{ $t('home.footer') }}
-        </p>
+    <footer class="relative border-t border-default py-8">
+      <div class="absolute inset-0 bg-gradient-to-t from-default/80 via-default/50 to-transparent pointer-events-none" />
+      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-4 h-4 rounded-sm bg-accented/20 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2 12h20" />
+                <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
+                <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
+              </svg>
+            </div>
+            <span class="text-xs text-muted">Project River</span>
+          </div>
+          <p class="text-xs text-muted">
+            {{ $t('home.footer') }}
+          </p>
+        </div>
       </div>
     </footer>
   </div>

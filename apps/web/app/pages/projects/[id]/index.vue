@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import type { HoverPayload } from '~/composables/useChartTooltip'
 import type { ContributorMeta } from '~/composables/useContributorColors'
+import type { ProjectEvent } from '~/composables/useProjectEvents'
 import type { DailyRow, Granularity } from '~/utils/d3Helpers'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import HealthSummary from '~/components/HealthSummary.vue'
 import MonthDetailPanel from '~/components/MonthDetailPanel.vue'
+import ProjectEventsPanel from '~/components/ProjectEventsPanel.vue'
 import ProjectLayout from '~/components/ProjectLayout.vue'
 import Streamgraph from '~/components/Streamgraph.vue'
 import StreamgraphTooltip from '~/components/StreamgraphTooltip.vue'
 import { useChartTooltip } from '~/composables/useChartTooltip'
 import { useContributorColors } from '~/composables/useContributorColors'
 import { useProjectData } from '~/composables/useProjectData'
+import { useProjectEvents } from '~/composables/useProjectEvents'
 import { useProjectStats } from '~/composables/useProjectStats'
 import { useStreamgraphData } from '~/composables/useStreamgraphData'
 import { aggregateRows } from '~/utils/d3Helpers'
@@ -48,6 +51,9 @@ const {
 
 // -- Stats --
 const { stats, formattedDateRange, recentActivityLabel, recentActivityDotClass } = useProjectStats(dailyData as Ref<DailyRow[]>)
+
+// -- Project Events --
+const { events: projectEvents, loading: eventsLoading, getEventsInRange } = useProjectEvents(dailyData as Ref<DailyRow[]>)
 
 // -- Chart container (tooltip anchor) --
 const graphContainerRef = ref<HTMLDivElement | null>(null)
@@ -159,6 +165,25 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
     return
   }
   updateTooltip(event, payload)
+}
+
+// -- Project Events --
+const visibleEvents = computed(() => {
+  if (visibleRange.value) {
+    return getEventsInRange(visibleRange.value.start, visibleRange.value.end)
+  }
+  if (selectedYearRange.value) {
+    return getEventsInRange(selectedYearRange.value.start, selectedYearRange.value.end)
+  }
+  return projectEvents.value
+})
+
+function handleSelectEvent(event: ProjectEvent) {
+  // Focus to the year containing this event
+  const year = event.date.substring(0, 4)
+  if (availableYears.value.includes(year)) {
+    selectedMonth.value = year
+  }
 }
 </script>
 
@@ -424,18 +449,29 @@ function onHover(event: PointerEvent, payload: HoverPayload | null) {
           </template>
 
           <template #panel>
-            <MonthDetailPanel
-              v-model:selected-month="selectedMonth"
-              :available-months="availableYears"
-              :contributors="panelContributors"
-              :commits-this-month="commitsThisMonth"
-              :total-commits-to-date="totalCommitsToDate"
-              :has-data="hasData"
-              :is-all-history="isAllHistory"
-              :previous-month-commits="previousPeriodCommits"
-              :range-label="panelRangeLabel"
-              @export="handleExport"
-            />
+            <div class="flex flex-col h-full">
+              <ProjectEventsPanel
+                :events="visibleEvents"
+                :total-events="projectEvents.length"
+                :loading="eventsLoading"
+                :visible-range="visibleRange"
+                @select-event="handleSelectEvent"
+              />
+              <div class="flex-1 min-h-0">
+                <MonthDetailPanel
+                  v-model:selected-month="selectedMonth"
+                  :available-months="availableYears"
+                  :contributors="panelContributors"
+                  :commits-this-month="commitsThisMonth"
+                  :total-commits-to-date="totalCommitsToDate"
+                  :has-data="hasData"
+                  :is-all-history="isAllHistory"
+                  :previous-month-commits="previousPeriodCommits"
+                  :range-label="panelRangeLabel"
+                  @export="handleExport"
+                />
+              </div>
+            </div>
           </template>
         </ProjectLayout>
       </template>

@@ -123,8 +123,8 @@ function render() {
   const isDark = document.documentElement.classList.contains('dark')
   const colors = generateColors(contributors.length, isDark)
 
-  // Base opacity — very subtle ambient feel
-  const baseOpacity = isDark ? 0.06 : 0.05
+  // Base opacity — subtle ambient feel, slightly stronger for charcoal bg
+  const baseOpacity = isDark ? 0.12 : 0.06
 
   svg.append('g')
     .selectAll('path')
