@@ -27,6 +27,8 @@ interface ProjectEvent {
   type: EventType
   date: string
   severity: Severity
+  priority?: number
+  impactScore: number
   titleKey: string
   descriptionKey: string
   params: Record<string, string | number>
@@ -37,6 +39,7 @@ interface EventDetectionConfig {
   contributorExitThresholdCommits: number
   contributorExitGapDays: number
   contributorExitProjectActiveDays: number
+  firstCommitThreshold: number
   activitySpikeZScore: number
   activityDropZScore: number
   activityDropConsecutiveDays: number
@@ -52,13 +55,14 @@ const defaultConfig: EventDetectionConfig = {
   contributorExitThresholdCommits: 50,
   contributorExitGapDays: 60,
   contributorExitProjectActiveDays: 30,
-  activitySpikeZScore: 2.5,
+  firstCommitThreshold: 20,
+  activitySpikeZScore: 3.5,
   activityDropZScore: 2.0,
   activityDropConsecutiveDays: 7,
   slidingWindowDays: 30,
   minDataDaysForMutation: 14,
-  refactorDeletionMultiplier: 5,
-  refactorCooldownDays: 7,
+  refactorDeletionMultiplier: 8,
+  refactorCooldownDays: 30,
   commitMilestones: [100, 500, 1000, 5000, 10000],
   enabledRules: [
     'contributor_first_commit',
@@ -155,13 +159,14 @@ function detectContributorEvents(
   }
 
   for (const [name, info] of contributorMap) {
-    // first_commit
-    if (config.enabledRules.includes('contributor_first_commit')) {
+    // first_commit — only for contributors with meaningful total commits
+    if (config.enabledRules.includes('contributor_first_commit') && info.totalCommits >= config.firstCommitThreshold) {
       events.push({
         id: `first:${name}`,
         type: 'contributor_first_commit',
         date: info.firstDate,
         severity: 'positive',
+        impactScore: info.totalCommits,
         titleKey: 'events.title.contributor_first_commit',
         descriptionKey: 'events.desc.contributor_first_commit',
         params: { name },
@@ -181,6 +186,7 @@ function detectContributorEvents(
           type: 'contributor_exit',
           date: info.lastDate,
           severity: 'warning',
+          impactScore: info.totalCommits,
           titleKey: 'events.title.contributor_exit',
           descriptionKey: 'events.desc.contributor_exit',
           params: { name, days: gap, commits: info.totalCommits },
@@ -218,6 +224,7 @@ function detectActivityMutations(
             type: 'activity_spike',
             date: dayStats[i]!.date,
             severity: 'info',
+            impactScore: zScore,
             titleKey: 'events.title.activity_spike',
             descriptionKey: 'events.desc.activity_spike',
             params: { commits: dayStats[i]!.totalCommits, zScore: Number(zScore.toFixed(1)) },
@@ -256,6 +263,7 @@ function detectActivityMutations(
           type: 'activity_drop',
           date: dayStats[dropStartIdx]!.date,
           severity: 'warning',
+          impactScore: 0,
           titleKey: 'events.title.activity_drop',
           descriptionKey: 'events.desc.activity_drop',
           params: { days: config.activityDropConsecutiveDays },
@@ -302,6 +310,7 @@ function detectRefactors(
         type: 'major_refactor',
         date: dayStats[i]!.date,
         severity: 'info',
+        impactScore: deleted,
         titleKey: 'events.title.major_refactor',
         descriptionKey: 'events.desc.major_refactor',
         params: { lines: deleted },
@@ -327,6 +336,7 @@ function detectMilestones(
       type: 'project_start',
       date: earliestDate,
       severity: 'positive',
+      impactScore: 0,
       titleKey: 'events.title.project_start',
       descriptionKey: 'events.desc.project_start',
       params: { date: earliestDate },
@@ -351,6 +361,7 @@ function detectMilestones(
           type: 'commit_milestone',
           date: row.date,
           severity: 'positive',
+          impactScore: threshold,
           titleKey: 'events.title.commit_milestone',
           descriptionKey: 'events.desc.commit_milestone',
           params: { threshold },
@@ -388,8 +399,14 @@ function detectEvents(
     ...detectMilestones(dailyData, config, earliestDate),
   ]
 
-  // Sort by date ascending, then deduplicate by id
-  events.sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type))
+  // Assign priority by severity
+  const priorityMap: Record<Severity, number> = { warning: 3, positive: 2, info: 1 }
+  for (const e of events) {
+    e.priority = priorityMap[e.severity] ?? 1
+  }
+
+  // Sort by date ascending, priority descending, then deduplicate by id
+  events.sort((a, b) => a.date.localeCompare(b.date) || (b.priority || 0) - (a.priority || 0) || a.type.localeCompare(b.type))
   const seen = new Set<string>()
   return events.filter((e) => {
     if (seen.has(e.id))
