@@ -30,12 +30,14 @@ const floatY = ref(storedFloatY.value)
 const previewEdge = ref<'top' | 'left' | 'right' | 'bottom' | null>(null)
 
 // Initialize panelH to 50% of layout on first real size
+const panelHInitialized = ref(false)
 watch(layoutHeight, (h) => {
-  if (h > 0 && panelH.value === 0) {
+  if (!panelHInitialized.value && h > 0 && panelH.value === 0) {
     panelH.value = Math.floor(h / 2)
     storedPanelH.value = panelH.value
+    panelHInitialized.value = true
   }
-}, { once: true })
+})
 
 const CHART_MIN = 300
 const PANEL_MIN_V = 200
