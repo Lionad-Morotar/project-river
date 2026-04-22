@@ -4,3 +4,4 @@ node_modules
 /data/
 .gstack/
 apps/web/test-results/
+.screenshots

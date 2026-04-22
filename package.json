@@ -4,6 +4,7 @@
   "scripts": {
     "dev": "pnpm --filter @project-river/web dev",
     "build": "pnpm -r build",
+    "build:bin": "pnpm --filter @project-river/web export:demo",
     "serve:pages": "pnpm --filter @project-river/web generate:gh && pnpm --filter @project-river/web preview:gh",
     "lint": "pnpm -r lint",
     "lint:fix": "pnpm -r lint:fix",
