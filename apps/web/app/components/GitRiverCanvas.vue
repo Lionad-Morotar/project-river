@@ -3,11 +3,19 @@
  * Git River — 基于 Canvas 的 ASCII 字符河流背景
  *
  * 河流从左向右流动，使用噪声函数生成自然的蜿蜒形态。
- * 字符密度映射到水深/浪高：' ' → '.' → ':' → '-' → '=' → '+' → '*' → '#' → '%' → '@' → '░' → '▒' → '▓' → '█'
+ * 颜色从 useAppSettings 的主题 baseHue 动态计算。
  */
+
+/* ─── Reactive theme hue ─── */
+import { useAppSettings } from '~/composables/useAppSettings'
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let rafId: number | null = null
+const { activeTheme } = useAppSettings()
+let riverHue = activeTheme.value.baseHue
+watch(activeTheme, (t) => {
+  riverHue = t.baseHue
+})
 
 /* ─── Character density ramp (low → high) ─── */
 const DENSITY = [
@@ -88,10 +96,11 @@ function riverField(
   const ny = row / rows
   const t = time * 0.0004
 
-  // Main river path — 蜿蜒的主干
+  // Main river path — 蜿蜒的主干（重心偏下，为 Hero 标题留出空间）
   const pathSeed = 1
   const pathNoise = fbm(nx * 3 - t * 0.5, ny * 2, 3, pathSeed)
-  const riverCenter = 0.5 + (pathNoise - 0.5) * 0.75
+  const centerBias = 0.55 // >0.5 = 重心下移
+  const riverCenter = centerBias + (pathNoise - 0.5) * 0.75
 
   // River width varies along the flow
   const widthSeed = 2
@@ -144,57 +153,68 @@ function riverField(
   return { intensity, isFoam, swirl }
 }
 
-/* ─── Color palette (dark mode charcoal bg) ─── */
+/* ─── HSL → RGB helper ─── */
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  h /= 360
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => {
+    const k = (n + h * 12) % 12
+    return l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+  }
+  return [Math.round(f(0) * 255), Math.round(f(8) * 255), Math.round(f(4) * 255)]
+}
+
+/* ─── Color palette derived from theme baseHue ─── */
 function getColor(intensity: number, isFoam: boolean, swirl: number, isDark: boolean): string {
+  const hue = riverHue
+
   if (isDark) {
-    // Dark mode — 青色/蓝色河流在炭灰背景上
     if (isFoam) {
-      // Foam / whitecaps — bright and crisp
       const alpha = 0.75 + swirl * 0.2
-      return `rgba(230, 245, 255, ${alpha})`
+      const [r, g, b] = hslToRgb(hue, 0.15, 0.92)
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`
     }
     if (intensity < 0.15) {
-      // Deep water — visible base glow
       const a = 0.22 + intensity * 5
-      return `rgba(70, 160, 210, ${a})`
+      const [r, g, b] = hslToRgb(hue, 0.65, 0.48)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
     }
     if (intensity < 0.4) {
-      // Mid water — vivid cyan/teal
       const t = (intensity - 0.15) / 0.25
-      const r = lerp(70, 90, t)
-      const g = lerp(160, 210, t)
-      const b = lerp(210, 245, t)
-      return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${0.5 + t * 0.4})`
+      const l = lerp(0.48, 0.62, t)
+      const s = lerp(0.65, 0.72, t)
+      const [r, g, b] = hslToRgb(hue, s, l)
+      return `rgba(${r}, ${g}, ${b}, ${0.5 + t * 0.4})`
     }
-    // Shallow / fast water — bright cyan highlights
     const t = (intensity - 0.4) / 0.6
-    const r = lerp(90, 170, t)
-    const g = lerp(210, 245, t)
-    const b = lerp(245, 255, t)
-    return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${0.7 + t * 0.25})`
+    const l = lerp(0.62, 0.82, t)
+    const s = lerp(0.72, 0.55, t)
+    const [r, g, b] = hslToRgb(hue, s, l)
+    return `rgba(${r}, ${g}, ${b}, ${0.7 + t * 0.25})`
   }
   else {
-    // Light mode — 深蓝河流在浅色背景上
     if (isFoam) {
       const alpha = 0.35 + swirl * 0.2
-      return `rgba(100, 160, 220, ${alpha})`
+      const [r, g, b] = hslToRgb(hue, 0.5, 0.6)
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`
     }
     if (intensity < 0.15) {
       const a = intensity * 1.8
-      return `rgba(60, 100, 150, ${a})`
+      const [r, g, b] = hslToRgb(hue, 0.55, 0.38)
+      return `rgba(${r}, ${g}, ${b}, ${a})`
     }
     if (intensity < 0.4) {
       const t = (intensity - 0.15) / 0.25
-      const r = lerp(60, 50, t)
-      const g = lerp(100, 130, t)
-      const b = lerp(150, 190, t)
-      return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${0.25 + t * 0.25})`
+      const l = lerp(0.38, 0.48, t)
+      const s = lerp(0.55, 0.6, t)
+      const [r, g, b] = hslToRgb(hue, s, l)
+      return `rgba(${r}, ${g}, ${b}, ${0.25 + t * 0.25})`
     }
     const t = (intensity - 0.4) / 0.6
-    const r = lerp(50, 30, t)
-    const g = lerp(130, 170, t)
-    const b = lerp(190, 230, t)
-    return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${0.4 + t * 0.25})`
+    const l = lerp(0.48, 0.58, t)
+    const s = lerp(0.6, 0.65, t)
+    const [r, g, b] = hslToRgb(hue, s, l)
+    return `rgba(${r}, ${g}, ${b}, ${0.4 + t * 0.25})`
   }
 }
 

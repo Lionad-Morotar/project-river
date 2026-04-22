@@ -27,9 +27,7 @@ const {
 } = useProjectImport()
 
 const url = ref('')
-const projects = ref<Project[]>([])
-const projectsLoading = ref(true)
-const projectsError = ref<string | null>(null)
+const settingsModalOpen = ref(false)
 
 const isImportActive = computed(() =>
   importStatus.value === 'importing'
@@ -91,12 +89,12 @@ const demoProjects = computed<Project[]>(() => {
 })
 
 // -- Static mode: demo project selector --
-const selectedDemoProjectId = ref<number | null>(null)
+const firstDemoProjectId = computed(() => demoProjects.value[0]?.id ?? null)
 
 const selectedDemoBundle = computed(() => {
-  if (!staticBundle.value || !selectedDemoProjectId.value)
+  if (!staticBundle.value || !firstDemoProjectId.value)
     return null
-  return getProjectById(staticBundle.value, selectedDemoProjectId.value)
+  return getProjectById(staticBundle.value, firstDemoProjectId.value)
 })
 
 const selectedDemoDailyData = computed(() => selectedDemoBundle.value?.daily ?? [])
@@ -138,43 +136,11 @@ const selectedDemoStats = computed(() => {
   ]
 })
 
-/** Fetch project list */
-async function fetchProjects() {
-  projectsLoading.value = true
-  projectsError.value = null
-  try {
-    const data = await $fetch<Project[]>('/api/projects')
-    projects.value = data
-  }
-  catch (err: any) {
-    projectsError.value = err?.data?.statusMessage || err?.message || 'Failed to load projects.'
-  }
-  finally {
-    projectsLoading.value = false
-  }
-}
-
-onMounted(() => {
-  if (!isStatic) {
-    fetchProjects()
-  }
-  else {
-    projectsLoading.value = false
-  }
-})
-
 /** Submit URL for import */
 async function handleSubmit() {
   if (!canSubmit.value)
     return
-
-  const result = await importRepo(url.value)
-
-  if (result.success) {
-    return
-  }
-
-  await fetchProjects()
+  await importRepo(url.value)
 }
 
 /** Get human-friendly error guidance based on error prefix */
@@ -200,9 +166,9 @@ watch(isImportActive, (active) => {
     <GitRiverCanvas />
 
     <!-- Top-right controls: theme + locale -->
-    <div class="fixed top-4 right-6 z-50 flex items-center gap-1">
+    <div class="top-4 right-6 z-50 fixed flex items-center gap-1">
       <button
-        class="rounded-md p-1.5 text-muted hover:bg-elevated hover:text-default transition-colors"
+        class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
         :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
         @click="toggleTheme"
       >
@@ -242,29 +208,43 @@ watch(isImportActive, (active) => {
         </svg>
       </button>
       <button
-        class="rounded-md px-2 py-1 font-medium text-muted hover:bg-elevated hover:text-default text-xs transition-colors"
+        class="hover:bg-elevated px-2 py-1 rounded-md font-medium text-muted hover:text-default text-xs transition-colors"
         @click="toggleLocale"
       >
         {{ locale === 'zh-CN' ? 'EN' : '中' }}
       </button>
+      <!-- Settings -->
+      <button
+        class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
+        :aria-label="$t('settings.title')"
+        @click="settingsModalOpen = true"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
     </div>
+
+    <!-- Settings modal -->
+    <SettingsModal v-model:open="settingsModalOpen" />
 
     <!-- Hero Section - Fullscreen 100dvh -->
     <section class="relative flex items-center min-h-[100dvh] overflow-hidden">
       <!-- Background overlay for text readability over river -->
       <div class="absolute inset-0 bg-gradient-to-b from-transparent via-default/30 to-default/80 pointer-events-none" />
 
-      <div class="z-20 relative mx-auto -mt-20 px-6 lg:px-10 py-24 w-full max-w-6xl">
+      <div class="z-20 relative mx-auto -mt-[25%] px-6 lg:px-10 py-24 w-full max-w-6xl">
         <!-- Tagline badge -->
         <div class="hero-enter hero-enter-1">
-          <div class="inline-flex items-center gap-2 bg-[var(--glass-bg)] backdrop-blur-md px-4 py-1.5 border border-[var(--glass-border)] rounded-full text-dimmed text-xs" style="box-shadow: var(--glass-inner), 0 2px 12px rgba(0,0,0,0.12);">
+          <div class="inline-flex items-center gap-2 bg-[var(--glass-bg)] backdrop-blur-md px-4 py-1.5 border border-[var(--glass-border)] rounded-full text-toned text-xs" style="box-shadow: var(--glass-inner), 0 2px 12px rgba(0,0,0,0.12);">
             <span class="bg-emerald-400 rounded-full w-1.5 h-1.5 animate-pulse" style="box-shadow: 0 0 6px rgba(52,211,153,0.4);" />
             {{ $t('home.tagline') }}
           </div>
         </div>
 
         <!-- H1 -- Plus Jakarta Sans Medium 500 Italic -->
-        <h1 class="mt-6 font-['Plus_Jakarta_Sans'] font-medium italic text-highlighted text-7xl sm:text-8xl lg:text-9xl leading-[0.9] tracking-tighter hero-enter hero-enter-2 dark:[text-shadow:0_4px_30px_rgba(0,0,0,0.4)]">
+        <h1 class="mt-6 font-['Plus_Jakarta_Sans'] font-medium text-highlighted text-8xl sm:text-8xl lg:text-9xl italic leading-[0.95] tracking-lighter hero-enter hero-enter-2 dark:[text-shadow:0_4px_30px_rgba(0,0,0,0.4)]">
           Project<br>River
         </h1>
 
@@ -272,11 +252,11 @@ watch(isImportActive, (active) => {
         <div class="items-start gap-8 lg:gap-12 grid grid-cols-1 lg:grid-cols-12 mt-10 lg:mt-12">
           <!-- Left column: description + CTA -->
           <div class="lg:col-span-7">
-            <p class="max-w-md text-dimmed text-lg leading-relaxed hero-enter hero-enter-3">
+            <p class="inline-flex bg-[color-mix(in_srgb,var(--ui-bg),transparent_30%)] pl-1 text-toned text-lg leading-relaxed hero-enter hero-enter-3">
               {{ isStatic ? $t('home.subtitleStatic') : $t('home.subtitle') }}
             </p>
 
-            <!-- URL Input CTA -->
+            <!-- URL Input + dual-purpose button -->
             <form
               v-if="!isStatic"
               class="flex gap-2 mt-8 max-w-md hero-enter hero-enter-3"
@@ -291,7 +271,19 @@ watch(isImportActive, (active) => {
                 class="flex-1"
                 @keydown.enter.prevent="handleSubmit"
               />
+              <!-- "项目库" when empty, "导入" when has input -->
               <UButton
+                v-if="url.trim().length === 0 && !isImportActive"
+                type="button"
+                size="lg"
+                icon="i-lucide-layers"
+                trailing
+                @click="navigateTo(`/projects/${demoProjects[0]?.id ?? 1}`)"
+              >
+                {{ $t('home.viewExample') }}
+              </UButton>
+              <UButton
+                v-else
                 type="submit"
                 size="lg"
                 :loading="isImportActive"
@@ -308,40 +300,52 @@ watch(isImportActive, (active) => {
               </UButton>
             </form>
 
-            <!-- Static mode CTA: demo project selector -->
+            <!-- Static mode CTA: select project via modal -->
             <div v-else class="mt-8 hero-enter hero-enter-3">
-              <div class="flex items-center gap-2">
-                <select
-                  v-model="selectedDemoProjectId"
-                  class="flex-1 px-4 py-3 bg-[var(--glass-bg)] backdrop-blur-md border border-[var(--glass-border)] rounded-lg text-default text-sm focus:outline-none focus:ring-2 focus:ring-accented/50"
-                  style="box-shadow: var(--glass-inner);"
-                >
-                  <option :value="null" disabled>
-                    {{ $t('home.selectDemo') }}
-                  </option>
-                  <option v-for="p in demoProjects" :key="p.id" :value="p.id">
-                    {{ p.fullName || p.name }}
-                  </option>
-                </select>
+              <UModal>
                 <button
-                  class="inline-flex items-center gap-2 bg-[var(--glass-bg)] backdrop-blur-md px-7 py-3 border border-[var(--glass-border)] rounded-lg font-medium text-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-40 disabled:hover:scale-100"
+                  class="inline-flex items-center gap-2 bg-[var(--glass-bg)] backdrop-blur-md px-7 py-3 border border-[var(--glass-border)] rounded-lg font-medium text-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-300"
                   style="box-shadow: var(--glass-inner), 0 6px 28px rgba(0,0,0,0.22), 0 0 32px rgba(100,180,255,0.12);"
-                  :disabled="!selectedDemoProjectId"
-                  @click="handleViewDemo"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
                   </svg>
-                  {{ $t('home.viewDemo') }}
+                  {{ $t('home.selectDemo') }}
                 </button>
-              </div>
+
+                <template #content>
+                  <div class="p-6">
+                    <h3 class="font-medium text-highlighted text-lg mb-4">
+                      {{ $t('home.selectDemo') }}
+                    </h3>
+                    <div class="space-y-3">
+                      <NuxtLink
+                        v-for="p in demoProjects"
+                        :key="p.id"
+                        :to="`/projects/${p.id}`"
+                        class="group flex items-center gap-3 bg-[var(--glass-bg)] backdrop-blur-md p-4 border border-[var(--glass-border)] rounded-xl hover:border-accented/50 transition-all duration-300"
+                        style="box-shadow: var(--glass-inner);"
+                      >
+                        <span class="inline-block bg-emerald-400 rounded-full w-2 h-2 shrink-0" />
+                        <div class="flex-1 min-w-0">
+                          <span class="font-medium text-highlighted text-sm truncate block">{{ p.fullName || p.name }}</span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-muted group-hover:text-accented transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M5 12h14" />
+                          <path d="m12 5 7 7-7 7" />
+                        </svg>
+                      </NuxtLink>
+                    </div>
+                  </div>
+                </template>
+              </UModal>
             </div>
 
             <!-- Import progress -->
             <div
               v-if="isImportActive"
-              class="flex items-center gap-3 mt-4 text-dimmed text-sm"
+              class="flex items-center gap-3 mt-4 text-toned text-sm"
             >
               <span class="inline-block bg-amber-400 rounded-full w-1.5 h-1.5 animate-pulse" />
               {{ stageLabel }}
@@ -382,7 +386,7 @@ watch(isImportActive, (active) => {
           <div class="lg:col-span-5 lg:ml-auto hero-enter hero-enter-4">
             <div v-if="isStatic && selectedDemoBundle" class="space-y-4">
               <div class="flex items-center gap-2">
-                <span class="text-[10px] text-dimmed/50 uppercase tracking-widest">{{ $t('home.dataFromProject') }}</span>
+                <span class="text-[10px] text-toned/50 uppercase tracking-widest">{{ $t('home.dataFromProject') }}</span>
                 <span class="font-mono text-muted text-xs">{{ selectedDemoBundle.project.fullName || selectedDemoBundle.project.name }}</span>
               </div>
               <div class="gap-4 grid grid-cols-2">

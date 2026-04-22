@@ -7,6 +7,8 @@
     "dev": "nuxt dev --host 0.0.0.0 --port 10400",
     "export:demo": "tsx scripts/export-project-data.ts",
     "generate": "nuxt generate",
+    "generate:gh": "STATIC_MODE=true nuxt generate",
+    "preview:gh": "cd .output/public && ln -sf . project-river 2>/dev/null; cd ../.. && npx serve .output/public -l 10409 -s",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",

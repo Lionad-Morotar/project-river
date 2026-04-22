@@ -15,8 +15,9 @@ export default defineI18nLocale(() => ({
   },
   home: {
     title: 'Project River',
-    subtitle: '粘贴 GitHub URL 或本地路径，可视化其贡献历史。',
+    subtitle: '从代码流动的节奏中，读懂一个项目的生命力。',
     subtitleStatic: '交互式 Git 贡献历史可视化演示。',
+    viewExample: '项目库',
     featureStreamgraph: '河流图可视化',
     featureStreamgraphDesc: '以 Streamgraph 形式展示贡献历史，直观感受代码流动的节奏与演变。',
     featureContributors: '贡献者分析',
@@ -25,6 +26,7 @@ export default defineI18nLocale(() => ({
     featureHealthDesc: '自动检测贡献集中度、活跃度下降等风险，提前发现项目隐患。',
     footer: 'Git 历史可视化工具',
     viewDemo: '查看示例',
+    selectDemo: '选择示例项目',
     placeholder: 'GitHub URL 或本地仓库路径',
     import: '导入',
     projects: '项目',
@@ -56,6 +58,8 @@ export default defineI18nLocale(() => ({
     totalCommitsToDate: '累计总提交',
     allTimeTotal: '历史总计',
     analyzed: '已分析 {time}',
+    addNewProject: '添加新项目',
+    importProject: '导入新项目',
   },
   import: {
     cloning: '正在克隆仓库...',
@@ -194,6 +198,9 @@ export default defineI18nLocale(() => ({
     noContributorDataHint: '该项目尚无贡献者数据。请重新导入项目以填充统计信息。',
     yearly: '区间',
     total: '总计',
+    activeContributors: '活跃贡献者',
+    avgCommits: '人均提交',
+    activeDays: '活跃天数',
   },
   events: {
     title: {
@@ -233,5 +240,13 @@ export default defineI18nLocale(() => ({
     addProjectHint: '添加新项目需要本地部署才能启动服务端分析功能。',
     viewSource: '查看源码',
     localDeploy: '本地部署指南',
+  },
+  settings: {
+    title: '设置',
+    styleGroup: '样式',
+    storageGroup: '储存',
+    saveLocally: '跨项目保存设置',
+    saveLocallyHint: '勾选后，粒度、关键节点等设置将在所有项目间共享。',
+    themeHint: '切换主题色将重新计算河流图中贡献者的配色。',
   },
 }))

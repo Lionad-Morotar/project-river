@@ -15,8 +15,9 @@ export default defineI18nLocale(() => ({
   },
   home: {
     title: 'Project River',
-    subtitle: 'Paste a GitHub URL or local path to visualize its contribution history.',
+    subtitle: 'Read the pulse of a project through the rhythm of its code flow.',
     subtitleStatic: 'Interactive Git contribution history visualization demo.',
+    viewExample: 'Project Library',
     featureStreamgraph: 'Streamgraph Visualization',
     featureStreamgraphDesc: 'View contribution history as a flowing streamgraph, revealing the rhythm and evolution of your codebase.',
     featureContributors: 'Contributor Analytics',
@@ -25,6 +26,7 @@ export default defineI18nLocale(() => ({
     featureHealthDesc: 'Automatically detect risks like contribution concentration and activity drops before they become problems.',
     footer: 'Git history visualization',
     viewDemo: 'View Demo',
+    selectDemo: 'Select a demo project',
     placeholder: 'GitHub URL or local repo path',
     import: 'Import',
     projects: 'Projects',
@@ -56,6 +58,8 @@ export default defineI18nLocale(() => ({
     totalCommitsToDate: 'Total commits to date',
     allTimeTotal: 'All-time total',
     analyzed: 'Analyzed {time}',
+    addNewProject: 'Add new project',
+    importProject: 'Import new project',
   },
   import: {
     cloning: 'Cloning repository...',
@@ -194,6 +198,9 @@ export default defineI18nLocale(() => ({
     noContributorDataHint: 'There is no contributor data for this project yet. Re-import the project to populate statistics.',
     yearly: 'Range',
     total: 'Total',
+    activeContributors: 'Active contributors',
+    avgCommits: 'Avg per contributor',
+    activeDays: 'Active days',
   },
   events: {
     title: {
@@ -233,5 +240,13 @@ export default defineI18nLocale(() => ({
     addProjectHint: 'Adding projects requires local deployment to run the server-side analysis pipeline.',
     viewSource: 'View source',
     localDeploy: 'Local deployment guide',
+  },
+  settings: {
+    title: 'Settings',
+    styleGroup: 'Style',
+    storageGroup: 'Storage',
+    saveLocally: 'Save settings across projects',
+    saveLocallyHint: 'When enabled, granularity, key nodes, and other settings are shared across all projects.',
+    themeHint: 'Changing the theme color recalculates contributor colors in the streamgraph.',
   },
 }))

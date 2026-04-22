@@ -12,11 +12,13 @@ import ProjectLayout from '~/components/ProjectLayout.vue'
 import ResizeHandle from '~/components/ResizeHandle.vue'
 import Streamgraph from '~/components/Streamgraph.vue'
 import StreamgraphTooltip from '~/components/StreamgraphTooltip.vue'
+import { useAppSettings } from '~/composables/useAppSettings'
 import { useChartTooltip } from '~/composables/useChartTooltip'
 import { useContributorColors } from '~/composables/useContributorColors'
 import { useProjectData } from '~/composables/useProjectData'
 import { useProjectEvents } from '~/composables/useProjectEvents'
 import { useProjectStats } from '~/composables/useProjectStats'
+import { getAllProjectMeta, useStaticData } from '~/composables/useStaticData'
 import { applyTopN, TOP_N_MAX, useStreamgraphData } from '~/composables/useStreamgraphData'
 import { aggregateRows, toWeekKey } from '~/utils/d3Helpers'
 import { getAllContributorsFromDaily, getMonthContributorsFromDaily, getRangeContributors } from '~/utils/monthDetailHelpers'
@@ -26,11 +28,18 @@ import { downloadStreamgraphSvg } from '~/utils/svgExport'
 const config = useRuntimeConfig()
 const isStatic = config.public.staticMode === true
 
+// -- Static data (for project selector) --
+const { bundle: staticBundle } = useStaticData()
+
 const { t, locale, setLocale } = useI18n()
 const colorMode = useColorMode()
 const { monthNames, formatRelativeTime } = useLocale()
 const route = useRoute()
 const projectId = route.params.id as string
+
+// -- App settings (theme, local save) --
+const { activeTheme } = useAppSettings()
+const settingsModalOpen = ref(false)
 
 function toggleTheme() {
   const newPref = colorMode.value === 'dark' ? 'light' : 'dark'
@@ -91,7 +100,33 @@ const {
 // -- Stats --
 const { stats, formattedDateRange, recentActivityLabel, recentActivityDotClass } = useProjectStats(dailyData as Ref<DailyRow[]>)
 
-// -- Project Events --
+// -- Project selector (ghost dropdown) --
+const projectSelectorOpen = ref(false)
+
+const otherProjects = computed(() => {
+  if (!staticBundle.value)
+    return []
+  const currentId = Number(projectId)
+  return getAllProjectMeta(staticBundle.value)
+    .filter(p => p.id !== currentId)
+    .map(p => ({
+      id: p.id,
+      label: p.fullName || p.name,
+    }))
+})
+
+function selectOtherProject(id: number) {
+  projectSelectorOpen.value = false
+  navigateTo(`/projects/${id}`)
+}
+
+const addNewProjectUrl = computed(() => {
+  if (isStatic)
+    return 'https://github.com/Lionad-Morotar/project-river?tab=readme-ov-file#%E5%A6%82%E4%BD%95%E8%BF%90%E8%A1%8C'
+  return '/'
+})
+
+// -- Project events --
 const {
   events: projectEvents,
   loading: eventsLoading,
@@ -185,7 +220,10 @@ const contributorMetaList = computed<ContributorMeta[]>(() => {
   return result
 })
 
-const colorMap = computed(() => useContributorColors(contributorMetaList.value))
+const colorMap = computed(() => {
+  const { baseHue, spread: hueSpread } = activeTheme.value
+  return useContributorColors(contributorMetaList.value, colorMode.value === 'dark', baseHue, hueSpread)
+})
 const hasData = computed(() => (dailyData.value as DailyRow[]).length > 0)
 const isAllHistory = computed(() => !selectedMonth.value)
 
@@ -225,6 +263,44 @@ const panelContributors = computed(() => {
 const commitsThisMonth = computed(() => panelContributors.value.reduce((sum, c) => sum + c.monthlyCommits, 0))
 const totalCommitsToDate = computed(() => panelContributors.value.reduce((sum, c) => sum + c.cumulativeCommits, 0))
 
+// Active days: unique dates with commits within the current panel range
+const panelActiveDays = computed(() => {
+  const rows = topNData.value
+  let start: string, end: string
+
+  if (panelRange.value) {
+    start = panelRange.value.start
+    end = panelRange.value.end
+  }
+  else if (!selectedMonth.value) {
+    // all history
+    const dates = new Set(rows.map(r => r.date))
+    if (dates.size === 0)
+      return { active: 0, total: 0 }
+    const sorted = Array.from(dates).sort()
+    start = sorted[0]!
+    end = sorted[sorted.length - 1]!
+  }
+  else if (selectedYearRange.value) {
+    start = selectedYearRange.value.start
+    end = selectedYearRange.value.end
+  }
+  else {
+    const r = yearToRange(selectedMonth.value!)
+    start = r.start
+    end = r.end
+  }
+
+  const dates = new Set<string>()
+  for (const row of rows) {
+    if (row.date >= start && row.date <= end) {
+      dates.add(row.date)
+    }
+  }
+  const total = Math.round((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1
+  return { active: dates.size, total }
+})
+
 const panelRangeLabel = computed(() => {
   if (panelRange.value) {
     const { start, end } = panelRange.value
@@ -255,8 +331,19 @@ function onPanelSplitResize(delta: number) {
   eventsPanelH.value = Math.max(80, eventsPanelH.value + delta)
 }
 const reanalyzeDialogOpen = ref(false)
+const deleteDialogOpen = ref(false)
 
 // -- Actions --
+async function handleDelete() {
+  try {
+    await $fetch(`/api/projects/${projectId}`, { method: 'DELETE' })
+    // Navigate back to home after deletion
+    navigateTo('/')
+  }
+  catch {
+    // Silently fail, user can retry
+  }
+}
 function handleExport() {
   const contributors = Array.from(new Set(topNData.value.map((d: DailyRow) => d.contributor))).sort()
   const repoName = projectMeta.value?.fullName || projectMeta.value?.name || projectId
@@ -486,24 +573,60 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
       <template v-else-if="isReady && (dailyData as DailyRow[]).length > 0">
         <header class="flex justify-between items-start gap-4 mb-3">
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-3">
-              <h1 class="font-semibold text-highlighted text-xl tracking-tight">
-                {{ projectMeta?.fullName || projectMeta?.name || projectId }}
-              </h1>
-              <a
-                v-if="projectMeta?.url"
-                :href="projectMeta.url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-center gap-1 hover:bg-elevated px-2 py-1 rounded-md text-muted hover:text-default text-xs transition-colors shrink-0"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                  <polyline points="15 3 21 3 21 9" />
-                  <line x1="10" y1="14" x2="21" y2="3" />
-                </svg>
-                GitHub
-              </a>
+            <!-- Project selector: ghost dropdown to switch projects or add new -->
+            <div class="flex items-center gap-2">
+              <div class="relative">
+                <button
+                  class="flex items-center gap-1.5 hover:bg-elevated/60 -ml-2 px-2.5 py-1 rounded-md text-highlighted transition-colors"
+                  @click="projectSelectorOpen = !projectSelectorOpen"
+                >
+                  <h1 class="m-0 p-0 font-semibold text-3xl tracking-tight">
+                    {{ projectMeta?.fullName || projectMeta?.name || projectId }}
+                  </h1>
+                  <svg xmlns="http://www.w3.org/2000/svg" class="mt-1 w-3.5 h-3.5 text-muted transition-transform duration-150" :class="projectSelectorOpen ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+                <Transition
+                  enter-active-class="transition-all duration-150 ease-out"
+                  enter-from-class="opacity-0 -translate-y-1"
+                  enter-to-class="opacity-100 translate-y-0"
+                  leave-active-class="transition-all duration-100 ease-in"
+                  leave-from-class="opacity-100 translate-y-0"
+                  leave-to-class="opacity-0 -translate-y-1"
+                >
+                  <div
+                    v-if="projectSelectorOpen"
+                    class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-56"
+                  >
+                    <!-- Other projects -->
+                    <button
+                      v-for="p in otherProjects"
+                      :key="p.id"
+                      class="hover:bg-elevated/60 px-3 py-1.5 w-full text-dimmed hover:text-default text-xs text-left transition-colors"
+                      @click="selectOtherProject(p.id)"
+                    >
+                      {{ p.label }}
+                    </button>
+                    <div v-if="otherProjects.length > 0" class="my-1 border-default border-t" />
+                    <!-- Add new project -->
+                    <a
+                      :href="addNewProjectUrl"
+                      :target="isStatic ? '_blank' : undefined"
+                      rel="noopener noreferrer"
+                      class="flex items-center gap-2 hover:bg-elevated/60 px-3 py-1.5 text-accented hover:text-default text-xs transition-colors"
+                      @click="projectSelectorOpen = false"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      {{ isStatic ? $t('project.addNewProject') : $t('project.importProject') }}
+                    </a>
+                  </div>
+                </Transition>
+                <!-- Backdrop -->
+                <div
+                  v-if="projectSelectorOpen"
+                  class="z-40 fixed inset-0"
+                  @click="projectSelectorOpen = false"
+                />
+              </div>
             </div>
             <p
               v-if="projectMeta?.description"
@@ -571,6 +694,16 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
             >
               {{ locale === 'zh-CN' ? 'EN' : '中' }}
             </button>
+            <button
+              class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
+              :aria-label="t('settings.title')"
+              @click="settingsModalOpen = true"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
           </div>
         </header>
 
@@ -637,6 +770,50 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
             </span>
             {{ $t('project.analyzed', { time: formatRelativeTime(projectMeta.lastAnalyzedAt) }) }}
           </span>
+
+          <div class="flex flex-wrap items-center self-end gap-4 ml-auto text-dimmed text-xs">
+            <!-- GitHub link -->
+            <a
+              v-if="projectMeta?.url"
+              :href="projectMeta.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-1.5 text-dimmed hover:text-default transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              GitHub
+            </a>
+
+            <!-- Project actions: re-analyze + delete (non-static only) -->
+            <template v-if="!isStatic">
+              <span class="text-muted/40">/</span>
+              <button
+                class="flex items-center gap-1.5 text-dimmed hover:text-default transition-colors"
+                @click="reanalyzeDialogOpen = true"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="23 4 23 10 17 10" />
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                </svg>
+                {{ $t('project.reAnalyze') }}
+              </button>
+              <span class="text-muted/40">/</span>
+              <button
+                class="flex items-center gap-1.5 text-red-400 hover:text-red-300 transition-colors"
+                @click="deleteDialogOpen = true"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                {{ $t('common.delete') }}
+              </button>
+            </template>
+          </div>
         </div>
 
         <!-- Health signals -->
@@ -648,104 +825,110 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
         </div>
 
         <!-- Timeline controls -->
-        <div class="flex items-center gap-2 bg-elevated/50 mb-3 px-3 py-2 border border-default rounded-lg">
-          <span class="mr-1 font-medium text-muted text-xs select-none">{{ $t('granularity.label') }}</span>
-          <div class="inline-flex bg-elevated p-0.5 rounded-md">
-            <button
-              v-for="g in (['day', 'week', 'month'] as Granularity[])"
-              :key="g"
-              class="px-2.5 py-1 rounded font-medium text-xs transition-all"
-              :class="granularity === g ? 'bg-accented text-highlighted shadow-sm' : 'text-dimmed hover:text-default'"
-              @click="granularity = g"
-            >
-              {{ g === 'day' ? $t('granularity.day') : g === 'week' ? $t('granularity.week') : $t('granularity.month') }}
-            </button>
-          </div>
-
-          <span class="mx-1 text-muted/40 select-none">|</span>
-
-          <MonthSelector
-            v-model="selectedMonth"
-            :months="availableYears"
-          />
-
-          <button
-            class="hover:bg-elevated px-2.5 py-1 rounded text-muted hover:text-default text-xs transition-colors"
-            :class="{ 'text-default bg-elevated': !selectedMonth }"
-            @click="selectedMonth = null"
-          >
-            {{ $t('common.reset') }}
-          </button>
-
-          <span class="mx-1 text-muted/40 select-none">|</span>
-
-          <!-- Top-N contributor selector -->
-          <div class="relative">
-            <button
-              class="flex items-center gap-1 hover:bg-elevated px-2 py-1 rounded-md font-medium text-dimmed hover:text-default text-xs transition-colors"
-              :class="topNSelectOpen ? 'text-default bg-elevated' : ''"
-              @click="topNSelectOpen = !topNSelectOpen"
-            >
-              {{ $t('topN.label', { n: topN }) }}
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-transform duration-150" :class="topNSelectOpen ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-            </button>
-            <Transition
-              enter-active-class="transition-all duration-150 ease-out"
-              enter-from-class="opacity-0 -translate-y-1"
-              enter-to-class="opacity-100 translate-y-0"
-              leave-active-class="transition-all duration-100 ease-in"
-              leave-from-class="opacity-100 translate-y-0"
-              leave-to-class="opacity-0 -translate-y-1"
-            >
-              <div
-                v-if="topNSelectOpen"
-                class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-36"
+        <div class="flex justify-between items-center mb-3 px-1">
+          <!-- Left: Top-N + EventGroupSelector -->
+          <div class="flex items-center gap-1">
+            <!-- Top-N contributor selector -->
+            <div class="relative">
+              <button
+                class="flex items-center gap-1 hover:bg-elevated/60 px-2 py-1 rounded-md font-medium text-dimmed hover:text-default text-xs transition-colors"
+                :class="topNSelectOpen ? 'text-default bg-elevated/40' : ''"
+                @click="topNSelectOpen = !topNSelectOpen"
               >
-                <button
-                  v-for="opt in topNOptions"
-                  :key="opt"
-                  class="px-3 py-1.5 w-full text-xs text-left transition-colors"
-                  :class="topN === opt ? 'text-default bg-accented/20' : 'text-dimmed hover:text-default hover:bg-accented/10'"
-                  @click="selectTopN(opt)"
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+                <template v-if="topN === 5">
+                  Top 5 contributors
+                </template>
+                <template v-else>
+                  {{ $t('topN.label', { n: topN }) }}
+                </template>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 transition-transform duration-150" :class="topNSelectOpen ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+              </button>
+              <Transition
+                enter-active-class="transition-all duration-150 ease-out"
+                enter-from-class="opacity-0 -translate-y-1"
+                enter-to-class="opacity-100 translate-y-0"
+                leave-active-class="transition-all duration-100 ease-in"
+                leave-from-class="opacity-100 translate-y-0"
+                leave-to-class="opacity-0 -translate-y-1"
+              >
+                <div
+                  v-if="topNSelectOpen"
+                  class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-36"
                 >
-                  Top {{ opt }}
-                </button>
-                <div class="my-1 border-default border-t" />
-                <div class="px-3 py-1">
-                  <div class="flex justify-between items-center gap-1.5">
-                    <input
-                      v-model="topNCustomInput"
-                      type="number"
-                      min="1"
-                      :max="topMax - 1"
-                      class="flex-1 px-1.5 py-1 border border-default rounded focus:outline-none focus:ring-1 focus:ring-accented w-14 tabular-nums text-default text-xs g-default"
-                      :placeholder="$t('topN.custom')"
-                      @keyup.enter="applyCustomTopN()"
-                      @click.stop
-                    >
-                    <button
-                      class="hover:bg-accented/10 px-2 py-1 rounded text-muted hover:text-default text-xs transition-colors"
-                      @click="applyCustomTopN()"
-                    >
-                      OK
-                    </button>
+                  <button
+                    v-for="opt in topNOptions"
+                    :key="opt"
+                    class="px-3 py-1.5 w-full text-xs text-left transition-colors"
+                    :class="topN === opt ? 'text-default bg-accented/20' : 'text-dimmed hover:text-default hover:bg-accented/10'"
+                    @click="selectTopN(opt)"
+                  >
+                    <template v-if="opt === 5">
+                      Top 5 contributors
+                    </template>
+                    <template v-else>
+                      Top {{ opt }}
+                    </template>
+                  </button>
+                  <div class="my-1 border-default border-t" />
+                  <div class="px-3 py-1">
+                    <div class="flex justify-between items-center gap-1.5">
+                      <input
+                        v-model="topNCustomInput"
+                        type="number"
+                        min="1"
+                        :max="topMax - 1"
+                        class="flex-1 px-1.5 py-1 border border-default rounded focus:outline-none focus:ring-1 focus:ring-accented w-14 tabular-nums text-default text-xs g-default"
+                        :placeholder="$t('topN.custom')"
+                        @keyup.enter="applyCustomTopN()"
+                        @click.stop
+                      >
+                      <button
+                        class="hover:bg-accented/10 px-2 py-1 rounded text-muted hover:text-default text-xs transition-colors"
+                        @click="applyCustomTopN()"
+                      >
+                        OK
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Transition>
+              </Transition>
+            </div>
+
+            <EventGroupSelector
+              :groups="eventGroups"
+              :selected-ids="selectedEventGroups"
+              :expanded-ids="expandedEventGroups"
+              :counts="eventTypeCounts"
+              :total-counts="eventTypeTotalCounts"
+              @toggle="handleToggleEventGroup"
+              @toggle-expanded="handleToggleExpanded"
+            />
           </div>
 
-          <span class="mx-1 text-muted/40 select-none">|</span>
-
-          <EventGroupSelector
-            :groups="eventGroups"
-            :selected-ids="selectedEventGroups"
-            :expanded-ids="expandedEventGroups"
-            :counts="eventTypeCounts"
-            :total-counts="eventTypeTotalCounts"
-            @toggle="handleToggleEventGroup"
-            @toggle-expanded="handleToggleExpanded"
-          />
+          <!-- Right: Granularity + MonthSelector -->
+          <div class="flex items-center gap-1">
+            <MonthSelector
+              v-model="selectedMonth"
+              :months="availableYears"
+            />
+            <div class="inline-flex bg-elevated/30 p-0.5 rounded-md">
+              <button
+                v-for="g in (['day', 'week', 'month'] as Granularity[])"
+                :key="g"
+                class="px-2.5 py-1 rounded font-medium text-xs transition-all"
+                :class="granularity === g ? 'bg-accented/40 text-highlighted shadow-sm' : 'text-dimmed hover:text-default'"
+                @click="granularity = g"
+              >
+                {{ g === 'day' ? $t('granularity.day') : g === 'week' ? $t('granularity.week') : $t('granularity.month') }}
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Main chart -->
@@ -762,6 +945,7 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
                 :colors="colorMap"
                 :month-names="monthNames"
                 :event-markers="allEventMarkers"
+                :brush-smoothness="1"
                 @update:selected-month="selectedMonth = $event"
                 @range-change="handleRangeChange"
                 @hover="onHover"
@@ -815,6 +999,8 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
                   :contributors="panelContributors"
                   :commits-this-month="commitsThisMonth"
                   :total-commits-to-date="totalCommitsToDate"
+                  :active-days="panelActiveDays.active"
+                  :total-days="panelActiveDays.total"
                   :has-data="hasData"
                   :is-all-history="isAllHistory"
                   :previous-month-commits="previousPeriodCommits"
@@ -839,5 +1025,19 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
       confirm-color="warning"
       @confirm="handleReanalyze"
     />
+
+    <!-- Delete confirmation (hidden in static mode) -->
+    <ConfirmDialog
+      v-if="!isStatic"
+      v-model:open="deleteDialogOpen"
+      :title="$t('dialog.deleteTitle')"
+      :description="$t('dialog.deleteDescription', { name: projectMeta?.fullName || projectMeta?.name || $t('project.thisProject') })"
+      :confirm-label="$t('common.delete')"
+      confirm-color="danger"
+      @confirm="handleDelete"
+    />
+
+    <!-- Settings modal -->
+    <SettingsModal v-model:open="settingsModalOpen" show-storage />
   </div>
 </template>

@@ -1,94 +1,61 @@
 <script setup lang="ts">
+import type { ContributorMeta } from '~/composables/useContributorColors'
 import type { DailyRow } from '~/utils/d3Helpers'
 import { useElementSize } from '@vueuse/core'
 import { extent } from 'd3-array'
 import { scaleLinear, scaleUtc } from 'd3-scale'
 import { select } from 'd3-selection'
 import { curveBasis, area as d3Area } from 'd3-shape'
+import { useContributorColors } from '~/composables/useContributorColors'
 import { buildStack, pivotDailyData } from '~/utils/d3Helpers'
 
-const CONTRIBUTORS = [
-  'antfu',
-  'posva',
-  'yyx990803',
-  'kiaking',
-  'danielroe',
-  'Atinux',
-  'pi0',
-  'benjamincanac',
-  'farnabaz',
-  'hijoblend',
-]
-
-/** Generate synthetic daily data that produces a pleasing streamgraph shape */
-function generateSyntheticData(): DailyRow[] {
-  const startDate = new Date('2022-01-01')
-  const days = 365 * 2 + 100
-  const rows: DailyRow[] = []
-
-  for (let i = 0; i < days; i++) {
-    const date = new Date(startDate)
-    date.setDate(date.getDate() + i)
-    const dateStr = date.toISOString().split('T')[0]
-    const t = i / days
-
-    for (let ci = 0; ci < CONTRIBUTORS.length; ci++) {
-      const name = CONTRIBUTORS[ci]!
-      // Each contributor has a unique "activity window" via phase-shifted bell curves
-      const phase = (ci / CONTRIBUTORS.length) * Math.PI * 2
-      const center = 0.3 + (ci % 3) * 0.25
-      const spread = 0.2 + (ci % 4) * 0.05
-      const dist = Math.abs(t - center)
-      const envelope = Math.exp(-(dist * dist) / (2 * spread * spread))
-      // Add slow oscillation for organic feel
-      const oscillation = Math.sin(t * Math.PI * 6 + phase) * 0.3 + 0.7
-      // Add daily noise
-      const noise = Math.random() * 0.4 + 0.6
-      const base = envelope * oscillation * noise
-      const commits = Math.floor(base * 12)
-
-      if (commits > 0) {
-        rows.push({
-          date: dateStr,
-          contributor: name,
-          commits,
-          linesAdded: commits * 40 + Math.floor(Math.random() * 100),
-          linesDeleted: commits * 15 + Math.floor(Math.random() * 50),
-          filesTouched: Math.max(1, Math.floor(commits * 1.5)),
-          cumulativeCommits: 0,
-        })
-      }
-    }
-  }
-
-  return rows
-}
+const props = defineProps<{
+  /** Real daily data from static bundle. If empty, renders nothing. */
+  dailyData?: DailyRow[]
+}>()
 
 const chartRef = ref<HTMLDivElement | null>(null)
 const { width, height } = useElementSize(chartRef)
 
-const data = generateSyntheticData()
-const contributors = Array.from(new Set(data.map(d => d.contributor))).sort()
-const pivotedData = pivotDailyData(data)
-const series = buildStack(contributors, pivotedData)
-
-function generateColors(count: number, isDark: boolean): string[] {
-  const colors: string[] = []
-  for (let i = 0; i < count; i++) {
-    const hue = 160 + (i / Math.max(count, 1)) * 140
-    const sat = isDark ? 45 : 55
-    const light = isDark ? 52 : 45
-    colors.push(`hsl(${Math.round(hue)}, ${sat}%, ${light}%)`)
+/** Build ContributorMeta[] from DailyRow[] for color generation */
+function buildContributorMeta(rows: DailyRow[]): ContributorMeta[] {
+  const map = new Map<string, { firstDate: string, totalCommits: number }>()
+  for (const row of rows) {
+    const existing = map.get(row.contributor)
+    if (existing) {
+      existing.totalCommits += row.commits
+      if (row.date < existing.firstDate)
+        existing.firstDate = row.date
+    }
+    else {
+      map.set(row.contributor, { firstDate: row.date, totalCommits: row.commits })
+    }
   }
-  return colors
+  return Array.from(map.entries()).map(([name, m]) => ({
+    name,
+    firstCommitDate: m.firstDate,
+    totalCommits: m.totalCommits,
+  }))
 }
 
 function render() {
   if (!chartRef.value || !width.value || !height.value)
     return
+  if (!props.dailyData || props.dailyData.length === 0)
+    return
 
   const container = select(chartRef.value)
   container.selectAll('*').remove()
+
+  const data = props.dailyData
+  const contributors = Array.from(new Set(data.map(d => d.contributor))).sort()
+  const pivotedData = pivotDailyData(data)
+  const series = buildStack(contributors, pivotedData)
+
+  // Build real contributor colors
+  const contributorMeta = buildContributorMeta(data)
+  const isDark = document.documentElement.classList.contains('dark')
+  const colorMap = useContributorColors(contributorMeta, isDark)
 
   const margin = { top: 0, right: 0, bottom: 0, left: 0 }
   const chartHeight = height.value - margin.top - margin.bottom
@@ -119,23 +86,22 @@ function render() {
     .y0(d => yScale(d[0]))
     .y1(d => yScale(d[1]))
 
-  // Detect dark mode from document class
-  const isDark = document.documentElement.classList.contains('dark')
-  const colors = generateColors(contributors.length, isDark)
-
-  // Base opacity — subtle ambient feel, slightly stronger for charcoal bg
-  const baseOpacity = isDark ? 0.12 : 0.06
+  // Ambient opacity — subtle background feel
+  const baseOpacity = 0.7
 
   svg.append('g')
     .selectAll('path')
     .data(series)
     .join('path')
     .attr('d', areaGen)
-    .attr('fill', (_d, i) => colors[i]!)
+    .attr('fill', (_d, i) => {
+      const key = contributors[i]!
+      return colorMap.get(key) ?? '#64748b'
+    })
     .attr('opacity', baseOpacity)
 }
 
-watch([width, height], () => {
+watch([width, height, () => props.dailyData], () => {
   nextTick(render)
 })
 
