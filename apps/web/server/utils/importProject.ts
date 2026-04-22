@@ -1,7 +1,8 @@
+import type { Buffer } from 'node:buffer'
 import { spawn } from 'node:child_process'
 import { mkdir, realpath, rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { db } from '@project-river/db/client'
 import { projects } from '@project-river/db/schema'
 import { analyzeRepo } from '@project-river/pipeline'
@@ -10,6 +11,29 @@ import { isValidOwnerRepo } from '../../app/utils/githubUrl'
 
 const REPOS_DIR = join(homedir(), '.project-river', 'repos')
 const ANALYSIS_TIMEOUT_MS = 10 * 60 * 1000 // 10 minutes
+
+/** 获取仓库的 HEAD commit full hash */
+export function extractHeadHash(repoPath: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const cp = spawn('git', ['-C', repoPath, 'rev-parse', 'HEAD'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+    let stdout = ''
+    cp.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    cp.on('error', () => resolve(null))
+    cp.on('close', (code) => {
+      if (code === 0) {
+        const hash = stdout.trim()
+        resolve(/^[a-f0-9]{40}$/.test(hash) ? hash : null)
+      }
+      else {
+        resolve(null)
+      }
+    })
+  })
+}
 
 /**
  * Classify gh clone errors into user-friendly error messages with error class prefixes.
@@ -144,6 +168,7 @@ export async function importProject(
       const actualId = await resolveProjectId(projectId, fullName)
 
       // Mark as ready with metadata
+      const headHash = await extractHeadHash(realPath)
       await db
         .update(projects)
         .set({
@@ -152,6 +177,7 @@ export async function importProject(
           status: 'ready',
           lastAnalyzedAt: new Date(),
           errorMessage: null,
+          headCommitHash: headHash,
         })
         .where(eq(projects.id, actualId))
     }
@@ -297,6 +323,7 @@ export async function reanalyzeProject(
 
       const actualId = await resolveProjectId(projectId, fullName)
 
+      const headHash = await extractHeadHash(realPath)
       await db
         .update(projects)
         .set({
@@ -305,6 +332,7 @@ export async function reanalyzeProject(
           status: 'ready',
           lastAnalyzedAt: new Date(),
           errorMessage: null,
+          headCommitHash: headHash,
         })
         .where(eq(projects.id, actualId))
     }
@@ -345,4 +373,74 @@ async function updateProjectError(projectId: number, errorMessage: string): Prom
     .update(projects)
     .set({ status: 'error', errorMessage })
     .where(eq(projects.id, projectId))
+}
+
+/**
+ * 本地路径导入：跳过 Clone 阶段，直接分析本地 Git 仓库。
+ * 结构与 importProject 相同，但无 Phase 1。
+ */
+export async function importLocalProject(
+  projectId: number,
+  resolvedPath: string,
+): Promise<void> {
+  const fullName = `local:${resolvedPath}`
+  const name = basename(resolvedPath)
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), ANALYSIS_TIMEOUT_MS)
+
+  try {
+    // --- Analyze（无 Clone 阶段）---
+    await updateProjectStatus(projectId, 'analyzing')
+
+    try {
+      const realPath = await realpath(resolvedPath)
+
+      // 确保路径已标准化
+      await db
+        .update(projects)
+        .set({ path: realPath })
+        .where(eq(projects.id, projectId))
+
+      await analyzeRepo(realPath, name, {
+        batchSize: 500,
+        force: true,
+        incremental: false,
+      })
+
+      const actualId = await resolveProjectId(projectId, fullName)
+
+      const headHash = await extractHeadHash(realPath)
+      await db
+        .update(projects)
+        .set({
+          fullName,
+          url: null,
+          status: 'ready',
+          lastAnalyzedAt: new Date(),
+          errorMessage: null,
+          headCommitHash: headHash,
+        })
+        .where(eq(projects.id, actualId))
+    }
+    catch (err: unknown) {
+      if (controller.signal.aborted) {
+        await updateProjectError(projectId, 'ANALYSIS_TIMEOUT: Analysis exceeded 10 minutes')
+        return
+      }
+      const detail = err instanceof Error ? err.message : String(err)
+      await updateProjectError(projectId, `ANALYSIS_FAILED: ${detail}`)
+    }
+  }
+  catch (err: unknown) {
+    try {
+      const detail = err instanceof Error ? err.message : String(err)
+      await updateProjectError(projectId, `ANALYSIS_FAILED: Unexpected error during local import — ${detail}`)
+    }
+    catch {
+      console.error(`[importLocalProject] Fatal error for project ${projectId}:`, err)
+    }
+  }
+  finally {
+    clearTimeout(timeoutId)
+  }
 }

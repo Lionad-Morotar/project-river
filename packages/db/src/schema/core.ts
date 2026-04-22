@@ -11,6 +11,7 @@ export const projects = pgTable('projects', {
   description: text('description'),
   lastAnalyzedAt: timestamp('last_analyzed_at', { mode: 'date', precision: 3, withTimezone: true }),
   errorMessage: text('error_message'),
+  headCommitHash: varchar('head_commit_hash', { length: 40 }),
 }, table => [
   uniqueIndex('projects_full_name_unique_idx').on(table.fullName),
   index('projects_status_idx').on(table.status),
