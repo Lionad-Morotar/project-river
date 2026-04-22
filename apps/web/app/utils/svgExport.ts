@@ -49,9 +49,20 @@ export function serializeSvgWithLegend(
   const theme = getExportColors(isDark)
   const clone = svgNode.cloneNode(true) as SVGSVGElement
 
-  // Add dark background rect to match page theme
-  const svgW = Number(svgNode.getAttribute('width')) || 800
-  const svgH = Number(svgNode.getAttribute('height')) || 400
+  // Read coordinate space from viewBox (CSS pixels), NOT width/height attributes
+  // (which are DPR-scaled pixel values like 2752x1006 on 2x displays)
+  const viewBox = svgNode.getAttribute('viewBox')
+  let svgW: number, svgH: number
+  if (viewBox) {
+    const parts = viewBox.split(/[\s,]+/)
+    svgW = Number(parts[2]) || 800
+    svgH = Number(parts[3]) || 400
+  }
+  else {
+    svgW = Number(svgNode.getAttribute('width')) || 800
+    svgH = Number(svgNode.getAttribute('height')) || 400
+  }
+
   const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
   bgRect.setAttribute('width', String(svgW))
   bgRect.setAttribute('height', String(svgH))
@@ -191,9 +202,14 @@ export function serializeSvgWithLegend(
   }
 
   // Place legend below the chart, expand SVG height to fit
+  const totalHeight = svgH + legendHeight + 24
   const legendY = svgH + 8
-  clone.setAttribute('height', String(svgH + legendHeight + 24))
-  bgRect.setAttribute('height', String(svgH + legendHeight + 24))
+  clone.setAttribute('height', String(totalHeight))
+  bgRect.setAttribute('height', String(totalHeight))
+  // Sync viewBox to include legend (original viewBox only covers chart area)
+  clone.setAttribute('viewBox', `0 0 ${svgW} ${totalHeight}`)
+  // Reset width to viewBox coordinate space (not DPR-scaled)
+  clone.setAttribute('width', String(svgW))
   legendGroup.setAttribute('transform', `translate(16, ${legendY})`)
   clone.appendChild(legendGroup)
 
