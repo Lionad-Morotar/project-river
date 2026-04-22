@@ -708,7 +708,7 @@ function setupWheelAndGestureListeners() {
       event.preventDefault()
       markInteracting()
       const t = (svgNode as any).__zoom || zoomIdentity
-      const factor = event.deltaY > 0 ? 0.92 : 1.08
+      const factor = event.deltaY > 0 ? 1.08 : 0.92
       const newK = Math.max(1, Math.min(50, t.k * factor))
 
       // Zoom centred on pointer X
@@ -752,7 +752,7 @@ function setupWheelAndGestureListeners() {
     markInteracting()
     const t = (svgNode as any).__zoom || zoomIdentity
     // Dampen raw pinch ratio so small finger movements don't over-zoom
-    const rawRatio = ge.scale / gestureStartScale
+    const rawRatio = gestureStartScale / ge.scale
     const dampenedRatio = 1 + (rawRatio - 1) * 0.35
     const newK = Math.max(1, Math.min(50, t.k * dampenedRatio))
     gestureStartScale = ge.scale
