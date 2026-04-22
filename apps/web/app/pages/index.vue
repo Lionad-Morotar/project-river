@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import { useProjectImport } from '~/composables/useProjectImport'
-import { getProjectById, useStaticData } from '~/composables/useStaticData'
+import { useStaticData } from '~/composables/useStaticData'
 import { getErrorGuidance } from '~/utils/errorGuidance'
 
 interface Project {
@@ -88,52 +88,44 @@ const demoProjects = computed<Project[]>(() => {
   }))
 })
 
-// -- Static mode: demo project selector --
-const firstDemoProjectId = computed(() => demoProjects.value[0]?.id ?? null)
+/** Brief summary per demo project for modal cards */
+interface ProjectSummary {
+  id: number
+  name: string
+  fullName: string | null
+  commits: number
+  contributors: number
+  yearSpan: string
+}
 
-const selectedDemoBundle = computed(() => {
-  if (!staticBundle.value || !firstDemoProjectId.value)
-    return null
-  return getProjectById(staticBundle.value, firstDemoProjectId.value)
-})
-
-const selectedDemoDailyData = computed(() => selectedDemoBundle.value?.daily ?? [])
-
-const selectedDemoStats = computed(() => {
-  const daily = selectedDemoDailyData.value
-  if (daily.length === 0) {
-    return [
-      { value: 0, labelKey: 'home.statCommits', suffix: '+' },
-      { value: 0, labelKey: 'home.statContributors', suffix: '+' },
-      { value: 0, labelKey: 'home.statYears', suffix: 'yr', decimals: 1 },
-      { value: 0, labelKey: 'home.statFiles', suffix: '+' },
-    ]
-  }
-
-  let totalCommits = 0
-  const contributors = new Set<string>()
-  let totalFiles = 0
-  let minDate = daily[0]!.date
-  let maxDate = daily[0]!.date
-
-  for (const d of daily) {
-    totalCommits += d.commits
-    contributors.add(d.contributor)
-    totalFiles += d.filesTouched
-    if (d.date < minDate)
-      minDate = d.date
-    if (d.date > maxDate)
-      maxDate = d.date
-  }
-
-  const years = (new Date(maxDate).getTime() - new Date(minDate).getTime()) / (365.25 * 86400000)
-
-  return [
-    { value: totalCommits, labelKey: 'home.statCommits', suffix: '+' },
-    { value: contributors.size, labelKey: 'home.statContributors', suffix: '+' },
-    { value: years, labelKey: 'home.statYears', suffix: 'yr', decimals: 1 },
-    { value: totalFiles, labelKey: 'home.statFiles', suffix: '+' },
-  ]
+const demoProjectSummaries = computed<ProjectSummary[]>(() => {
+  if (!staticBundle.value)
+    return []
+  return staticBundle.value.projects.map((bundle) => {
+    const daily = bundle.daily
+    let totalCommits = 0
+    const contributorSet = new Set<string>()
+    let minYear = Infinity
+    let maxYear = -Infinity
+    for (const d of daily) {
+      totalCommits += d.commits
+      contributorSet.add(d.contributor)
+      const y = new Date(d.date).getFullYear()
+      if (y < minYear)
+        minYear = y
+      if (y > maxYear)
+        maxYear = y
+    }
+    const yearSpan = daily.length > 0 ? `${minYear}–${maxYear}` : ''
+    return {
+      id: bundle.project.id,
+      name: bundle.project.name,
+      fullName: bundle.project.fullName,
+      commits: totalCommits,
+      contributors: contributorSet.size,
+      yearSpan,
+    }
+  })
 })
 
 /** Submit URL for import */
@@ -321,15 +313,16 @@ watch(isImportActive, (active) => {
                     </h3>
                     <div class="space-y-3">
                       <NuxtLink
-                        v-for="p in demoProjects"
+                        v-for="p in demoProjectSummaries"
                         :key="p.id"
                         :to="`/projects/${p.id}`"
-                        class="group flex items-center gap-3 bg-[var(--glass-bg)] backdrop-blur-md p-4 border border-[var(--glass-border)] rounded-xl hover:border-accented/50 transition-all duration-300"
+                        class="group flex items-center gap-4 bg-[var(--glass-bg)] backdrop-blur-md p-4 border border-[var(--glass-border)] rounded-xl hover:border-accented/50 transition-all duration-300"
                         style="box-shadow: var(--glass-inner);"
                       >
-                        <span class="inline-block bg-emerald-400 rounded-full w-2 h-2 shrink-0" />
+                        <span class="inline-block bg-emerald-400 rounded-full w-2 h-2 shrink-0 mt-0.5" />
                         <div class="flex-1 min-w-0">
                           <span class="font-medium text-highlighted text-sm truncate block">{{ p.fullName || p.name }}</span>
+                          <span class="text-muted text-xs mt-0.5 block">{{ p.commits.toLocaleString() }} commits · {{ p.contributors }} contributors · {{ p.yearSpan }}</span>
                         </div>
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-muted group-hover:text-accented transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M5 12h14" />
@@ -378,27 +371,6 @@ watch(isImportActive, (active) => {
                 >
                   {{ $t('common.tryAgain') }}
                 </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right column: Stats grid (static mode: selected demo stats) -->
-          <div class="lg:col-span-5 lg:ml-auto hero-enter hero-enter-4">
-            <div v-if="isStatic && selectedDemoBundle" class="space-y-4">
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] text-toned/50 uppercase tracking-widest">{{ $t('home.dataFromProject') }}</span>
-                <span class="font-mono text-muted text-xs">{{ selectedDemoBundle.project.fullName || selectedDemoBundle.project.name }}</span>
-              </div>
-              <div class="gap-4 grid grid-cols-2">
-                <StatsCard
-                  v-for="(stat, i) in selectedDemoStats"
-                  :key="stat.labelKey"
-                  :value="stat.value"
-                  :label="$t(stat.labelKey)"
-                  :suffix="stat.suffix"
-                  :decimals="stat.decimals"
-                  :delay="100 + i * 100"
-                />
               </div>
             </div>
           </div>
