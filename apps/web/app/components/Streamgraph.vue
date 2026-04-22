@@ -430,7 +430,19 @@ function initSvg() {
   monthHighlight = highlightSel.node() as SVGRectElement
 
   // Layers container (paths will be added via data-join)
-  gChartSelection.append('g').attr('class', 'layers')
+  // Reveal clip: rect scales from 0→1 width, CSS-animated
+  svg.select('defs')
+    .append('clipPath')
+    .attr('id', 'layers-reveal')
+    .append('rect')
+    .attr('class', 'reveal-clip-rect')
+    .attr('x', 0)
+    .attr('y', 0)
+    .attr('width', svgWidth.value)
+    .attr('height', svgHeight.value)
+  gChartSelection.append('g')
+    .attr('class', 'layers')
+    .attr('clip-path', 'url(#layers-reveal)')
 
   // Annotations container (vertical spike markers)
   gAnnotationsSelection = gChartSelection.append('g').attr('class', 'annotations')
@@ -1352,7 +1364,20 @@ defineExpose({
 </script>
 
 <template>
-  <div class="relative w-full h-full" :style="{ padding: '20px' }">
+  <div class="relative w-full h-full" :style="{ padding: '0 0 1em 0' }">
     <div ref="chartRef" class="w-full h-full overflow-hidden" />
   </div>
 </template>
+
+<style>
+.reveal-clip-rect {
+  animation: layers-reveal 1.2s cubic-bezier(0.33, 1, 0.68, 1) 0.5s both;
+  transform-origin: 0 0;
+}
+
+@keyframes layers-reveal {
+  from {
+    transform: scaleX(0);
+  }
+}
+</style>
