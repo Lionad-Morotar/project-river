@@ -1,10 +1,45 @@
-export interface ParsedGitHubUrl {
-  owner: string
-  repo: string
+export type InputType = 'github' | 'local-path'
+
+export function detectInputType(input: string): InputType | null {
+  const t = input.trim()
+  if (!t)
+    return null
+  // Unix 绝对路径、~ 路径、相对路径（以 ./ 或 ../ 开头）
+  if (/^[/~.]/.test(t) && !t.startsWith('http'))
+    return 'local-path'
+  // Windows 盘符路径 C:\ D:\
+  if (/^[A-Z]:[\\/]/i.test(t))
+    return 'local-path'
+  // 多段路径（不含 : 和 github.com）视为本地路径
+  const slashes = (t.match(/\//g) || []).length
+  if (slashes > 1 && !t.includes(':') && !t.includes('github.com'))
+    return 'local-path'
+  return null // 交给 GitHub 解析器
+}
+
+export interface ParsedLocalPath {
+  path: string
 }
 
 export interface ParseError {
   error: string
+}
+
+/** 前端轻量校验，实际路径存在性由服务端验证 */
+export function parseLocalPath(input: string): ParsedLocalPath | ParseError {
+  const t = input.trim()
+  if (!t)
+    return { error: 'Path is empty' }
+  if (t.length > 4096)
+    return { error: 'Path is too long (max 4096 characters)' }
+  if (t.includes('\0'))
+    return { error: 'Path contains null bytes' }
+  return { path: t }
+}
+
+export interface ParsedGitHubUrl {
+  owner: string
+  repo: string
 }
 
 export type ParseResult = ParsedGitHubUrl | ParseError

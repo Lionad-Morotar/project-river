@@ -1,6 +1,6 @@
 import type { ParseResult } from '~/utils/githubUrl'
 import { useI18n } from 'vue-i18n'
-import { parseGitHubUrl } from '~/utils/githubUrl'
+import { detectInputType, parseGitHubUrl, parseLocalPath } from '~/utils/githubUrl'
 
 export type ImportStatus = 'idle' | 'importing' | 'analyzing' | 'redirecting' | 'error'
 
@@ -58,12 +58,61 @@ export function useProjectImport() {
 
   /**
    * Kick off import by calling POST /api/projects/import.
-   * On success, starts polling import-status until ready or error.
-   * Returns the parsed URL result so the caller can show validation errors.
+   * Detects input type (local path vs GitHub URL) and routes accordingly.
    */
-  async function importRepo(url: string): Promise<{ parseResult?: ParseResult, success: boolean }> {
-    // Validate URL client-side first
-    const parseResult = parseGitHubUrl(url)
+  async function importRepo(input: string): Promise<{ parseResult?: ParseResult, success: boolean }> {
+    const inputType = detectInputType(input)
+
+    // --- 本地路径分支 ---
+    if (inputType === 'local-path') {
+      const parseResult = parseLocalPath(input)
+      if ('error' in parseResult) {
+        errorMessage.value = parseResult.error
+        status.value = 'error'
+        return { success: false }
+      }
+
+      stopPolling()
+      errorMessage.value = null
+      status.value = 'importing'
+
+      try {
+        const result = await $fetch<{ id: number, status: string, fullName: string }>(
+          '/api/projects/import',
+          {
+            method: 'POST',
+            body: { path: parseResult.path },
+          },
+        )
+
+        projectId.value = result.id
+
+        if (result.status === 'ready') {
+          status.value = 'redirecting'
+          await navigateTo(`/projects/${result.id}`)
+          return { success: true }
+        }
+
+        if (result.status === 'cloning' || result.status === 'analyzing') {
+          status.value = mapServerStatus(result.status)
+          startPolling(result.id)
+          return { success: true }
+        }
+
+        status.value = 'error'
+        errorMessage.value = 'Import returned unexpected status.'
+        return { success: false }
+      }
+      catch (err: any) {
+        status.value = 'error'
+        const serverMsg = err?.data?.statusMessage || err?.statusMessage || err?.message
+        errorMessage.value = serverMsg || 'Import failed. Please try again.'
+        return { success: false }
+      }
+    }
+
+    // --- GitHub URL 分支（原有逻辑） ---
+    const parseResult = parseGitHubUrl(input)
     if ('error' in parseResult) {
       errorMessage.value = parseResult.error
       status.value = 'error'
@@ -80,27 +129,24 @@ export function useProjectImport() {
         '/api/projects/import',
         {
           method: 'POST',
-          body: { url },
+          body: { url: input },
         },
       )
 
       projectId.value = result.id
 
-      // If server says already ready, navigate immediately
       if (result.status === 'ready') {
         status.value = 'redirecting'
         await navigateTo(`/projects/${result.id}`)
         return { success: true }
       }
 
-      // If in progress (cloning/analyzing), start polling
       if (result.status === 'cloning' || result.status === 'analyzing') {
         status.value = mapServerStatus(result.status)
         startPolling(result.id)
         return { success: true }
       }
 
-      // Error status returned from server
       status.value = 'error'
       errorMessage.value = 'Import returned unexpected status.'
       return { success: false }

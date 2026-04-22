@@ -15,7 +15,7 @@ export default defineI18nLocale(() => ({
   },
   home: {
     title: 'Project River',
-    subtitle: '粘贴 GitHub 仓库 URL，可视化其贡献历史。',
+    subtitle: '粘贴 GitHub URL 或本地路径，可视化其贡献历史。',
     subtitleStatic: '交互式 Git 贡献历史可视化演示。',
     featureStreamgraph: '河流图可视化',
     featureStreamgraphDesc: '以 Streamgraph 形式展示贡献历史，直观感受代码流动的节奏与演变。',
@@ -25,13 +25,13 @@ export default defineI18nLocale(() => ({
     featureHealthDesc: '自动检测贡献集中度、活跃度下降等风险，提前发现项目隐患。',
     footer: 'Git 历史可视化工具',
     viewDemo: '查看示例',
-    placeholder: 'https://github.com/owner/repo',
+    placeholder: 'GitHub URL 或本地仓库路径',
     import: '导入',
     projects: '项目',
     projectsLabel: '仓库',
     projectCount: '{count} 个项目',
     noProjects: '暂无项目',
-    noProjectsHint: '在上方粘贴 GitHub URL 开始使用。',
+    noProjectsHint: '在上方粘贴 GitHub URL 或本地路径开始使用。',
     loadingProjects: '正在加载项目...',
     tagline: 'Git 贡献分析',
     statCommits: '累计提交',
@@ -41,6 +41,7 @@ export default defineI18nLocale(() => ({
     statHealthScore: '健康度评分',
     featuresLabel: '核心能力',
     featuresTitle: '从代码历史中提取洞察',
+    dataFromProject: '数据来自',
   },
   project: {
     loadingProject: '正在加载项目...',
@@ -98,6 +99,22 @@ export default defineI18nLocale(() => ({
     generic: {
       title: '错误',
       hint: '{detail}',
+    },
+    pathNotFound: {
+      title: '路径未找到',
+      hint: '请检查路径是否正确，确保目录存在。',
+    },
+    pathNotGitRepo: {
+      title: '不是 Git 仓库',
+      hint: '指定的路径不是一个有效的 Git 仓库（缺少 .git 目录）。',
+    },
+    pathPermissionDenied: {
+      title: '权限不足',
+      hint: '无法读取该路径，请检查文件系统权限。',
+    },
+    pathInvalid: {
+      title: '路径无效',
+      hint: '请输入有效的本地路径。',
     },
   },
   health: {

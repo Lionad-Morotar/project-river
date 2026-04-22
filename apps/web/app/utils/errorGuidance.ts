@@ -21,5 +21,14 @@ export function getErrorGuidance(errorMessage: string | null | undefined): Error
     return { title: 'error.analysisFailed.title', hint: 'error.analysisFailed.hint', hintParams: { detail: errorMessage.replace('ANALYSIS_FAILED: ', '') } }
   if (errorMessage.startsWith('ANALYSIS_TIMEOUT'))
     return { title: 'error.analysisTimeout.title', hint: 'error.analysisTimeout.hint' }
+  // 本地路径错误
+  if (errorMessage.startsWith('PATH_NOT_FOUND'))
+    return { title: 'error.pathNotFound.title', hint: 'error.pathNotFound.hint' }
+  if (errorMessage.startsWith('PATH_NOT_GIT_REPO'))
+    return { title: 'error.pathNotGitRepo.title', hint: 'error.pathNotGitRepo.hint' }
+  if (errorMessage.startsWith('PATH_PERMISSION_DENIED'))
+    return { title: 'error.pathPermissionDenied.title', hint: 'error.pathPermissionDenied.hint' }
+  if (errorMessage.startsWith('PATH_INVALID'))
+    return { title: 'error.pathInvalid.title', hint: 'error.pathInvalid.hint' }
   return { title: 'error.generic.title', hint: 'error.generic.hint', hintParams: { detail: errorMessage } }
 }

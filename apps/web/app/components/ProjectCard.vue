@@ -65,6 +65,13 @@ const isInProgress = computed(() =>
   props.project.status === 'cloning' || props.project.status === 'analyzing',
 )
 
+/** 本地项目显示目录名（name），GitHub 项目显示 fullName */
+const displayName = computed(() => {
+  if (props.project.fullName?.startsWith('local:'))
+    return props.project.name
+  return props.project.fullName || props.project.name
+})
+
 async function handleDelete() {
   deleteDialogOpen.value = false
   if (isDeleting.value)
@@ -84,17 +91,24 @@ async function handleReanalyze() {
 
 <template>
   <div
-    class="group relative rounded-lg border border-default bg-muted p-4 transition-colors hover:border-accented hover:bg-elevated/60"
+    class="group relative overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md transition-all duration-300 hover:border-accented/50"
+    style="box-shadow: var(--glass-inner), 0 10px 40px rgba(0,0,0,0.22);"
   >
+    <!-- Top glow line -->
+    <div
+      class="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent"
+      style="box-shadow: 0 1px 12px rgba(100,200,255,0.25);"
+    />
+
     <!-- Clickable area for navigation -->
     <NuxtLink
       :to="`/projects/${project.id}`"
-      class="block"
+      class="relative z-10 block p-6"
     >
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0 flex-1">
           <h3 class="truncate text-sm font-medium text-highlighted">
-            {{ project.fullName || project.name }}
+            {{ displayName }}
           </h3>
           <p
             v-if="project.fullName && project.name !== project.fullName"
@@ -135,7 +149,7 @@ async function handleReanalyze() {
     <!-- Action buttons — visible on hover (hidden in static mode) -->
     <div
       v-if="!staticMode"
-      class="mt-3 flex items-center gap-2 border-t border-default pt-3 opacity-0 transition-opacity group-hover:opacity-100"
+      class="relative z-10 mt-3 flex items-center gap-2 border-t border-[var(--glass-border)] pt-3 opacity-0 transition-opacity group-hover:opacity-100"
     >
       <UButton
         size="xs"
@@ -163,7 +177,7 @@ async function handleReanalyze() {
       v-if="!staticMode"
       v-model:open="deleteDialogOpen"
       :title="$t('dialog.deleteTitle')"
-      :description="$t('dialog.deleteDescription', { name: project.fullName || project.name })"
+      :description="$t('dialog.deleteDescription', { name: displayName })"
       :confirm-label="$t('common.delete')"
       confirm-color="error"
       :loading="isDeleting"
@@ -173,7 +187,7 @@ async function handleReanalyze() {
       v-if="!staticMode"
       v-model:open="reanalyzeDialogOpen"
       :title="$t('dialog.reanalyzeTitle')"
-      :description="$t('dialog.reanalyzeDescription', { name: project.fullName || project.name })"
+      :description="$t('dialog.reanalyzeDescription', { name: displayName })"
       :confirm-label="$t('common.reanalyze')"
       confirm-color="warning"
       :loading="isReanalyzing"

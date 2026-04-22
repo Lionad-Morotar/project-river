@@ -3,7 +3,7 @@ import { projects } from '@project-river/db/schema'
 import { eq } from 'drizzle-orm'
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
 import { z } from 'zod'
-import { reanalyzeProject } from '../../../utils/importProject'
+import { importLocalProject, reanalyzeProject } from '../../../utils/importProject'
 
 const reanalyzeBodySchema = z.object({
   force: z.boolean().default(false),
@@ -20,6 +20,7 @@ export default defineEventHandler(async (event) => {
     .select({
       id: projects.id,
       fullName: projects.fullName,
+      path: projects.path,
       status: projects.status,
     })
     .from(projects)
@@ -56,6 +57,28 @@ export default defineEventHandler(async (event) => {
 
   const { force } = parsed.data
 
+  // --- 本地项目重分析分支 ---
+  if (project.fullName?.startsWith('local:')) {
+    if (!project.path) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'Local project does not have a valid path.',
+      })
+    }
+
+    await db
+      .update(projects)
+      .set({ status: 'analyzing', errorMessage: null })
+      .where(eq(projects.id, projectId))
+
+    importLocalProject(projectId, project.path).catch((err: unknown) => {
+      console.error(`[reanalyze.post] Unhandled local re-analyze error for project ${projectId}:`, err)
+    })
+
+    return { id: projectId, status: 'analyzing' }
+  }
+
+  // --- GitHub 项目重分析（原有逻辑） ---
   // Parse owner/repo from fullName
   const [owner, repo] = project.fullName.split('/')
   if (!owner || !repo) {

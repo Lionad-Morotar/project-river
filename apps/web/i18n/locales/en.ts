@@ -15,7 +15,7 @@ export default defineI18nLocale(() => ({
   },
   home: {
     title: 'Project River',
-    subtitle: 'Paste a GitHub repository URL to visualize its contribution history.',
+    subtitle: 'Paste a GitHub URL or local path to visualize its contribution history.',
     subtitleStatic: 'Interactive Git contribution history visualization demo.',
     featureStreamgraph: 'Streamgraph Visualization',
     featureStreamgraphDesc: 'View contribution history as a flowing streamgraph, revealing the rhythm and evolution of your codebase.',
@@ -25,13 +25,13 @@ export default defineI18nLocale(() => ({
     featureHealthDesc: 'Automatically detect risks like contribution concentration and activity drops before they become problems.',
     footer: 'Git history visualization',
     viewDemo: 'View Demo',
-    placeholder: 'https://github.com/owner/repo',
+    placeholder: 'GitHub URL or local repo path',
     import: 'Import',
     projects: 'Projects',
     projectsLabel: 'Repositories',
     projectCount: '{count} project | {count} projects',
     noProjects: 'No projects yet.',
-    noProjectsHint: 'Paste a GitHub URL above to get started.',
+    noProjectsHint: 'Paste a GitHub URL or local path above to get started.',
     loadingProjects: 'Loading projects...',
     tagline: 'Git Contribution Analytics',
     statCommits: 'Total Commits',
@@ -41,6 +41,7 @@ export default defineI18nLocale(() => ({
     statHealthScore: 'Health Score',
     featuresLabel: 'Capabilities',
     featuresTitle: 'Extract insights from code history',
+    dataFromProject: 'Data from',
   },
   project: {
     loadingProject: 'Loading project...',
@@ -98,6 +99,22 @@ export default defineI18nLocale(() => ({
     generic: {
       title: 'Error',
       hint: '{detail}',
+    },
+    pathNotFound: {
+      title: 'Path not found',
+      hint: 'Check the path and make sure the directory exists.',
+    },
+    pathNotGitRepo: {
+      title: 'Not a Git repository',
+      hint: 'The specified path is not a valid Git repository (missing .git directory).',
+    },
+    pathPermissionDenied: {
+      title: 'Permission denied',
+      hint: 'Cannot read the path. Check filesystem permissions.',
+    },
+    pathInvalid: {
+      title: 'Invalid path',
+      hint: 'Enter a valid local path.',
     },
   },
   health: {
