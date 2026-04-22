@@ -82,20 +82,20 @@ const formattedDate = computed(() => {
           {{ linesAdded + linesDeleted }}
         </div>
       </div>
+      <div v-if="totalCommits !== undefined">
+        <div class="text-dimmed">
+          {{ $t(granularity === 'month' ? 'tooltip.monthTotal' : granularity === 'week' ? 'tooltip.weekTotal' : 'tooltip.dayTotal') }}
+        </div>
+        <div class="text-default font-medium">
+          {{ totalCommits }}
+        </div>
+      </div>
       <div>
         <div class="text-dimmed">
           {{ $t('tooltip.filesChanged') }}
         </div>
         <div class="text-default font-medium">
           {{ filesTouched }}
-        </div>
-      </div>
-      <div v-if="totalCommits !== undefined">
-        <div class="text-dimmed">
-          {{ $t('tooltip.dayTotal') }}
-        </div>
-        <div class="text-default font-medium">
-          {{ totalCommits }}
         </div>
       </div>
     </div>

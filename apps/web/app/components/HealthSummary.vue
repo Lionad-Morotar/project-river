@@ -36,7 +36,7 @@ const severityConfig = {
       </span>
       <!-- Tooltip on hover -->
       <span
-        class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-nowrap rounded-md border border-accented bg-muted px-3 py-1.5 text-xs text-toned opacity-0 shadow-md transition-opacity group-hover:opacity-100"
+        class="pointer-events-none absolute bottom-full left-0 z-50 mb-2 whitespace-nowrap rounded-md border border-accented bg-muted px-3 py-1.5 text-xs text-toned opacity-0 shadow-md transition-opacity group-hover:opacity-100"
       >
         {{ signal.evidenceParams ? $t(signal.evidence, signal.evidenceParams) : $t(signal.evidence) }}
       </span>
