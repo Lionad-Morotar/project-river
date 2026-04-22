@@ -417,6 +417,12 @@ function initSvg() {
     .attr('height', marginTop + chartHeight)
   clipRectSelection = clipRect
 
+  // X-axis group (at svg root, before gChart so layers paint over it)
+  gXAxisSelection = svg.append('g')
+    .attr('class', 'x-axis')
+    .attr('transform', `translate(0,${marginTop + chartHeight})`)
+  gXAxisEl = gXAxisSelection.node() as SVGGElement
+
   // Chart group (clipped)
   gChartSelection = svg.append('g')
     .attr('clip-path', 'url(#clip)')
@@ -454,6 +460,7 @@ function initSvg() {
     .attr('y', 0)
     .attr('width', svgWidth.value)
     .attr('height', svgHeight.value)
+  // River layers (inside gChart, on top of x-axis, covering it)
   gChartSelection.append('g')
     .attr('class', 'layers')
     .attr('clip-path', 'url(#layers-reveal)')
@@ -494,12 +501,6 @@ function initSvg() {
     .style('pointer-events', 'none')
     .style('opacity', 0)
   hoverHighlightEl = gChartSelection.select('.hover-highlight')
-
-  // X-axis group
-  gXAxisSelection = svg.append('g')
-    .attr('class', 'x-axis')
-    .attr('transform', `translate(0,${marginTop + chartHeight})`)
-  gXAxisEl = gXAxisSelection.node() as SVGGElement
 
   // Y-axis grid (tick lines across chart)
   gYAxisGridSelection = svg.append('g')
