@@ -161,12 +161,6 @@ onMounted(() => {
   else {
     projectsLoading.value = false
   }
-  window.addEventListener('scroll', handleNavScroll, { passive: true })
-  handleNavScroll()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('scroll', handleNavScroll)
 })
 
 /** Submit URL for import */
@@ -198,8 +192,6 @@ watch(isImportActive, (active) => {
   else
     window.removeEventListener('beforeunload', beforeUnloadHandler)
 })
-
-/* -- Nav visibility: hide during hero, show after hero scrolls out -- */
 </script>
 
 <template>
