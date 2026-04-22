@@ -20,19 +20,19 @@ onMounted(() => {
 
 <template>
   <div
-    class="group relative overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02] p-5 transition-all duration-700 backdrop-blur-xl dark:border-white/[0.08] dark:bg-white/[0.03]"
+    class="group relative overflow-hidden rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] p-5 transition-all duration-700 backdrop-blur-xl"
     :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
-    style="box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 24px rgba(0,0,0,0.08);"
+    style="box-shadow: var(--glass-inner), 0 4px 24px rgba(0,0,0,0.12);"
   >
     <!-- Top glow accent line — liquid refraction edge -->
     <div
-      class="absolute top-0 left-3 right-3 h-px bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent dark:via-cyan-300/25"
-      style="box-shadow: 0 1px 6px rgba(100,200,255,0.15);"
+      class="absolute top-0 left-3 right-3 h-px bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent"
+      style="box-shadow: 0 1px 8px rgba(100,200,255,0.25);"
     />
 
     <!-- Subtle inner gradient for depth -->
     <div
-      class="absolute inset-0 rounded-xl bg-gradient-to-br from-white/[0.04] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 dark:from-white/[0.03]"
+      class="absolute inset-0 rounded-xl bg-gradient-to-br from-white/[0.06] to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100 dark:from-white/[0.05]"
     />
 
     <div class="relative z-10 flex items-baseline gap-1.5">
