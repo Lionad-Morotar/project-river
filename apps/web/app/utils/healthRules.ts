@@ -105,5 +105,19 @@ export function evaluateHealthRules(stats: HealthStatsInput): HealthSignal[] {
     })
   }
 
+  // Rule 6: Project archived — last commit > 365 days ago
+  if (stats.daysSinceLastCommit !== null && stats.daysSinceLastCommit > 365) {
+    signals.push({
+      id: 'project-archived',
+      label: 'health.projectArchived',
+      severity: 'warning',
+      evidence: 'health.projectArchivedEvidence',
+      evidenceParams: {
+        lastDate: stats.lastDate ?? '',
+        daysSilent: String(stats.daysSinceLastCommit),
+      },
+    })
+  }
+
   return signals
 }

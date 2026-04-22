@@ -17,8 +17,8 @@ import { useContributorColors } from '~/composables/useContributorColors'
 import { useProjectData } from '~/composables/useProjectData'
 import { useProjectEvents } from '~/composables/useProjectEvents'
 import { useProjectStats } from '~/composables/useProjectStats'
-import { applyTopN, useStreamgraphData } from '~/composables/useStreamgraphData'
-import { aggregateRows } from '~/utils/d3Helpers'
+import { applyTopN, TOP_N_MAX, useStreamgraphData } from '~/composables/useStreamgraphData'
+import { aggregateRows, toWeekKey } from '~/utils/d3Helpers'
 import { getAllContributorsFromDaily, getMonthContributorsFromDaily, getRangeContributors } from '~/utils/monthDetailHelpers'
 import { yearToRange } from '~/utils/periodHelpers'
 import { downloadStreamgraphSvg } from '~/utils/svgExport'
@@ -115,13 +115,14 @@ const granularity = ref<Granularity>('month')
 
 // -- Top-N contributor count --
 const topN = ref(10) // will be overridden by autoDefaultTopN
-const topNOptions = [5, 10, 15, 20] as const
+const topNOptions = [5, 15, 25, 35] as const
 const topNSelectOpen = ref(false)
 const topNCustomMode = ref(false)
 const topNCustomInput = ref('')
+const topMax = TOP_N_MAX
 
 function selectTopN(n: number) {
-  topN.value = Math.max(1, Math.min(50, n))
+  topN.value = Math.max(1, Math.min(topMax, n))
   topNSelectOpen.value = false
   topNCustomMode.value = false
 }
@@ -130,14 +131,14 @@ function applyCustomTopN() {
   const v = Number.parseInt(topNCustomInput.value, 10)
   if (!Number.isFinite(v) || v <= 0)
     return
-  topN.value = Math.max(1, Math.min(50, v))
+  topN.value = Math.max(1, Math.min(topMax, v))
   topNSelectOpen.value = false
 }
 
 // -- Derived data --
 const streamgraphData = computed(() => useStreamgraphData(dailyData.value as DailyRow[]).filteredRows)
 
-// Auto-calculate default topN: keep adding top contributors until ≥80% of total commits
+// Auto-calculate default topN: keep adding top contributors until ≥95% of total commits
 const autoDefaultTopN = computed(() => {
   const rows = streamgraphData.value
   if (rows.length === 0)
@@ -151,14 +152,14 @@ const autoDefaultTopN = computed(() => {
   if (grandTotal === 0)
     return 10
   const sorted = [...totals.entries()].sort((a, b) => b[1] - a[1])
-  const threshold = grandTotal * 0.8
+  const threshold = grandTotal * 0.95
   let cumulative = 0
   for (let i = 0; i < sorted.length; i++) {
     cumulative += sorted[i]![1]
     if (cumulative >= threshold)
-      return Math.max(1, Math.min(50, i + 1))
+      return Math.max(1, Math.min(topMax - 1, i + 1))
   }
-  return Math.min(50, sorted.length)
+  return Math.min(topMax - 1, sorted.length)
 })
 watch(autoDefaultTopN, (n) => {
   topN.value = n
@@ -334,12 +335,21 @@ const eventTypeCounts = computed(() => {
 })
 
 // All events as chart markers — selected ones visible, rest hidden but available for panel hover
+// Snap dates to match current granularity so markers stay within the clip rect
 const allEventMarkers = computed(() => {
   const selectedIds = new Set(markerEvents.value.map(e => e.id))
+  const g = granularity.value
+  const snapDate = (d: string): string => {
+    if (g === 'month')
+      return `${d.substring(0, 7)}-01`
+    if (g === 'week')
+      return toWeekKey(d)
+    return d
+  }
   return projectEvents.value
     .map(e => ({
       id: e.id,
-      date: e.date,
+      date: snapDate(e.date),
       priority: e.priority,
       severity: e.severity,
       selected: selectedIds.has(e.id),
@@ -370,7 +380,10 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
   }
   const event = projectEvents.value.find(e => e.id === marker.id) || null
   markerTooltip.event = event
-  markerTooltip.x = pointerEvent.clientX + 12
+  // Prevent right overflow: if tooltip would exceed viewport, position to the left
+  const estimatedWidth = 280
+  const x = pointerEvent.clientX + 12
+  markerTooltip.x = x + estimatedWidth > window.innerWidth ? pointerEvent.clientX - estimatedWidth - 8 : x
   markerTooltip.y = pointerEvent.clientY - 12
   markerTooltip.visible = true
 }
@@ -699,13 +712,13 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
                 </button>
                 <div class="my-1 border-default border-t" />
                 <div class="px-3 py-1">
-                  <div class="flex items-center gap-1.5">
+                  <div class="flex justify-between items-center gap-1.5">
                     <input
                       v-model="topNCustomInput"
                       type="number"
                       min="1"
-                      max="49"
-                      class="bg-default px-1.5 py-1 border border-default rounded focus:outline-none focus:ring-1 focus:ring-accented w-14 tabular-nums text-default text-xs"
+                      :max="topMax - 1"
+                      class="flex-1 px-1.5 py-1 border border-default rounded focus:outline-none focus:ring-1 focus:ring-accented w-14 tabular-nums text-default text-xs g-default"
                       :placeholder="$t('topN.custom')"
                       @keyup.enter="applyCustomTopN()"
                       @click.stop

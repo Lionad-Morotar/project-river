@@ -112,12 +112,16 @@ export default defineI18nLocale(() => ({
     sustainedActivity: '持续活跃',
     sustainedActivityEvidenceToday: '最近一天内有提交',
     sustainedActivityEvidence: '最近提交于 {days} 天前',
+    projectArchived: '项目归档',
+    projectArchivedEvidence: '最后提交于 {lastDate}，已静默 {daysSilent} 天',
   },
   tooltip: {
-    commits: '提交',
+    commits: '作者提交',
     linesChanged: '变更行数',
     filesChanged: '变更文件',
-    dayTotal: '当日总计',
+    dayTotal: '当日总提交',
+    weekTotal: '当周总提交',
+    monthTotal: '当月总提交',
   },
   granularity: {
     label: '粒度',
@@ -171,7 +175,7 @@ export default defineI18nLocale(() => ({
     contributors: '贡献者',
     noContributorData: '暂无贡献者数据',
     noContributorDataHint: '该项目尚无贡献者数据。请重新导入项目以填充统计信息。',
-    yearly: '年度',
+    yearly: '区间',
     total: '总计',
   },
   events: {
@@ -183,6 +187,7 @@ export default defineI18nLocale(() => ({
       activity_drop: '活动量骤降',
       major_refactor: '大规模重构',
       commit_milestone: '提交里程碑',
+      project_archived: '项目归档',
     },
     desc: {
       project_start: '首次提交于 {date}',
@@ -192,6 +197,7 @@ export default defineI18nLocale(() => ({
       activity_drop: '连续 {days} 天提交低于均值',
       major_refactor: '单日删除 {lines} 行代码',
       commit_milestone: '累计提交突破 {threshold}',
+      project_archived: '最后提交于 {lastDate}，已静默 {daysSilent} 天',
     },
     group: {
       contributors: '人员变动',

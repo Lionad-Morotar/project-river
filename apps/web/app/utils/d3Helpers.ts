@@ -58,7 +58,7 @@ export function buildStack(contributors: string[], data: PivotedRow[]) {
 export type Granularity = 'day' | 'week' | 'month'
 
 /** Get the ISO week Monday date for a given date string */
-function toWeekKey(dateStr: string): string {
+export function toWeekKey(dateStr: string): string {
   const d = new Date(dateStr)
   const day = d.getUTCDay()
   const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1)

@@ -112,12 +112,16 @@ export default defineI18nLocale(() => ({
     sustainedActivity: 'Sustained activity',
     sustainedActivityEvidenceToday: 'Committed in the last day',
     sustainedActivityEvidence: 'Last commit {days} days ago',
+    projectArchived: 'Project archived',
+    projectArchivedEvidence: 'Last commit on {lastDate}, silent for {daysSilent} days',
   },
   tooltip: {
-    commits: 'Commits',
+    commits: 'Author commits',
     linesChanged: 'Lines changed',
     filesChanged: 'Files changed',
     dayTotal: 'Day total',
+    weekTotal: 'Week total',
+    monthTotal: 'Month total',
   },
   granularity: {
     label: 'Granularity',
@@ -171,7 +175,7 @@ export default defineI18nLocale(() => ({
     contributors: 'Contributors',
     noContributorData: 'No contributor data yet',
     noContributorDataHint: 'There is no contributor data for this project yet. Re-import the project to populate statistics.',
-    yearly: 'Yearly',
+    yearly: 'Range',
     total: 'Total',
   },
   events: {
@@ -183,6 +187,7 @@ export default defineI18nLocale(() => ({
       activity_drop: 'Activity Drop',
       major_refactor: 'Major Refactor',
       commit_milestone: 'Commit Milestone',
+      project_archived: 'Project Archived',
     },
     desc: {
       project_start: 'First commit on {date}',
@@ -192,6 +197,7 @@ export default defineI18nLocale(() => ({
       activity_drop: 'Low activity for {days} consecutive days',
       major_refactor: '{lines} lines deleted in one day',
       commit_milestone: 'Passed {threshold} total commits',
+      project_archived: 'Last commit on {lastDate}, silent for {daysSilent} days',
     },
     group: {
       contributors: 'Contributors',
