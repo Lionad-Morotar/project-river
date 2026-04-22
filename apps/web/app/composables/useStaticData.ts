@@ -16,25 +16,70 @@ export interface StaticProjectMeta {
   createdAt: string
 }
 
-export interface StaticProjectBundle {
+/** Per-project data bundle */
+export interface ProjectDataBundle {
   project: StaticProjectMeta
   daily: DailyRow[]
   monthly: MonthlyRow[]
   health: { signals: HealthSignal[] }
 }
 
-const BUNDLE_PATH = '/data/demo.bin'
+/** Multi-project static bundle */
+export interface StaticDataBundle {
+  version: 1
+  projects: readonly ProjectDataBundle[]
+}
+
+// Relative path so new URL() resolves against baseURL correctly
+const BUNDLE_PATH = 'data/demo.bin'
 
 // Singleton — load once per session
-let cachedBundle: StaticProjectBundle | null = null
-let loadPromise: Promise<StaticProjectBundle> | null = null
+let cachedBundle: StaticDataBundle | null = null
+let loadPromise: Promise<StaticDataBundle> | null = null
+
+/** Lookup a project by its database ID */
+export function getProjectById(bundle: Readonly<StaticDataBundle>, projectId: number): ProjectDataBundle | undefined {
+  return bundle.projects.find(p => p.project.id === projectId)
+}
+
+/** Get all project metadata for listing */
+export function getAllProjectMeta(bundle: StaticDataBundle): StaticProjectMeta[] {
+  return bundle.projects.map(p => p.project)
+}
+
+/** Convert object-of-arrays back to array-of-objects */
+function fromColumnar(col: Record<string, any[]>): any[] {
+  const keys = Object.keys(col)
+  if (keys.length === 0)
+    return []
+  const len = col[keys[0]!]!.length
+  const rows: any[] = Array.from({ length: len })
+  for (let i = 0; i < len; i++) {
+    const row: Record<string, any> = {}
+    for (const k of keys)
+      row[k] = col[k]![i]
+    rows[i] = row
+  }
+  return rows
+}
+
+/** Convert columnar bundle (v2) to row-based StaticDataBundle */
+function normalizeBundle(raw: any): StaticDataBundle {
+  const projects = raw.projects.map((p: any) => ({
+    project: p.project,
+    daily: fromColumnar(p.daily),
+    monthly: fromColumnar(p.monthly),
+    health: p.health,
+  }))
+  return { version: 1, projects }
+}
 
 export function useStaticData() {
-  const bundle = ref<StaticProjectBundle | null>(cachedBundle)
+  const bundle = ref<StaticDataBundle | null>(cachedBundle)
   const loading = ref(bundle.value === null)
   const error = ref<string | null>(null)
 
-  async function load(): Promise<StaticProjectBundle> {
+  async function load(): Promise<StaticDataBundle> {
     if (cachedBundle)
       return cachedBundle
 
@@ -51,7 +96,8 @@ export function useStaticData() {
 
       const compressed = new Uint8Array(await response.arrayBuffer())
       const json = pako.inflate(compressed, { to: 'string' })
-      const data = JSON.parse(json) as StaticProjectBundle
+      const raw = JSON.parse(json)
+      const data = normalizeBundle(raw)
       cachedBundle = data
       return data
     })()
@@ -67,7 +113,7 @@ export function useStaticData() {
       loading.value = false
     }
 
-    return loadPromise as Promise<StaticProjectBundle>
+    return loadPromise as Promise<StaticDataBundle>
   }
 
   if (!bundle.value && !loadPromise) {
