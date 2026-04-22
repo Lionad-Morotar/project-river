@@ -79,17 +79,16 @@ function toggleLocale() {
 // -- Static mode: use pre-built demo data --
 const { bundle: staticBundle, loading: staticLoading } = useStaticData()
 
-const demoProject = computed<Project | null>(() => {
+const demoProjects = computed<Project[]>(() => {
   if (!staticBundle.value)
-    return null
-  const p = staticBundle.value.project
-  return {
-    id: p.id,
-    name: p.name,
-    fullName: p.fullName,
-    status: p.status,
-    lastAnalyzedAt: p.lastAnalyzedAt ? new Date(p.lastAnalyzedAt) : null,
-  }
+    return []
+  return staticBundle.value.projects.map(p => ({
+    id: p.project.id,
+    name: p.project.name,
+    fullName: p.project.fullName,
+    status: p.project.status,
+    lastAnalyzedAt: p.project.lastAnalyzedAt ? new Date(p.project.lastAnalyzedAt) : null,
+  }))
 })
 
 /** Fetch project list */
@@ -115,6 +114,12 @@ onMounted(() => {
   else {
     projectsLoading.value = false
   }
+  window.addEventListener('scroll', handleNavScroll, { passive: true })
+  handleNavScroll()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleNavScroll)
 })
 
 /** Submit URL for import */
@@ -156,38 +161,143 @@ async function handleDelete(projectId: number) {
 /** Get human-friendly error guidance based on error prefix */
 const errorGuidance = computed(() => getErrorGuidance(importError.value))
 
-// Demo stats for static mode or empty state
-const demoStats = [
-  { value: 12473, labelKey: 'home.statCommits', suffix: '' },
-  { value: 847, labelKey: 'home.statContributors', suffix: '' },
-  { value: 2.4, labelKey: 'home.statYears', suffix: 'yr', decimals: 1 },
-  { value: 156, labelKey: 'home.statFiles', suffix: '' },
-]
+// ── Atom project data for landing page showcase ──
+const atomBundle = computed(() =>
+  staticBundle.value?.projects.find(p => p.project.fullName === 'atom/atom'),
+)
+const atomDailyData = computed(() => atomBundle.value?.daily ?? [])
+const atomHealthSignals = computed(() => atomBundle.value?.health.signals ?? [])
+
+/** Top 5 contributors by total commits from atom project */
+const atomTopContributors = computed(() => {
+  const daily = atomDailyData.value
+  if (daily.length === 0)
+    return []
+  const map = new Map<string, number>()
+  for (const d of daily)
+    map.set(d.contributor, (map.get(d.contributor) ?? 0) + d.commits)
+  return Array.from(map.entries())
+    .map(([name, commits]) => ({ name, commits }))
+    .sort((a, b) => b.commits - a.commits)
+    .slice(0, 5)
+})
+
+/** Aggregate stats from atom project */
+const atomStats = computed(() => {
+  const daily = atomDailyData.value
+  if (daily.length === 0) {
+    return [
+      { value: 0, labelKey: 'home.statCommits', suffix: '+' },
+      { value: 0, labelKey: 'home.statContributors', suffix: '+' },
+      { value: 0, labelKey: 'home.statYears', suffix: 'yr', decimals: 1 },
+      { value: 0, labelKey: 'home.statFiles', suffix: '+' },
+    ]
+  }
+
+  let totalCommits = 0
+  const contributors = new Set<string>()
+  let totalFiles = 0
+  let minDate = daily[0]!.date
+  let maxDate = daily[0]!.date
+
+  for (const d of daily) {
+    totalCommits += d.commits
+    contributors.add(d.contributor)
+    totalFiles += d.filesTouched
+    if (d.date < minDate)
+      minDate = d.date
+    if (d.date > maxDate)
+      maxDate = d.date
+  }
+
+  const years = (new Date(maxDate).getTime() - new Date(minDate).getTime()) / (365.25 * 86400000)
+
+  return [
+    { value: totalCommits, labelKey: 'home.statCommits', suffix: '+' },
+    { value: contributors.size, labelKey: 'home.statContributors', suffix: '+' },
+    { value: years, labelKey: 'home.statYears', suffix: 'yr', decimals: 1 },
+    { value: totalFiles, labelKey: 'home.statFiles', suffix: '+' },
+  ]
+})
+
+/** Total commits count for the streamgraph overlay */
+const atomTotalCommits = computed(() => {
+  const daily = atomDailyData.value
+  let total = 0
+  for (const d of daily)
+    total += d.commits
+  return total
+})
+
+/** Max commits among top contributors — for bar width calculation */
+const atomMaxContributorCommits = computed(() => {
+  const top = atomTopContributors.value
+  if (top.length === 0)
+    return 1
+  return top[0]!.commits
+})
+
+/** Severity → color mapping for health signals */
+function severityColor(severity: string): string {
+  if (severity === 'positive')
+    return 'emerald'
+  if (severity === 'warning')
+    return 'amber'
+  return 'blue'
+}
+
+/* ─── Import guard: prevent accidental page close during clone/analyze ─── */
+function beforeUnloadHandler(e: BeforeUnloadEvent) {
+  e.preventDefault()
+  e.returnValue = ''
+}
+
+watch(isImportActive, (active) => {
+  if (active)
+    window.addEventListener('beforeunload', beforeUnloadHandler)
+  else
+    window.removeEventListener('beforeunload', beforeUnloadHandler)
+})
+
+/* ─── Nav visibility: hide during hero, show after hero scrolls out ─── */
+const navVisible = ref(false)
+
+function handleNavScroll() {
+  const vh = window.innerHeight
+  const scrollY = window.scrollY
+  // Hysteresis thresholds to prevent flickering
+  if (scrollY > vh * 0.85)
+    navVisible.value = true
+  else if (scrollY < vh * 0.5)
+    navVisible.value = false
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-default flex flex-col relative">
+  <div class="relative flex flex-col bg-default min-h-screen">
     <!-- Full-page Git River background -->
     <GitRiverCanvas />
 
     <!-- Navigation -->
     <nav
-      class="fixed top-0 left-0 right-0 z-50 border-b border-[var(--glass-border)] backdrop-blur-xl" style="background: var(--glass-bg); box-shadow: var(--glass-inner);"
+      class="top-0 right-0 left-0 z-50 fixed backdrop-blur-xl border-[var(--glass-border)] border-b transition-transform duration-300 ease-out"
+      :class="navVisible ? 'translate-y-0' : '-translate-y-full'"
+      style="background: var(--glass-bg); box-shadow: var(--glass-inner);"
     >
-      <div class="max-w-6xl mx-auto px-6 lg:px-10 h-12 flex items-center justify-between">
+      <div class="flex justify-between items-center mx-auto px-6 lg:px-10 max-w-6xl h-12">
         <div class="flex items-center gap-2">
-          <div class="w-5 h-5 rounded-sm bg-accented/20 flex items-center justify-center">
+          <div class="flex justify-center items-center bg-accented/20 rounded-sm w-5 h-5">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M2 12h20" />
               <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
               <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
             </svg>
           </div>
-          <span class="text-sm font-semibold text-highlighted tracking-tight">Project River</span>
+          <span class="font-semibold text-highlighted text-sm tracking-tight">Project River</span>
         </div>
         <div class="flex items-center gap-1">
           <button
-            class="p-1.5 text-muted hover:text-default hover:bg-elevated rounded-md transition-colors"
+            class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
             :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
             @click="toggleTheme"
           >
@@ -227,7 +337,7 @@ const demoStats = [
             </svg>
           </button>
           <button
-            class="px-2 py-1 text-xs font-medium text-muted hover:text-default hover:bg-elevated rounded-md transition-colors"
+            class="hover:bg-elevated px-2 py-1 rounded-md font-medium text-muted hover:text-default text-xs transition-colors"
             @click="toggleLocale"
           >
             {{ locale === 'zh-CN' ? 'EN' : '中' }}
@@ -237,30 +347,36 @@ const demoStats = [
     </nav>
 
     <!-- Hero Section - Fullscreen 100dvh -->
-    <section class="relative min-h-[100dvh] flex items-center overflow-hidden">
+    <section class="relative flex items-center min-h-[100dvh] overflow-hidden">
       <!-- Background overlay for text readability over river -->
-      <div class="absolute inset-0 bg-gradient-to-b from-transparent via-default/25 to-default/60 pointer-events-none" />
+      <div class="absolute inset-0 bg-gradient-to-b from-transparent via-default/30 to-default/80 pointer-events-none" />
 
-      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 py-20">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center">
-          <!-- Left: 55% - Content -->
+      <div class="z-20 relative mx-auto -mt-20 px-6 lg:px-10 py-24 w-full max-w-6xl">
+        <!-- Tagline badge -->
+        <div class="hero-enter hero-enter-1">
+          <div class="inline-flex items-center gap-2 bg-[var(--glass-bg)] backdrop-blur-md px-4 py-1.5 border border-[var(--glass-border)] rounded-full text-dimmed text-xs" style="box-shadow: var(--glass-inner), 0 2px 12px rgba(0,0,0,0.12);">
+            <span class="bg-emerald-400 rounded-full w-1.5 h-1.5 animate-pulse" style="box-shadow: 0 0 6px rgba(52,211,153,0.4);" />
+            {{ $t('home.tagline') }}
+          </div>
+        </div>
+
+        <!-- H1 — massive, Outfit font -->
+        <h1 class="mt-6 font-[Outfit] font-bold text-highlighted text-7xl sm:text-8xl lg:text-9xl leading-[0.9] tracking-tighter hero-enter hero-enter-2 dark:[text-shadow:0_4px_30px_rgba(0,0,0,0.4)]">
+          Project<br>River
+        </h1>
+
+        <!-- Subtitle + Form row -->
+        <div class="items-start gap-8 lg:gap-12 grid grid-cols-1 lg:grid-cols-12 mt-10 lg:mt-12">
+          <!-- Left column: description + CTA -->
           <div class="lg:col-span-7">
-            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md text-xs text-dimmed mb-6" style="box-shadow: var(--glass-inner), 0 2px 12px rgba(0,0,0,0.12);">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" style="box-shadow: 0 0 6px rgba(52,211,153,0.4);" />
-              {{ $t('home.tagline') }}
-            </div>
-
-            <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-highlighted tracking-tighter leading-[1.1] dark:[text-shadow:0_2px_20px_rgba(0,0,0,0.3)]">
-              Project River
-            </h1>
-            <p class="mt-5 text-base text-dimmed max-w-md leading-relaxed">
+            <p class="max-w-md text-dimmed text-lg leading-relaxed hero-enter hero-enter-3">
               {{ isStatic ? $t('home.subtitleStatic') : $t('home.subtitle') }}
             </p>
 
             <!-- URL Input CTA -->
             <form
               v-if="!isStatic"
-              class="mt-8 flex gap-2 max-w-md"
+              class="flex gap-2 mt-8 max-w-md hero-enter hero-enter-3"
               @submit.prevent="handleSubmit"
             >
               <UInput
@@ -290,10 +406,10 @@ const demoStats = [
             </form>
 
             <!-- Static mode CTA -->
-            <div v-else class="mt-8">
+            <div v-else class="mt-8 hero-enter hero-enter-3">
               <NuxtLink
-                :to="demoProject ? `/projects/${demoProject.id}` : '/'"
-                class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]" style="box-shadow: var(--glass-inner), 0 4px 20px rgba(0,0,0,0.18), 0 0 24px rgba(100,180,255,0.10);"
+                :to="demoProjects.length > 0 ? `/projects/${demoProjects[0]!.id}` : '/'"
+                class="inline-flex items-center gap-2 bg-[var(--glass-bg)] backdrop-blur-md px-7 py-3 border border-[var(--glass-border)] rounded-lg font-medium text-sm hover:scale-[1.02] active:scale-[0.98] transition-all duration-300" style="box-shadow: var(--glass-inner), 0 6px 28px rgba(0,0,0,0.22), 0 0 32px rgba(100,180,255,0.12);"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -306,9 +422,9 @@ const demoStats = [
             <!-- Import progress -->
             <div
               v-if="isImportActive"
-              class="mt-4 flex items-center gap-3 text-sm text-dimmed"
+              class="flex items-center gap-3 mt-4 text-dimmed text-sm"
             >
-              <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
+              <span class="inline-block bg-amber-400 rounded-full w-1.5 h-1.5 animate-pulse" />
               {{ stageLabel }}
             </div>
 
@@ -317,24 +433,24 @@ const demoStats = [
               v-if="importStatus === 'error' && (errorGuidance || importError)"
               class="mt-4 max-w-md"
             >
-              <div class="rounded-md border border-red-800/60 bg-red-950/30 p-4">
-                <p class="text-sm font-medium text-red-300">
+              <div class="bg-red-950/30 p-4 border border-red-800/60 rounded-md">
+                <p class="font-medium text-red-300 text-sm">
                   {{ errorGuidance?.title ? $t(errorGuidance.title) : $t('import.failed') }}
                 </p>
                 <p
                   v-if="errorGuidance?.hint"
-                  class="mt-1 text-xs text-red-400/80"
+                  class="mt-1 text-red-400/80 text-xs"
                 >
                   {{ errorGuidance.hintParams ? $t(errorGuidance.hint, errorGuidance.hintParams) : $t(errorGuidance.hint) }}
                 </p>
                 <p
                   v-else-if="importError"
-                  class="mt-1 text-xs text-red-400/80"
+                  class="mt-1 text-red-400/80 text-xs"
                 >
                   {{ importError }}
                 </p>
                 <button
-                  class="mt-3 text-xs text-red-300 underline underline-offset-2 hover:text-red-200"
+                  class="mt-3 text-red-300 hover:text-red-200 text-xs underline underline-offset-2"
                   @click="resetImport"
                 >
                   {{ $t('common.tryAgain') }}
@@ -343,11 +459,16 @@ const demoStats = [
             </div>
           </div>
 
-          <!-- Right: 45% - Stats Grid -->
-          <div class="lg:col-span-5">
-            <div class="grid grid-cols-2 gap-3">
+          <!-- Right column: Stats grid -->
+          <div class="lg:col-span-5 lg:ml-auto hero-enter hero-enter-4">
+            <!-- Project attribution -->
+            <div class="flex items-center gap-2 mb-4">
+              <span class="text-[10px] text-dimmed/50 uppercase tracking-widest">{{ $t('home.dataFromProject') }}</span>
+              <span class="font-mono text-muted text-xs">atom/atom</span>
+            </div>
+            <div class="gap-4 grid grid-cols-2">
               <StatsCard
-                v-for="(stat, i) in demoStats"
+                v-for="(stat, i) in atomStats"
                 :key="stat.labelKey"
                 :value="stat.value"
                 :label="$t(stat.labelKey)"
@@ -362,188 +483,120 @@ const demoStats = [
     </section>
 
     <!-- Flowing section divider -->
-    <div class="relative h-[2px] w-full overflow-hidden">
+    <div class="relative w-full h-[2px] overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--flow-line-base)] to-transparent" />
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent animate-flow" style="background-size: 200% 100%; box-shadow: 0 0 12px rgba(100,200,255,0.15);" />
     </div>
 
-    <!-- Features - Zig-Zag alternating layout -->
+    <!-- Features - Bento Dashboard Preview -->
     <section class="relative">
       <div class="absolute inset-0 bg-gradient-to-b from-default/50 via-default/30 to-default/50 pointer-events-none" />
-      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 py-20">
+      <div class="z-10 relative mx-auto px-6 lg:px-10 py-24 max-w-6xl">
         <!-- Section header -->
-        <div class="mb-14">
-          <p class="text-xs font-medium text-accented uppercase tracking-widest mb-2">
+        <div class="mb-10">
+          <p class="mb-3 font-medium text-accented text-xs uppercase tracking-widest">
             {{ $t('home.featuresLabel') }}
           </p>
-          <h2 class="text-2xl font-bold text-highlighted tracking-tight dark:[text-shadow:0_2px_12px_rgba(0,0,0,0.2)]">
+          <h2 class="font-bold text-highlighted text-3xl tracking-tight dark:[text-shadow:0_2px_12px_rgba(0,0,0,0.2)]">
             {{ $t('home.featuresTitle') }}
           </h2>
         </div>
 
-        <!-- Zig-zag feature rows -->
-        <div class="space-y-20">
-          <!-- Feature 1: Streamgraph -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            <div class="lg:col-span-5">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm" style="box-shadow: var(--glass-inner), 0 2px 8px rgba(0,0,0,0.10);">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 12h20" />
-                    <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
-                    <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
-                  </svg>
-                </div>
-                <span class="text-xs font-medium text-dimmed/60 uppercase tracking-wider tabular-nums">01</span>
+        <!-- Bento grid: 2-row asymmetric layout -->
+        <div class="gap-4 grid grid-cols-1 lg:grid-cols-12">
+          <!-- Row 1: Streamgraph (full width) -->
+          <div class="relative lg:col-span-12 bg-[var(--glass-bg)] backdrop-blur-md border border-[var(--glass-border)] rounded-2xl min-h-[280px] lg:min-h-[360px] overflow-hidden" style="box-shadow: var(--glass-inner), 0 10px 40px rgba(0,0,0,0.22);">
+            <!-- Top glow line -->
+            <div class="top-0 right-6 left-6 absolute bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent h-px" style="box-shadow: 0 1px 12px rgba(100,200,255,0.25);" />
+            <!-- Label badge -->
+            <div class="top-5 left-5 z-10 absolute flex items-center gap-2">
+              <span class="bg-accented rounded-full w-1.5 h-1.5" />
+              <span class="font-medium text-[10px] text-dimmed/70 uppercase tracking-widest">{{ $t('home.featureStreamgraph') }}</span>
+            </div>
+            <!-- Key metric overlay -->
+            <div class="right-5 bottom-5 z-10 absolute flex items-baseline gap-2">
+              <span class="font-bold tabular-nums text-highlighted text-4xl">
+                <AnimatedCounter :target="atomTotalCommits" suffix="+" />
+              </span>
+              <span class="text-dimmed text-xs">{{ $t('home.statCommits') }}</span>
+            </div>
+            <!-- Chart — real atom/atom data -->
+            <HeroStreamgraph :daily-data="atomDailyData" />
+            <!-- Bottom fade -->
+            <div class="absolute inset-0 bg-gradient-to-t from-default/30 to-transparent pointer-events-none" />
+          </div>
+
+          <!-- Row 2: Contributors (7 cols) + Health signals (5 cols) -->
+          <!-- Contributors — real atom/atom data -->
+          <div class="relative lg:col-span-7 bg-[var(--glass-bg)] backdrop-blur-md p-6 border border-[var(--glass-border)] rounded-2xl" style="box-shadow: var(--glass-inner), 0 10px 40px rgba(0,0,0,0.22);">
+            <div class="top-0 right-6 left-6 absolute bg-gradient-to-r from-transparent via-[var(--glow-blue)] to-transparent h-px" style="box-shadow: 0 1px 12px rgba(100,160,255,0.25);" />
+            <!-- Label + stat -->
+            <div class="flex justify-between items-center mb-5">
+              <div class="flex items-center gap-2">
+                <span class="bg-blue-400 rounded-full w-1.5 h-1.5" />
+                <span class="font-medium text-[10px] text-dimmed/70 uppercase tracking-widest">{{ $t('home.featureContributors') }}</span>
               </div>
-              <h3 class="text-lg font-semibold text-highlighted mb-3">
-                {{ $t('home.featureStreamgraph') }}
-              </h3>
-              <p class="text-sm text-dimmed leading-relaxed max-w-sm">
-                {{ $t('home.featureStreamgraphDesc') }}
-              </p>
-              <div class="mt-5 flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-highlighted tabular-nums">
-                  <AnimatedCounter :target="12473" />
+              <div class="flex items-baseline gap-1.5">
+                <span class="font-bold tabular-nums text-highlighted text-2xl">
+                  <AnimatedCounter :target="atomStats[1]?.value ?? 0" suffix="+" />
                 </span>
-                <span class="text-xs text-dimmed">{{ $t('home.statCommits') }}</span>
+                <span class="text-[10px] text-dimmed">{{ $t('home.statContributors') }}</span>
               </div>
             </div>
-            <div class="lg:col-span-7">
-              <div class="relative rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md overflow-hidden aspect-[16/9]" style="box-shadow: var(--glass-inner), 0 8px 32px rgba(0,0,0,0.15);">
-                <div class="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent" style="box-shadow: 0 1px 12px rgba(100,200,255,0.25);" />
-                <HeroStreamgraph />
-                <div class="absolute inset-0 bg-gradient-to-t from-default/40 to-transparent" />
+            <!-- Bar chart — real top 5 contributors -->
+            <div class="space-y-3">
+              <div v-for="contributor in atomTopContributors" :key="contributor.name" class="flex items-center gap-3">
+                <div class="w-20 tabular-nums text-dimmed text-xs text-right truncate">
+                  {{ contributor.name }}
+                </div>
+                <div class="flex-1 border border-slate-300/50 dark:border-white/[0.05] rounded-full h-2 overflow-hidden" style="background: rgba(148,163,184,0.12);">
+                  <div
+                    class="rounded-full h-full"
+                    :style="{ width: `${Math.round(contributor.commits / atomMaxContributorCommits * 100)}%`, background: 'linear-gradient(90deg, rgba(100,180,255,0.4) 0%, rgba(120,200,255,0.5) 100%)' }"
+                  />
+                </div>
+                <div class="w-12 tabular-nums text-muted text-xs text-right">
+                  {{ contributor.commits }}
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Feature 2: Contributors -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            <div class="lg:col-span-7 order-2 lg:order-1">
-              <div class="relative rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md p-6" style="box-shadow: var(--glass-inner), 0 8px 32px rgba(0,0,0,0.15);">
-                <div class="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--glow-blue)] to-transparent" style="box-shadow: 0 1px 12px rgba(100,160,255,0.25);" />
-                <!-- Contributor mini-chart -->
-                <div class="space-y-3">
-                  <div v-for="(name, i) in ['antfu', 'posva', 'yyx990803', 'kiaking', 'danielroe']" :key="name" class="flex items-center gap-3">
-                    <div class="w-20 text-xs text-dimmed text-right truncate">
-                      {{ name }}
-                    </div>
-                    <div class="flex-1 h-2 rounded-full overflow-hidden border border-slate-300/50 dark:border-white/[0.05]" style="background: rgba(148,163,184,0.15); box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);">
-                      <div
-                        class="h-full rounded-full relative"
-                        :style="{ width: `${[38, 24, 18, 12, 8][i]}%`, background: 'linear-gradient(90deg, rgba(100,180,255,0.45) 0%, rgba(120,200,255,0.55) 50%, rgba(100,180,255,0.45) 100%)', boxShadow: '0 0 8px rgba(100,180,255,0.15)' }"
-                      >
-                        <div class="absolute inset-0 rounded-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-                      </div>
-                    </div>
-                    <div class="w-12 text-xs text-muted tabular-nums text-right">
-                      {{ [4738, 2984, 2239, 1493, 995][i] }}
-                    </div>
-                  </div>
-                </div>
+          <!-- Health signals — real atom/atom data -->
+          <div class="relative lg:col-span-5 bg-[var(--glass-bg)] backdrop-blur-md p-6 border border-[var(--glass-border)] rounded-2xl" style="box-shadow: var(--glass-inner), 0 10px 40px rgba(0,0,0,0.22);">
+            <div class="top-0 right-6 left-6 absolute bg-gradient-to-r from-transparent via-[var(--glow-emerald)] to-transparent h-px" style="box-shadow: 0 1px 12px rgba(80,200,120,0.25);" />
+            <!-- Label -->
+            <div class="flex justify-between items-center mb-5">
+              <div class="flex items-center gap-2">
+                <span class="bg-emerald-400 rounded-full w-1.5 h-1.5" />
+                <span class="font-medium text-[10px] text-dimmed/70 uppercase tracking-widest">{{ $t('home.featureHealth') }}</span>
               </div>
             </div>
-            <div class="lg:col-span-5 order-1 lg:order-2">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm" style="box-shadow: var(--glass-inner), 0 2px 8px rgba(0,0,0,0.10);">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                </div>
-                <span class="text-xs font-medium text-dimmed/60 uppercase tracking-wider tabular-nums">02</span>
-              </div>
-              <h3 class="text-lg font-semibold text-highlighted mb-3">
-                {{ $t('home.featureContributors') }}
-              </h3>
-              <p class="text-sm text-dimmed leading-relaxed max-w-sm">
-                {{ $t('home.featureContributorsDesc') }}
-              </p>
-              <div class="mt-5 flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-highlighted tabular-nums">
-                  <AnimatedCounter :target="847" />
-                </span>
-                <span class="text-xs text-dimmed">{{ $t('home.statContributors') }}</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Feature 3: Health -->
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-            <div class="lg:col-span-5">
-              <div class="flex items-center gap-3 mb-4">
-                <div class="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm" style="box-shadow: var(--glass-inner), 0 2px 8px rgba(0,0,0,0.10);">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                  </svg>
-                </div>
-                <span class="text-xs font-medium text-dimmed/60 uppercase tracking-wider tabular-nums">03</span>
-              </div>
-              <h3 class="text-lg font-semibold text-highlighted mb-3">
-                {{ $t('home.featureHealth') }}
-              </h3>
-              <p class="text-sm text-dimmed leading-relaxed max-w-sm">
-                {{ $t('home.featureHealthDesc') }}
-              </p>
-              <div class="mt-5 flex items-baseline gap-2">
-                <span class="text-3xl font-bold text-highlighted tabular-nums">
-                  <AnimatedCounter :target="94" suffix="%" />
-                </span>
-                <span class="text-xs text-dimmed">{{ $t('home.statHealthScore') }}</span>
-              </div>
-            </div>
-            <div class="lg:col-span-7">
-              <div class="relative rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md p-6" style="box-shadow: var(--glass-inner), 0 8px 32px rgba(0,0,0,0.15);">
-                <div class="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-[var(--glow-emerald)] to-transparent" style="box-shadow: 0 1px 12px rgba(80,200,120,0.25);" />
-                <!-- Health signals mini -->
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm transition-all duration-300 hover:scale-[1.01]" style="box-shadow: var(--glass-inner);">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400" style="box-shadow: 0 0 6px rgba(80,200,120,0.4);" />
-                    <div>
-                      <p class="text-xs text-dimmed">
-                        {{ $t('health.sustainedActivity') }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        {{ $t('health.sustainedActivityEvidenceToday') }}
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm transition-all duration-300 hover:scale-[1.01]" style="box-shadow: var(--glass-inner);">
-                    <div class="w-2 h-2 rounded-full bg-amber-400" style="box-shadow: 0 0 6px rgba(250,180,50,0.35);" />
-                    <div>
-                      <p class="text-xs text-dimmed">
-                        {{ $t('health.concentration') }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        Top 3: 38%
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm transition-all duration-300 hover:scale-[1.01]" style="box-shadow: var(--glass-inner);">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400" style="box-shadow: 0 0 6px rgba(80,200,120,0.4);" />
-                    <div>
-                      <p class="text-xs text-dimmed">
-                        {{ $t('health.distributionGrowth') }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        +12% QoQ
-                      </p>
-                    </div>
-                  </div>
-                  <div class="flex items-center gap-3 p-3 rounded-lg border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-sm transition-all duration-300 hover:scale-[1.01]" style="box-shadow: var(--glass-inner);">
-                    <div class="w-2 h-2 rounded-full bg-emerald-400" style="box-shadow: 0 0 6px rgba(80,200,120,0.4);" />
-                    <div>
-                      <p class="text-xs text-dimmed">
-                        {{ $t('health.codeChurn') }}
-                      </p>
-                      <p class="text-xs text-muted">
-                        142 lines/commit
-                      </p>
-                    </div>
-                  </div>
+            <!-- Signal list — real health signals from atom -->
+            <div class="space-y-3">
+              <div v-for="signal in atomHealthSignals" :key="signal.id" class="flex items-center gap-3">
+                <div
+                  class="rounded-full w-2 h-2 shrink-0"
+                  :class="{
+                    'bg-emerald-400': severityColor(signal.severity) === 'emerald',
+                    'bg-amber-400': severityColor(signal.severity) === 'amber',
+                    'bg-blue-400': severityColor(signal.severity) === 'blue',
+                  }"
+                  :style="{
+                    boxShadow: severityColor(signal.severity) === 'emerald'
+                      ? '0 0 6px rgba(80,200,120,0.4)'
+                      : severityColor(signal.severity) === 'amber'
+                        ? '0 0 6px rgba(250,180,50,0.35)'
+                        : '0 0 6px rgba(100,160,255,0.35)',
+                  }"
+                />
+                <div class="min-w-0">
+                  <p class="text-dimmed text-xs truncate">
+                    {{ $t(`health.${signal.id}`) }}
+                  </p>
+                  <p class="text-[10px] text-muted">
+                    {{ signal.evidence }}
+                  </p>
                 </div>
               </div>
             </div>
@@ -553,7 +606,7 @@ const demoStats = [
     </section>
 
     <!-- Flowing section divider -->
-    <div class="relative h-[2px] w-full overflow-hidden">
+    <div class="relative w-full h-[2px] overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--flow-line-base)] to-transparent" />
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--glow-blue)] to-transparent animate-flow" style="background-size: 200% 100%; box-shadow: 0 0 12px rgba(100,160,255,0.15);" />
     </div>
@@ -561,21 +614,21 @@ const demoStats = [
     <!-- Project List Section -->
     <section class="relative flex-1">
       <div class="absolute inset-0 bg-gradient-to-b from-default/50 via-default/30 to-default/50 pointer-events-none" />
-      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10 py-16">
-        <div class="flex items-center justify-between mb-8">
+      <div class="z-10 relative mx-auto px-6 lg:px-10 py-16 max-w-6xl">
+        <div class="flex justify-between items-center mb-8">
           <div>
-            <p class="text-xs font-medium text-accented uppercase tracking-widest mb-2">
+            <p class="mb-3 font-medium text-accented text-xs uppercase tracking-widest">
               {{ $t('home.projectsLabel') }}
             </p>
-            <h2 class="text-2xl font-bold text-highlighted tracking-tight dark:[text-shadow:0_2px_12px_rgba(0,0,0,0.2)]">
+            <h2 class="font-bold text-highlighted text-3xl tracking-tight dark:[text-shadow:0_2px_12px_rgba(0,0,0,0.2)]">
               {{ $t('home.projects') }}
             </h2>
           </div>
           <span
-            v-if="projects.length > 0 || (isStatic && demoProject)"
-            class="text-sm text-muted tabular-nums"
+            v-if="projects.length > 0 || (isStatic && demoProjects.length > 0)"
+            class="tabular-nums text-muted text-sm"
           >
-            {{ isStatic ? $t('home.projectCount', { count: 1 }) : $t('home.projectCount', { count: projects.length }) }}
+            {{ isStatic ? $t('home.projectCount', { count: demoProjects.length }) : $t('home.projectCount', { count: projects.length }) }}
           </span>
         </div>
 
@@ -584,8 +637,8 @@ const demoStats = [
           v-if="projectsLoading || (isStatic && staticLoading)"
           class="py-16 text-center"
         >
-          <div class="inline-flex items-center gap-3 text-sm text-muted">
-            <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-accented" />
+          <div class="inline-flex items-center gap-3 text-muted text-sm">
+            <span class="inline-block bg-accented rounded-full w-1.5 h-1.5 animate-pulse" />
             {{ $t('home.loadingProjects') }}
           </div>
         </div>
@@ -593,21 +646,23 @@ const demoStats = [
         <!-- Projects error -->
         <div
           v-else-if="projectsError"
-          class="rounded-md border border-red-800/60 bg-red-950/30 p-4 text-sm text-red-300"
+          class="bg-red-950/30 p-4 border border-red-800/60 rounded-md text-red-300 text-sm"
         >
           {{ projectsError }}
         </div>
 
-        <!-- Static mode: demo project -->
+        <!-- Static mode: demo projects -->
         <template v-else-if="isStatic">
-          <div v-if="demoProject" class="grid gap-4 sm:grid-cols-2">
+          <div v-if="demoProjects.length > 0" class="gap-4 grid sm:grid-cols-2">
             <ProjectCard
-              :project="demoProject"
+              v-for="project in demoProjects"
+              :key="project.id"
+              :project="project"
               :static-mode="true"
             />
           </div>
-          <div v-else class="rounded-xl border border-dashed border-default py-16 text-center">
-            <p class="text-sm text-dimmed">
+          <div v-else class="py-16 border border-default border-dashed rounded-xl text-center">
+            <p class="text-dimmed text-sm">
               {{ $t('home.noProjects') }}
             </p>
           </div>
@@ -616,12 +671,12 @@ const demoStats = [
         <!-- Empty state -->
         <div
           v-else-if="projects.length === 0"
-          class="rounded-xl border border-dashed border-default bg-muted/20 py-16 text-center"
+          class="bg-muted/20 py-16 border border-default border-dashed rounded-xl text-center"
         >
-          <p class="text-sm text-dimmed">
+          <p class="text-dimmed text-sm">
             {{ $t('home.noProjects') }}
           </p>
-          <p class="mt-1 text-xs text-muted">
+          <p class="mt-1 text-muted text-xs">
             {{ $t('home.noProjectsHint') }}
           </p>
         </div>
@@ -629,7 +684,7 @@ const demoStats = [
         <!-- Project cards grid -->
         <div
           v-else
-          class="grid gap-4 sm:grid-cols-2"
+          class="gap-4 grid sm:grid-cols-2"
         >
           <ProjectCard
             v-for="project in projects"
@@ -643,7 +698,7 @@ const demoStats = [
     </section>
 
     <!-- Flowing section divider -->
-    <div class="relative h-[2px] w-full overflow-hidden">
+    <div class="relative w-full h-[2px] overflow-hidden">
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--flow-line-base)] to-transparent" />
       <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--flow-line-base)] to-transparent animate-flow" style="background-size: 200% 100%; box-shadow: 0 0 12px rgba(255,255,255,0.08);" />
     </div>
@@ -651,19 +706,19 @@ const demoStats = [
     <!-- Footer -->
     <footer class="relative py-8">
       <div class="absolute inset-0 bg-gradient-to-t from-default/80 via-default/50 to-transparent pointer-events-none" />
-      <div class="relative z-10 max-w-6xl mx-auto px-6 lg:px-10">
-        <div class="flex items-center justify-between">
+      <div class="z-10 relative mx-auto px-6 lg:px-10 max-w-6xl">
+        <div class="flex justify-between items-center">
           <div class="flex items-center gap-2">
-            <div class="w-4 h-4 rounded-sm bg-accented/20 flex items-center justify-center">
+            <div class="flex justify-center items-center bg-accented/20 rounded-sm w-4 h-4">
               <svg xmlns="http://www.w3.org/2000/svg" class="w-2.5 h-2.5 text-accented" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M2 12h20" />
                 <path d="M2 12c2-4 4-6 6-6s4 4 6 4 4-4 6-4" />
                 <path d="M2 12c2 4 4 6 6 6s4-4 6-4 4 4 6 4" />
               </svg>
             </div>
-            <span class="text-xs text-muted">Project River</span>
+            <span class="text-muted text-xs">Project River</span>
           </div>
-          <p class="text-xs text-muted">
+          <p class="text-muted text-xs">
             {{ $t('home.footer') }}
           </p>
         </div>
