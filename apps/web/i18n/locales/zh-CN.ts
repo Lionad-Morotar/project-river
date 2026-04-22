@@ -9,6 +9,7 @@ export default defineI18nLocale(() => ({
     github: 'GitHub',
     loading: '加载中...',
     backToProjects: '返回项目列表',
+    home: '首页',
     retry: '重试',
     tryAgain: '请重试',
   },

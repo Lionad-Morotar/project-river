@@ -494,6 +494,16 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
 
           <!-- Theme & locale toggles -->
           <div class="flex items-center gap-1 shrink-0">
+            <NuxtLink
+              to="/"
+              class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
+              :aria-label="t('common.home')"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </NuxtLink>
             <button
               class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
               :aria-label="colorMode.value === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'"
