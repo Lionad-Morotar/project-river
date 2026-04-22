@@ -91,46 +91,46 @@ async function handleReanalyze() {
 
 <template>
   <div
-    class="group relative overflow-hidden rounded-2xl border border-[var(--glass-border)] bg-[var(--glass-bg)] backdrop-blur-md transition-all duration-300 hover:border-accented/50"
+    class="group relative bg-[var(--glass-bg)] backdrop-blur-md border border-[var(--glass-border)] hover:border-accented/50 rounded-2xl overflow-hidden transition-all duration-300"
     style="box-shadow: var(--glass-inner), 0 10px 40px rgba(0,0,0,0.22);"
   >
     <!-- Top glow line -->
     <div
-      class="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent"
+      class="top-0 right-6 left-6 absolute bg-gradient-to-r from-transparent via-[var(--glow-cyan)] to-transparent h-px"
       style="box-shadow: 0 1px 12px rgba(100,200,255,0.25);"
     />
 
     <!-- Clickable area for navigation -->
     <NuxtLink
       :to="`/projects/${project.id}`"
-      class="relative z-10 block p-6"
+      class="block z-10 relative p-6"
     >
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <h3 class="truncate text-sm font-medium text-highlighted">
+      <div class="flex justify-between items-start gap-3">
+        <div class="flex-1 min-w-0">
+          <h3 class="font-medium text-highlighted text-sm truncate">
             {{ displayName }}
           </h3>
           <p
             v-if="project.fullName && project.name !== project.fullName"
-            class="mt-0.5 truncate text-xs text-dimmed"
+            class="mt-0.5 text-dimmed text-xs truncate"
           >
             {{ project.name }}
           </p>
         </div>
 
         <!-- Status indicator -->
-        <div class="flex shrink-0 items-center gap-1.5">
+        <div class="flex items-center gap-1.5 shrink-0">
           <span
             v-if="isInProgress"
-            class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400"
+            class="inline-block bg-amber-400 rounded-full w-1.5 h-1.5 animate-pulse"
           />
           <span
             v-else-if="project.status === 'ready'"
-            class="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
+            class="inline-block bg-emerald-400 rounded-full w-1.5 h-1.5"
           />
           <span
             v-else-if="project.status === 'error'"
-            class="inline-block h-1.5 w-1.5 rounded-full bg-red-400"
+            class="inline-block bg-red-400 rounded-full w-1.5 h-1.5"
           />
           <span class="text-xs" :class="[statusColor]">
             {{ statusLabel }}
@@ -140,7 +140,7 @@ async function handleReanalyze() {
 
       <div
         v-if="formattedDate"
-        class="mt-2 text-xs text-dimmed"
+        class="mt-2 text-dimmed text-xs"
       >
         {{ $t('project.analyzed', { time: formattedDate }) }}
       </div>
@@ -149,7 +149,7 @@ async function handleReanalyze() {
     <!-- Action buttons — visible on hover (hidden in static mode) -->
     <div
       v-if="!staticMode"
-      class="relative z-10 mt-3 flex items-center gap-2 border-t border-[var(--glass-border)] pt-3 opacity-0 transition-opacity group-hover:opacity-100"
+      class="z-10 relative flex items-center gap-2 opacity-0 group-hover:opacity-100 p-3 border-[var(--glass-border)] border-t transition-opacity"
     >
       <UButton
         size="xs"
