@@ -16,7 +16,6 @@ export default defineI18nLocale(() => ({
   home: {
     title: 'Project River',
     subtitle: '从代码流动的节奏中，读懂一个项目的生命力。',
-    subtitleStatic: '交互式 Git 贡献历史可视化演示。',
     viewExample: '项目库',
     featureStreamgraph: '河流图可视化',
     featureStreamgraphDesc: '以 Streamgraph 形式展示贡献历史，直观感受代码流动的节奏与演变。',

@@ -109,7 +109,8 @@ const demoProjectSummaries = computed<ProjectSummary[]>(() => {
     let maxYear = -Infinity
     for (const d of daily) {
       totalCommits += d.commits
-      contributorSet.add(d.contributor)
+      if (!d.contributor.startsWith('Other'))
+        contributorSet.add(d.contributor)
       const y = new Date(d.date).getFullYear()
       if (y < minYear)
         minYear = y
@@ -122,7 +123,7 @@ const demoProjectSummaries = computed<ProjectSummary[]>(() => {
       name: bundle.project.name,
       fullName: bundle.project.fullName,
       commits: totalCommits,
-      contributors: contributorSet.size,
+      contributors: bundle.project.contributorCount ?? contributorSet.size,
       yearSpan,
     }
   })
@@ -200,10 +201,18 @@ watch(isImportActive, (active) => {
         </svg>
       </button>
       <button
-        class="hover:bg-elevated px-2 py-1 rounded-md font-medium text-muted hover:text-default text-xs transition-colors"
+        class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
+        :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换为中文'"
         @click="toggleLocale"
       >
-        {{ locale === 'zh-CN' ? 'EN' : '中' }}
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m5 8 6 6" />
+          <path d="m4 14 6-6 2-3" />
+          <path d="M2 5h12" />
+          <path d="M7 2h1" />
+          <path d="m22 22-5-10-5 10" />
+          <path d="M14 18h6" />
+        </svg>
       </button>
       <!-- Settings -->
       <button
@@ -244,8 +253,8 @@ watch(isImportActive, (active) => {
         <div class="items-start gap-8 lg:gap-12 grid grid-cols-1 lg:grid-cols-12 mt-10 lg:mt-12">
           <!-- Left column: description + CTA -->
           <div class="lg:col-span-7">
-            <p class="inline-flex bg-[color-mix(in_srgb,var(--ui-bg),transparent_30%)] pl-1 text-toned text-lg leading-relaxed hero-enter hero-enter-3">
-              {{ isStatic ? $t('home.subtitleStatic') : $t('home.subtitle') }}
+            <p class="inline-flex bg-[color-mix(in_srgb,var(--ui-bg),transparent_30%)] px-1 text-toned text-lg leading-relaxed hero-enter hero-enter-3">
+              {{ $t('home.subtitle') }}
             </p>
 
             <!-- URL Input + dual-purpose button -->
@@ -308,7 +317,7 @@ watch(isImportActive, (active) => {
 
                 <template #content>
                   <div class="p-6">
-                    <h3 class="font-medium text-highlighted text-lg mb-4">
+                    <h3 class="mb-4 font-medium text-highlighted text-lg">
                       {{ $t('home.selectDemo') }}
                     </h3>
                     <div class="space-y-3">
@@ -316,13 +325,13 @@ watch(isImportActive, (active) => {
                         v-for="p in demoProjectSummaries"
                         :key="p.id"
                         :to="`/projects/${p.id}`"
-                        class="group flex items-center gap-4 bg-[var(--glass-bg)] backdrop-blur-md p-4 border border-[var(--glass-border)] rounded-xl hover:border-accented/50 transition-all duration-300"
+                        class="group flex items-center gap-4 bg-[var(--glass-bg)] backdrop-blur-md p-4 border border-[var(--glass-border)] hover:border-accented/50 rounded-xl transition-all duration-300"
                         style="box-shadow: var(--glass-inner);"
                       >
-                        <span class="inline-block bg-emerald-400 rounded-full w-2 h-2 shrink-0 mt-0.5" />
+                        <span class="inline-block bg-emerald-400 mt-0.5 rounded-full w-2 h-2 shrink-0" />
                         <div class="flex-1 min-w-0">
-                          <span class="font-medium text-highlighted text-sm truncate block">{{ p.fullName || p.name }}</span>
-                          <span class="text-muted text-xs mt-0.5 block">{{ p.commits.toLocaleString() }} commits · {{ p.contributors }} contributors · {{ p.yearSpan }}</span>
+                          <span class="block font-medium text-highlighted text-sm truncate">{{ p.fullName || p.name }}</span>
+                          <span class="block mt-0.5 text-muted text-xs">{{ p.commits.toLocaleString() }} commits · {{ p.contributors }} contributors · {{ p.yearSpan }}</span>
                         </div>
                         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-muted group-hover:text-accented transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                           <path d="M5 12h14" />

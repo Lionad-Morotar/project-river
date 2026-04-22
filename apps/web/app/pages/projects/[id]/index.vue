@@ -98,21 +98,40 @@ const {
 } = useProjectData(projectId)
 
 // -- Stats --
-const { stats, formattedDateRange, recentActivityLabel, recentActivityDotClass } = useProjectStats(dailyData as Ref<DailyRow[]>)
+const { stats, formattedDateRange, recentActivityLabel, recentActivityDotClass } = useProjectStats(dailyData as Ref<DailyRow[]>, projectMeta)
 
 // -- Project selector (ghost dropdown) --
 const projectSelectorOpen = ref(false)
 
+// API 模式下从数据库获取项目列表（static 模式不发起请求）
+const { data: apiProjectList } = useFetch<{ id: number, name: string, fullName: string | null }[]>('/api/projects', {
+  server: false,
+  immediate: !isStatic,
+})
+
+/** 从 fullName 提取显示名称，local: 前缀项目只显示 name */
+function displayLabel(fullName: string | null, name: string) {
+  if (fullName?.startsWith('local:'))
+    return name
+  return fullName || name
+}
+
 const otherProjects = computed(() => {
-  if (!staticBundle.value)
-    return []
   const currentId = Number(projectId)
-  return getAllProjectMeta(staticBundle.value)
-    .filter(p => p.id !== currentId)
-    .map(p => ({
-      id: p.id,
-      label: p.fullName || p.name,
-    }))
+
+  if (isStatic && staticBundle.value) {
+    return getAllProjectMeta(staticBundle.value)
+      .filter(p => p.id !== currentId)
+      .map(p => ({ id: p.id, label: displayLabel(p.fullName, p.name) }))
+  }
+
+  if (!isStatic && apiProjectList.value) {
+    return apiProjectList.value
+      .filter(p => p.id !== currentId)
+      .map(p => ({ id: p.id, label: displayLabel(p.fullName, p.name) }))
+  }
+
+  return []
 })
 
 function selectOtherProject(id: number) {
@@ -581,7 +600,7 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
                   @click="projectSelectorOpen = !projectSelectorOpen"
                 >
                   <h1 class="m-0 p-0 font-semibold text-3xl tracking-tight">
-                    {{ projectMeta?.fullName || projectMeta?.name || projectId }}
+                    {{ displayLabel(projectMeta?.fullName ?? null, projectMeta?.name ?? String(projectId)) }}
                   </h1>
                   <svg xmlns="http://www.w3.org/2000/svg" class="mt-1 w-3.5 h-3.5 text-muted transition-transform duration-150" :class="projectSelectorOpen ? 'rotate-180' : ''" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
                 </button>
@@ -689,10 +708,18 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
               </svg>
             </button>
             <button
-              class="hover:bg-elevated px-2 py-1 rounded-md font-medium text-muted hover:text-default text-xs transition-colors"
+              class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
+              :aria-label="locale === 'zh-CN' ? 'Switch to English' : '切换为中文'"
               @click="toggleLocale"
             >
-              {{ locale === 'zh-CN' ? 'EN' : '中' }}
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m5 8 6 6" />
+                <path d="m4 14 6-6 2-3" />
+                <path d="M2 5h12" />
+                <path d="M7 2h1" />
+                <path d="m22 22-5-10-5 10" />
+                <path d="M14 18h6" />
+              </svg>
             </button>
             <button
               class="hover:bg-elevated p-1.5 rounded-md text-muted hover:text-default transition-colors"
