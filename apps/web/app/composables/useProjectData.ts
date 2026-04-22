@@ -18,6 +18,7 @@ interface ProjectMeta {
   lastAnalyzedAt: string | null
   errorMessage: string | null
   createdAt: string
+  contributorCount: number
 }
 
 const POLL_INTERVAL_MS = 3000

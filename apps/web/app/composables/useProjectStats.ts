@@ -1,10 +1,14 @@
 import type { Ref } from 'vue'
 import type { DailyRow } from '~/utils/d3Helpers'
 import { computed } from 'vue'
+import { OTHERS_LABEL } from './useStreamgraphData'
 
 // -- Composable --
 
-export function useProjectStats(dailyData: Ref<DailyRow[]>) {
+export function useProjectStats(
+  dailyData: Ref<DailyRow[]>,
+  projectMeta?: Ref<{ contributorCount?: number } | null>,
+) {
   const { formatShortDate, formatCompactNumber, formatActivityLabel, activityDotClass } = useLocale()
 
   /** 从 dailyData 派生基础统计 */
@@ -23,7 +27,14 @@ export function useProjectStats(dailyData: Ref<DailyRow[]>) {
     const firstDate = dates[0]!
     const lastDate = dates[dates.length - 1]!
 
-    const uniqueContributors = new Set(dailyData.value.map(d => d.contributor))
+    // 优先使用后端精确的 contributorCount（不受 Top-99 聚合影响）
+    const totalContributors = projectMeta?.value?.contributorCount
+      ?? new Set(
+        dailyData.value
+          .map(d => d.contributor)
+          .filter(name => name !== OTHERS_LABEL),
+      ).size
+
     const totalCommits = dailyData.value.reduce((sum, d) => sum + d.commits, 0)
 
     // 距最后一次提交的天数
@@ -34,7 +45,7 @@ export function useProjectStats(dailyData: Ref<DailyRow[]>) {
     return {
       firstDate,
       lastDate,
-      totalContributors: uniqueContributors.size,
+      totalContributors,
       totalCommits,
       recentDaysSinceLastCommit: daysSinceLastCommit,
     }

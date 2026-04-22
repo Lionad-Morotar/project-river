@@ -14,6 +14,7 @@ export interface StaticProjectMeta {
   lastAnalyzedAt: string | null
   errorMessage: string | null
   createdAt: string
+  contributorCount?: number
 }
 
 /** Per-project data bundle */

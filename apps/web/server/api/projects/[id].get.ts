@@ -1,6 +1,6 @@
 import { db } from '@project-river/db/client'
 import { projects } from '@project-river/db/schema'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { createError, defineEventHandler, getRouterParam } from 'h3'
 
 export interface ProjectDetail {
@@ -14,6 +14,7 @@ export interface ProjectDetail {
   lastAnalyzedAt: Date | null
   errorMessage: string | null
   createdAt: Date
+  contributorCount: number
 }
 
 export default defineEventHandler(async (event) => {
@@ -23,7 +24,21 @@ export default defineEventHandler(async (event) => {
   }
 
   const rows = await db
-    .select()
+    .select({
+      id: projects.id,
+      name: projects.name,
+      path: projects.path,
+      url: projects.url,
+      fullName: projects.fullName,
+      status: projects.status,
+      description: projects.description,
+      lastAnalyzedAt: projects.lastAnalyzedAt,
+      errorMessage: projects.errorMessage,
+      createdAt: projects.createdAt,
+      contributorCount: sql<number>`(
+        SELECT COUNT(DISTINCT contributor) FROM daily_stats WHERE project_id = ${projectId}
+      )`,
+    })
     .from(projects)
     .where(eq(projects.id, projectId))
     .limit(1)
@@ -33,5 +48,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const project = rows[0]!
-  return project satisfies ProjectDetail
+  return {
+    ...project,
+    contributorCount: Number(project.contributorCount),
+  } satisfies ProjectDetail
 })

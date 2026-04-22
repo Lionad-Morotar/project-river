@@ -93,6 +93,7 @@ interface ProjectDataBundle {
     lastAnalyzedAt: string | null
     errorMessage: string | null
     createdAt: string
+    contributorCount: number
   }
   daily: DailyExportRow[]
   monthly: MonthlyExportRow[]
@@ -231,6 +232,9 @@ async function exportProjectData(pool: Pool, fullName: string): Promise<ProjectD
   )
   const healthSignals = computeHealthSignals(healthRows)
 
+  // 从 health 计算中复用 contributorMap 拿到精确的去重贡献者数
+  const contributorCount = new Set(healthRows.map(r => r.contributor)).size
+
   return {
     project: {
       id: project.id,
@@ -243,6 +247,7 @@ async function exportProjectData(pool: Pool, fullName: string): Promise<ProjectD
       lastAnalyzedAt: project.last_analyzed_at?.toISOString() ?? null,
       errorMessage: project.error_message,
       createdAt: project.created_at.toISOString(),
+      contributorCount,
     },
     daily: dailyRows,
     monthly: monthlyRows,
