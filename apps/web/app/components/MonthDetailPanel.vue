@@ -143,7 +143,7 @@ function goNext() {
         <div
           v-for="c in contributors"
           :key="c.contributor"
-          class="flex items-center justify-between gap-3 py-1.5 hover:bg-elevated rounded px-2 -mx-2 transition-colors"
+          class="flex items-center justify-between gap-3 py-1.5 hover:bg-accented rounded px-2 -mx-2 transition-colors"
           @pointerenter="emit('hoverContributor', c.contributor)"
           @pointerleave="emit('hoverContributor', null)"
         >

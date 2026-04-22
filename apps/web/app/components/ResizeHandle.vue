@@ -65,8 +65,8 @@ function onKeyDown(event: KeyboardEvent) {
     :aria-orientation="orientation"
     class="shrink-0 bg-default hover:bg-accented focus:outline-none focus:bg-sky-500 transition-colors flex items-center justify-center"
     :class="orientation === 'horizontal'
-      ? 'w-full h-2.5 cursor-row-resize'
-      : 'w-2.5 h-full cursor-col-resize'"
+      ? 'w-full h-3 cursor-row-resize'
+      : 'w-3 h-full cursor-col-resize'"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
