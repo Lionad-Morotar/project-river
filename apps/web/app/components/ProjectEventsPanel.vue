@@ -41,7 +41,7 @@ function formatDate(dateStr: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col h-full">
     <!-- Header -->
     <button
       class="flex items-center justify-between w-full px-4 py-2.5 border-b border-default hover:bg-elevated/50 transition-colors"
@@ -88,7 +88,7 @@ function formatDate(dateStr: string): string {
     <!-- Event list -->
     <div
       v-else-if="isExpanded && events.length > 0"
-      class="max-h-64 overflow-y-auto"
+      class="flex-1 min-h-0 overflow-y-auto"
     >
       <div
         v-for="event in events"

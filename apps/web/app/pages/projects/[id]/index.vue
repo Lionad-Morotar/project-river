@@ -771,14 +771,32 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
 
           <template #panel>
             <div class="flex flex-col h-full">
-              <ProjectEventsPanel
-                :events="visibleEvents"
-                :total-events="projectEvents.length"
-                :loading="eventsLoading"
-                :visible-range="visibleRange"
-                @hover-event="handleHoverEvent"
-              />
-              <div class="flex-1 min-h-0">
+              <div class="flex-1 min-h-0 overflow-hidden">
+                <ProjectEventsPanel
+                  :events="visibleEvents"
+                  :total-events="projectEvents.length"
+                  :loading="eventsLoading"
+                  :visible-range="visibleRange"
+                  @hover-event="handleHoverEvent"
+                />
+              </div>
+              <div
+                role="separator"
+                aria-orientation="horizontal"
+                tabindex="0"
+                class="shrink-0 h-2.5 w-full bg-default hover:bg-accented focus:outline-none focus:bg-sky-500 transition-colors flex items-center justify-center cursor-row-resize"
+              >
+                <!-- Six-dot handle -->
+                <svg width="24" height="6" viewBox="0 0 24 6" fill="none" class="text-dimmed">
+                  <circle cx="5" cy="1.5" r="1.2" fill="currentColor" />
+                  <circle cx="12" cy="1.5" r="1.2" fill="currentColor" />
+                  <circle cx="19" cy="1.5" r="1.2" fill="currentColor" />
+                  <circle cx="5" cy="4.5" r="1.2" fill="currentColor" />
+                  <circle cx="12" cy="4.5" r="1.2" fill="currentColor" />
+                  <circle cx="19" cy="4.5" r="1.2" fill="currentColor" />
+                </svg>
+              </div>
+              <div class="flex-1 min-h-0 overflow-hidden">
                 <MonthDetailPanel
                   v-model:selected-month="selectedMonth"
                   :available-months="availableYears"

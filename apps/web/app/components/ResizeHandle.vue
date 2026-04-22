@@ -63,13 +63,45 @@ function onKeyDown(event: KeyboardEvent) {
     role="separator"
     tabindex="0"
     :aria-orientation="orientation"
-    class="shrink-0 bg-accented hover:bg-accented focus:outline-none focus:bg-sky-500 transition-colors"
+    class="shrink-0 bg-default hover:bg-accented focus:outline-none focus:bg-sky-500 transition-colors flex items-center justify-center"
     :class="orientation === 'horizontal'
-      ? 'w-full h-1.5 cursor-row-resize'
-      : 'w-1.5 h-full cursor-col-resize'"
+      ? 'w-full h-2.5 cursor-row-resize'
+      : 'w-2.5 h-full cursor-col-resize'"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @keydown="onKeyDown"
-  />
+  >
+    <!-- Six-dot drag handle -->
+    <svg
+      v-if="orientation === 'horizontal'"
+      width="24"
+      height="6"
+      viewBox="0 0 24 6"
+      fill="none"
+      class="text-dimmed"
+    >
+      <circle cx="5" cy="1.5" r="1.2" fill="currentColor" />
+      <circle cx="12" cy="1.5" r="1.2" fill="currentColor" />
+      <circle cx="19" cy="1.5" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="4.5" r="1.2" fill="currentColor" />
+      <circle cx="12" cy="4.5" r="1.2" fill="currentColor" />
+      <circle cx="19" cy="4.5" r="1.2" fill="currentColor" />
+    </svg>
+    <svg
+      v-else
+      width="6"
+      height="24"
+      viewBox="0 0 6 24"
+      fill="none"
+      class="text-dimmed"
+    >
+      <circle cx="1.5" cy="5" r="1.2" fill="currentColor" />
+      <circle cx="1.5" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="1.5" cy="19" r="1.2" fill="currentColor" />
+      <circle cx="4.5" cy="5" r="1.2" fill="currentColor" />
+      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="4.5" cy="19" r="1.2" fill="currentColor" />
+    </svg>
+  </div>
 </template>

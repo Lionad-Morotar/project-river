@@ -29,11 +29,11 @@ const floatX = ref(storedFloatX.value)
 const floatY = ref(storedFloatY.value)
 const previewEdge = ref<'top' | 'left' | 'right' | 'bottom' | null>(null)
 
-// Initialize panelH to 50% of layout on first real size
+// Initialize panelH to 2/3 of layout on first real size (chart:panel = 1:2)
 const panelHInitialized = ref(false)
 watch(layoutHeight, (h) => {
   if (!panelHInitialized.value && h > 0 && panelH.value === 0) {
-    panelH.value = Math.floor(h / 2)
+    panelH.value = Math.floor(h * 2 / 3)
     storedPanelH.value = panelH.value
     panelHInitialized.value = true
   }
