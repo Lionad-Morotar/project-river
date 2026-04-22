@@ -1,58 +1,103 @@
 # Project River
 
-将 Git 仓库贡献者活动渲染为随时间流动的 Streamgraph（河流图），帮助你快速评估项目健康度、识别核心贡献者、理解代码库演进节奏。
+English | **[中文](./README.zh.md)**
 
-## 特性
+Renders Git repository contributor activity as a time-flowing Streamgraph, helping you quickly assess project health, identify core contributors, and understand the evolution rhythm of a codebase.
 
-- **河流图可视化**：D3 驱动的 Streamgraph，支持缩放、刷选、贡献者高亮
-- **项目健康信号**：自动分析 Git 历史，生成可操作的健康洞察
-- **事件时间线**：自动标记 release、重大变更等关键节点
-- **多项目对比**：静态站点内置 vuejs/core、react、jquery、atom 四个示例项目
-- **深色/浅色主题**：支持主题切换与 i18n（中文/英文）
+![landing](./assets/landing.gif)
 
-## 如何运行
+## Features
 
-### 前置要求
+- **Streamgraph Visualization** — D3-powered Streamgraph with zoom, brush navigation, and contributor highlighting
+- **Project Health Signals** — Automatically analyzes Git history to surface actionable insights such as contribution concentration and activity trends
+- **Event Timeline** — Detects key milestones, core contributor changes, and other significant events
+- **Light & Dark Themes** — Theme switching, configurable color schemes, and i18n (中文 / English)
 
-- Node.js >= 18
-- pnpm（包管理器）
+![project-detail](./assets/project-detail.png)
 
-### 安装依赖
+## Live Demo
+
+Visit the [GitHub Pages](https://lionad-morotar.github.io/project-river/) demo.
+
+The online version is a static deployment showcasing pre-built demo data. To analyze your own repositories, follow the local setup below.
+
+## Local Setup
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) ≥ 20 (ESM support required)
+- [pnpm](https://pnpm.io/) ≥ 9
+- [Docker](https://www.docker.com/) (for running PostgreSQL)
+- [Git](https://git-scm.com/) (needed when analyzing target repositories)
+- [Bun](https://bun.sh/) (for running the CLI analysis script)
+
+### 1. Start the Database
+
+```bash
+docker compose up -d
+```
+
+This starts two containers:
+
+| Service       | Port   | Purpose                           |
+| ------------- | ------ | --------------------------------- |
+| PostgreSQL 16 | `5432` | Primary database                  |
+| pgAdmin 4     | `5050` | Database management UI (optional) |
+
+### 2. Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/river
+```
+
+### 3. Install Dependencies & Run Migrations
 
 ```bash
 pnpm install
+pnpm db:migrate
 ```
 
-### 开发模式（API + 数据库）
+### 4. Start the Dev Server
 
 ```bash
-pnpm dev:web
+pnpm dev
 ```
 
-开发服务器默认监听 `http://localhost:3000`，支持热重载。
+Open http://localhost:10400 and you're ready to go.
 
-### 静态站点模式
+### 5. Analyze a Repository
+
+Add new projects via the web UI, or use the CLI to import and analyze Git repositories:
 
 ```bash
-pnpm generate:gh
-pnpm serve:pages
+# Analyze a local repository
+bun packages/pipeline/src/cli.ts /path/to/repo owner/repo
+
+# Incremental update for an existing project
+bun packages/pipeline/src/cli.ts /path/to/repo owner/repo --incremental
+
+# Force a full re-analysis
+bun packages/pipeline/src/cli.ts /path/to/repo owner/repo --force
 ```
 
-生成静态站点并本地预览，无需数据库。
+Refresh the page after analysis completes to see the Streamgraph.
 
-### 构建生产版本
+## Tech Stack
 
-```bash
-pnpm build:web
-```
+- **Frontend** — Nuxt 4 · Vue 3 · TypeScript · Tailwind CSS v4
+- **Visualization** — D3.js (Streamgraph · Brush · Zoom)
+- **Database** — PostgreSQL 16 · Drizzle ORM
+- **Package Manager** — pnpm workspace monorepo
+- **Static Deploy** — Columnar-compressed `.bin` format + pako decompression
 
-## 技术栈
+## License
 
-- **前端**：Nuxt 4 + Vue 3 + TypeScript + Tailwind CSS
-- **可视化**：D3.js（Streamgraph、Brush、Zoom）
-- **包管理**：pnpm workspace monorepo
-- **静态数据**：列式压缩 .bin 格式 + pako 解压
+[Business Source License 1.1](./LICENSE) — Free for personal use; commercial use requires authorization.
 
-## 许可证
+Automatically converts to the MIT license on 2029-01-01.
 
-MIT
+## Acknowledgements
+
+Inspired by [The Git Distributed Version Control System](https://git-history.jpalmer.dev/).

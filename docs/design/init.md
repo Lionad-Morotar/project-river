@@ -11,6 +11,7 @@
 ## 一、核心功能：时间河流（Streamgraph）视图
 
 ### 1.1 页面布局
+
 - 河流图占据页面主体，**从左到右水平延伸**
   - 最左侧 = 项目起始时间（`$start`，第一个 commit 的时间）
   - 最右侧 = 生成指令运行时刻（`$end`）
@@ -18,14 +19,17 @@
 - 河流可以分段，每段代表一个时间单位（按月聚合），视觉上形成一个连续的"水流"
 
 ### 1.2 X 轴标记系统
+
 X 轴上方/下方需展示两类标记：
 
 **A) Git Tag 标记**
+
 - 解析仓库的 git tag，将 tag 位置标记在时间轴上
 - 支持 `major` / `minor` / `patch` 的视觉区分
 
 **B) 特殊事件里程碑标记**
 在页面 X 轴上标记以下类型的事件（基于 calcMonth 的结果自动检测）：
+
 - `first merge` — 项目首次出现 merge commit
 - `most merges in a single month` — 单月 merge 数创历史新高
 - `most contributors in a single month` — 单月贡献者数创历史新高
@@ -34,6 +38,7 @@ X 轴上方/下方需展示两类标记：
 - 可扩展更多里程碑类型
 
 ### 1.3 时间选择器
+
 - 允许用户按**月份**选中时间（`$selected`）
 - 默认值为 `$end`（最新的月份）
 - 实现方式：在河流图下方提供一个月份选择条（Month Brush），支持拖拽/点击选择
@@ -46,6 +51,7 @@ X 轴上方/下方需展示两类标记：
 当用户选中某个 `$selected` 月份时，页面右侧（或下方弹层）展示一个**漂亮排版的表单面板**，以 [git-history.jpalmer.dev](https://git-history.jpalmer.dev/) 的表单设计为美学参考，展示：
 
 ### 2.1 月度数据（Current）
+
 ```
 July 2005
 
@@ -80,6 +86,7 @@ Sven Verdoolaege    17
 ```
 
 ### 2.2 累计数据（Cumulative）
+
 ```
 Cumulative
 Changes        1.27k     (3% of 46.1k total)
@@ -90,6 +97,7 @@ Lines Removed  23.1k     (2% of 1.54M total)
 ```
 
 ### 2.3 视觉要求
+
 - 大数字使用醒目的等宽字体（Monospace）
 - 标签/说明文字使用较小的辅助字体
 - 数字变化支持 Count-up 动画
@@ -101,20 +109,24 @@ Lines Removed  23.1k     (2% of 1.54M total)
 ## 三、河流图（Streamgraph）核心设计
 
 ### 3.1 "层"的语义
+
 河流图的每一层彩带代表一个分类维度在时间轴上的贡献量变化。默认设计为：
 
 **默认模式：贡献者维度**
+
 - X 轴 = 时间（按月或按季度聚合）
 - Y 轴 = 堆叠的贡献量（总高度 = 该时间单位的总活跃度）
 - 每一层彩带 = 一个贡献者
 - 彩带厚度 = 该贡献者在该时间单位的贡献权重（commit 数或代码行变动）
 
 **可选切换模式：文件类型维度**
+
 - 用户可以通过界面切换分层维度
 - 例如按文件扩展名分类（`ts`、`md`、`vue` 等）
 - 每一层彩带 = 一种文件类型
 
 ### 3.2 交互
+
 - **Hover 某一层彩带**：高亮该 contributor/file-type 在所有时间点的轨迹，显示 Tooltip（ contributor 名称、月份、贡献量）
 - **点击河流的某一段（某个月份）**：选中该月份，高亮显示垂直时间切片，同时激活详情面板
 - **点击某一层彩带**：可选中对应的贡献者/文件类型，进入贡献者详情视图
@@ -126,18 +138,22 @@ Lines Removed  23.1k     (2% of 1.54M total)
 当选中某个具体贡献者时，展示一个独立的详情面板或跳转页面，包含：
 
 ### 4.1 基础信息
+
 - 头像（优先 GitHub Avatar API，回退 Gravatar identicon，再回退默认头像）
 - 贡献者名称 / email
 - "XRD Contributor" 或其他有趣的统计标签
 
 ### 4.2 双 Series 柱状图
+
 - 展示该贡献者从**首次提交到 `$end`** 的代码贡献历史
 - **双 series 柱状图**：正方向（向上/向右）表示新增代码量，负方向（向下/向左）表示删除代码量
 - X 轴为时间，可按天/月/年聚合（默认按月）
 - 风格：D3 实现的双向柱状图（Diverging Bar Chart）
 
 ### 4.3 数字分栏（Contributor Stats Grid）
+
 显示以下指标：
+
 - Total Commits
 - Lines Added
 - Lines Deleted
@@ -146,6 +162,7 @@ Lines Removed  23.1k     (2% of 1.54M total)
 - First Commit Date / Last Commit Date
 
 ### 4.4 24 小时提交时间偏好
+
 - 使用 D3 实现的**极坐标柱状图（Radial Bar Chart）**
 - 24 个小时映射为 360°，每根柱子的高度代表该小时的提交次数
 - 中心圆显示 Total Commits 和 Peak Hour
@@ -156,23 +173,30 @@ Lines Removed  23.1k     (2% of 1.54M total)
 ## 五、数据生成与计算管道
 
 ### 5.1 执行方式
+
 - **一次性分析脚本**：用户手动运行命令分析一个 Git 仓库
 - 脚本语言：**TypeScript + Bun**
 - 按天循环执行，不可跳过中间日期
 
 ### 5.2 Git 数据提取
+
 使用原生 `git log` 命令提取结构化数据：
+
 ```bash
 git log --all --format='%H|%h|%an|%ae|%ad|%s|%b|%P' --date=unix --numstat --reverse
 ```
+
 需要提取的信息：
+
 - commit hash, short hash, 作者名, 作者邮箱, 作者日期
 - 提交标题、body
 - 父 commit（用于识别 merge commit）
 - 每个文件的新增/删除行数、文件路径、扩展名
 
 ### 5.3 calcDay 算法
+
 按天循环执行，输入为当天所有 commits，输出为当天的统计结果，存入 `daily_stats` 表：
+
 - `commit_count`：提交数
 - `merge_count`：merge commit 数
 - `additions` / `deletions`：新增/删除行数
@@ -183,19 +207,24 @@ git log --all --format='%H|%h|%an|%ae|%ad|%s|%b|%P' --date=unix --numstat --reve
 - `commit_hashes`：当日所有 commit 的 hash 列表
 
 ### 5.4 calcMonth 算法
+
 在 calcDay 执行完毕后，按月汇总，存入 `monthly_stats` 表。每个月输出：
+
 - `total_commits`, `total_merges`, `total_additions`, `total_deletions`
 - `monthly_contributors`：该月有多少独立贡献者
 - `new_contributors_this_month`：该月新增贡献者数
 - 检测并生成本月里程碑事件，存入 `milestones` 表
 
 ### 5.5 sumDay 累加表
+
 新建 `sum_day` 表用于存储**滚动累加值**：
+
 - 第 1 天的累加值 = calcDay 第 1 天的结果
 - 第 2 天的累加值 = sumDay 第 1 天 + calcDay 第 2 天
 - 第 N 天的累加值 = sumDay 第 N-1 天 + calcDay 第 N 天
 
 字段包含：
+
 - `summary_date`：日期（主键）
 - `daily_commits` / `daily_merges` / `daily_additions` / `daily_deletions`：当日原始值
 - `cumulative_commits` / `cumulative_merges` / `cumulative_additions` / `cumulative_deletions`：截至该日的累计值
@@ -241,6 +270,7 @@ daily_contributor_rankings (id, project_id, date, author_email, rank, commits, a
 ## 六、技术架构
 
 ### 6.1 整体架构
+
 ```
 monorepo/
 ├── apps/
@@ -255,6 +285,7 @@ monorepo/
 ```
 
 ### 6.2 前端技术栈
+
 - **框架**：Nuxt v4（`future.compatibilityVersion: 4`）
 - **UI 库**：Nuxt UI **v4**（兼容 Nuxt v4 的官方版本）
 - **工具库**：VueUse 全家桶
@@ -263,6 +294,7 @@ monorepo/
 - **主题**：**仅白天模式**，低饱和度 + 高亮色点缀
 
 ### 6.3 后端/脚本技术栈
+
 - **运行时**：Bun
 - **语言**：TypeScript
 - **包管理器**：pnpm
@@ -273,6 +305,7 @@ monorepo/
 ### 6.4 低饱和度视觉设计系统
 
 **主色调（Muted Pastel + Sage）**：
+
 - 背景：`#fafcfb`（轻微暖白）
 - 卡片：`#f4f3f0`
 - 边框：`#e8e6e1`
@@ -280,6 +313,7 @@ monorepo/
 - 主文字：`#413c39`
 
 **数据可视化分类色**：
+
 - `#bdd0c4`（Sage Green）
 - `#9ab7d3`（Dusty Blue）
 - `#f5d2d3`（Blush Pink）
@@ -288,6 +322,7 @@ monorepo/
 - `#c4b7d4`（Lavender Gray）
 
 **高亮色（单点突破）**：
+
 - 主高亮/选中：`#087f8c`（Teal）
 - 次高亮/负增长：`#d3674a`（Terracotta）
 - 操作/链接：`#0096c9`（Cerulean）
@@ -297,12 +332,15 @@ monorepo/
 ## 七、导出与分享
 
 ### 7.1 导出形式
+
 网站需要支持以下导出：
+
 1. **静态 SVG**：可嵌入 README、文档
 2. **静态 PNG**：适合社交媒体分享
 3. **交互式 iframe**：可嵌入网页，保留 hover/click 交互
 
 ### 7.2 实现建议
+
 - SVG 导出：利用 D3 的 SVG DOM 直接序列化
 - PNG 导出：通过 `html2canvas` 或 `dom-to-image` 将 SVG 渲染为 PNG
 - iframe 导出：前端提供一个独立的 `/embed/:projectId` 路由，生成 iframe 嵌入代码
@@ -312,6 +350,7 @@ monorepo/
 ## 八、初始实现范围
 
 **第一阶段（最小可用）**：
+
 1. 初始化 pnpm workspace + Nuxt v4 前端 + packages/db
 2. 实现 `git log` 解析器（packages/api）
 3. 实现 calcDay 和 sumDay 算法，写入 Postgres
@@ -320,6 +359,7 @@ monorepo/
 6. 支持导出 SVG
 
 **第二阶段**：
+
 1. 实现 calcMonth 和里程碑检测
 2. 实现 X 轴 Git Tag 和里程碑标记
 3. 实现文件类型维度切换
