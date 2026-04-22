@@ -8,6 +8,7 @@ export type EventType
     | 'major_refactor'
     | 'commit_milestone'
     | 'project_start'
+    | 'project_archived'
 
 export type EventSeverity = 'info' | 'positive' | 'warning'
 
@@ -78,6 +79,7 @@ export const defaultEventGroups: EventGroupNode[] = [
     defaultChecked: false,
     children: [
       { id: 'project_start', labelKey: 'events.title.project_start', severity: 'positive', defaultChecked: false, eventTypes: ['project_start'] },
+      { id: 'project_archived', labelKey: 'events.title.project_archived', severity: 'warning', defaultChecked: true, eventTypes: ['project_archived'] },
       { id: 'commit_milestone', labelKey: 'events.title.commit_milestone', severity: 'positive', defaultChecked: false, eventTypes: ['commit_milestone'] },
     ],
   },

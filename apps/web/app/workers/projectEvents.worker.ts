@@ -19,6 +19,7 @@ type EventType
     | 'major_refactor'
     | 'commit_milestone'
     | 'project_start'
+    | 'project_archived'
 
 type Severity = 'info' | 'positive' | 'warning'
 
@@ -72,6 +73,7 @@ const defaultConfig: EventDetectionConfig = {
     'major_refactor',
     'commit_milestone',
     'project_start',
+    'project_archived',
   ],
 }
 
@@ -374,6 +376,37 @@ function detectMilestones(
   return events
 }
 
+function detectProjectArchived(
+  _dailyData: DailyRow[],
+  config: EventDetectionConfig,
+  earliestDate: string,
+  latestDate: string,
+): ProjectEvent[] {
+  const events: ProjectEvent[] = []
+  if (!config.enabledRules.includes('project_archived'))
+    return events
+
+  const today = new Date().toISOString().split('T')[0]!
+  const daysSinceLastCommit = daysBetween(latestDate, today)
+  const projectDurationDays = daysBetween(earliestDate, latestDate)
+
+  // Last commit > 365 days ago AND project had > 1 year of active history
+  if (daysSinceLastCommit > 365 && projectDurationDays > 365) {
+    events.push({
+      id: 'project_archived',
+      type: 'project_archived',
+      date: latestDate,
+      severity: 'warning',
+      impactScore: daysSinceLastCommit,
+      titleKey: 'events.title.project_archived',
+      descriptionKey: 'events.desc.project_archived',
+      params: { lastDate: latestDate, daysSilent: daysSinceLastCommit },
+    })
+  }
+
+  return events
+}
+
 // ── Main algorithm ──
 
 function detectEvents(
@@ -397,6 +430,7 @@ function detectEvents(
     ...detectActivityMutations(dayStats, config),
     ...detectRefactors(dailyData, dayStats, config),
     ...detectMilestones(dailyData, config, earliestDate),
+    ...detectProjectArchived(dailyData, config, earliestDate, latestDate),
   ]
 
   // Assign priority by severity

@@ -1,7 +1,9 @@
+import type { StaticDataBundle } from '~/composables/useStaticData'
 import type { DailyRow } from '~/utils/d3Helpers'
 import type { HealthSignal } from '~/utils/healthRules'
 import type { MonthlyRow } from '~/utils/monthDetailHelpers'
 import { useIntervalFn } from '@vueuse/core'
+import { getProjectById } from '~/composables/useStaticData'
 import { getErrorGuidance } from '~/utils/errorGuidance'
 import { generateYears } from '~/utils/periodHelpers'
 
@@ -91,6 +93,7 @@ function useApiProjectData(projectId: string) {
     catch (err: any) {
       metaError.value = err?.data?.statusMessage || err?.statusMessage || err?.message || 'Failed to load project.'
       metaLoading.value = false
+      dataLoading.value = false
       return
     }
     finally {
@@ -182,22 +185,34 @@ function useApiProjectData(projectId: string) {
   }
 }
 
-function useStaticProjectData() {
+function useStaticProjectData(projectId: string) {
   const { bundle, loading: staticLoading, error: staticError } = useStaticData()
 
-  const projectMeta = computed(() => bundle.value?.project ?? null)
-  const dailyData = computed(() => bundle.value?.daily ?? [])
-  const monthlyData = computed(() => bundle.value?.monthly ?? [])
-  const healthSignals = computed(() => bundle.value?.health.signals ?? [])
+  // Lookup project by ID from multi-project bundle
+  const projectBundle = computed(() => {
+    if (!bundle.value)
+      return undefined
+    return getProjectById(bundle.value as StaticDataBundle, Number(projectId))
+  })
+
+  const projectMeta = computed(() => projectBundle.value?.project ?? null)
+  const dailyData = computed(() => projectBundle.value?.daily ?? [])
+  const monthlyData = computed(() => projectBundle.value?.monthly ?? [])
+  const healthSignals = computed(() => projectBundle.value?.health.signals ?? [])
   const selectedMonth = ref<string | null>(null)
   const visibleRange = ref<{ start: string, end: string } | null>(null)
 
   const loading = computed(() => staticLoading.value)
-  const error = computed(() => staticError.value)
+  const error = computed(() => {
+    if (staticError.value)
+      return staticError.value
+    if (bundle.value !== null && !staticLoading.value && !projectBundle.value)
+      return `Project ${projectId} not found in demo data.`
+    return null
+  })
 
-  // 静态模式下数据总是 ready
-  const isReady = computed(() => bundle.value !== null && !staticLoading.value && !staticError.value)
-  const isError = computed(() => false)
+  const isReady = computed(() => projectBundle.value !== undefined && !staticLoading.value && !staticError.value)
+  const isError = computed(() => !!error.value)
   const isProcessing = computed(() => false)
   const stageLabel = computed(() => '')
   const errorGuidance = computed(() => null)
@@ -237,7 +252,7 @@ export function useProjectData(projectId: string) {
   const isStatic = config.public.staticMode === true
 
   if (isStatic) {
-    return useStaticProjectData()
+    return useStaticProjectData(projectId)
   }
 
   return useApiProjectData(projectId)

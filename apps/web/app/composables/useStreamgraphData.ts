@@ -2,8 +2,14 @@ import type { DailyRow } from '~/utils/d3Helpers'
 
 export const OTHERS_LABEL = 'Other contributors'
 
+/** Max individual contributors returned by the backend (the rest go to Others). */
+export const BACKEND_TOP_LIMIT = 99
+
+/** Max topN the user can select in the UI. */
+export const TOP_N_MAX = 100
+
 /**
- * Passthrough for daily rows now that the backend handles Top-49 + Others aggregation.
+ * Passthrough for daily rows now that the backend handles Top-99 + Others aggregation.
  *
  * Keeps the same return shape for backward compatibility with Streamgraph.vue
  * and d3Helpers.ts.
@@ -59,7 +65,6 @@ export function applyTopN(rows: DailyRow[], n: number): DailyRow[] {
         existing.linesAdded += row.linesAdded
         existing.linesDeleted += row.linesDeleted
         existing.filesTouched += row.filesTouched
-        existing.cumulativeCommits += row.cumulativeCommits
       }
       else {
         othersByDate.set(key, {
@@ -69,10 +74,19 @@ export function applyTopN(rows: DailyRow[], n: number): DailyRow[] {
           linesAdded: row.linesAdded,
           linesDeleted: row.linesDeleted,
           filesTouched: row.filesTouched,
-          cumulativeCommits: row.cumulativeCommits,
+          cumulativeCommits: 0,
         })
       }
     }
+  }
+
+  // Compute "Others" cumulativeCommits as a proper running total (sum of daily commits)
+  const sortedDates = [...othersByDate.keys()].sort()
+  let runningTotal = 0
+  for (const date of sortedDates) {
+    const row = othersByDate.get(date)!
+    runningTotal += row.commits
+    row.cumulativeCommits = runningTotal
   }
 
   for (const row of othersByDate.values())

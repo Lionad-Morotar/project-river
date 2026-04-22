@@ -75,33 +75,31 @@ describe('daily-aggregated endpoint', () => {
     await expect(dailyAggregatedHandler(createMockEvent({ id: '999999' }))).rejects.toMatchObject({ statusCode: 404 })
   })
 
-  testOrSkip('returns exactly 50 rows for 51 contributors (Top 49 + Others)', async () => {
+  testOrSkip('returns all 51 contributors as individuals (Top 99 + Others, 51 < 99)', async () => {
     if (!hasDb)
       return
     const result = await dailyAggregatedHandler(createMockEvent({ id: String(projectId) }))
     expect(Array.isArray(result)).toBe(true)
 
     const jan1Rows = result.filter((r: any) => r.date === '2024-01-01')
-    expect(jan1Rows.length).toBe(50)
+    // 51 contributors < LIMIT 99, so no Others aggregation — all returned individually
+    expect(jan1Rows.length).toBe(51)
 
     const contributors = jan1Rows.map((r: any) => r.contributor)
-    expect(contributors).toContain('Others')
+    expect(contributors).not.toContain('Other contributors')
   })
 
-  testOrSkip('Others row sums tail metrics correctly', async () => {
+  testOrSkip('Tail contributors remain as individuals when total < LIMIT', async () => {
     if (!hasDb)
       return
     const result = await dailyAggregatedHandler(createMockEvent({ id: String(projectId) }))
-    const othersRow = result.find((r: any) => r.date === '2024-01-01' && r.contributor === 'Others')
-    expect(othersRow).toBeDefined()
+    // With LIMIT 99 and only 51 contributors, no "Other contributors" row exists
+    const othersRow = result.find((r: any) => r.date === '2024-01-01' && r.contributor === 'Other contributors')
+    expect(othersRow).toBeUndefined()
 
-    // Tail contributors are indices 49..50 (lowest commits, tie-broken by contributor asc)
-    // Their insertions are 50+51=101, deletions are 49+50=99, cumulativeCommits are 1+1=2
-    expect(othersRow.commits).toBe(2)
-    expect(othersRow.linesAdded).toBe(101)
-    expect(othersRow.linesDeleted).toBe(99)
-    expect(othersRow.filesTouched).toBe(2)
-    expect(othersRow.cumulativeCommits).toBe(2)
+    // The last 2 contributors (indices 49, 50) are returned as individuals
+    const jan1Rows = result.filter((r: any) => r.date === '2024-01-01')
+    expect(jan1Rows.length).toBe(51)
   })
 
   testOrSkip('response fields match DailyStatsRow shape', async () => {

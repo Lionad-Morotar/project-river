@@ -56,14 +56,17 @@ export function getRangeContributors(
   endDate: string,
   colorMap: Map<string, string>,
 ): MonthContributor[] {
+  // 区间提交数 — only from in-range rows
   const inRange = dailyRows.filter(r => r.date >= startDate && r.date <= endDate)
-
   const commitsMap = new Map<string, number>()
-  const latestDateMap = new Map<string, string>()
-  const cumulativeMap = new Map<string, number>()
-
   for (const row of inRange) {
     commitsMap.set(row.contributor, (commitsMap.get(row.contributor) || 0) + row.commits)
+  }
+
+  // 总计 — all-time cumulative from ALL rows (not affected by range)
+  const latestDateMap = new Map<string, string>()
+  const cumulativeMap = new Map<string, number>()
+  for (const row of dailyRows) {
     const existing = latestDateMap.get(row.contributor)
     if (!existing || row.date > existing) {
       latestDateMap.set(row.contributor, row.date)

@@ -2,6 +2,7 @@ import type { DailyStatsRow } from '../../../utils/projectStats'
 import { db } from '@project-river/db/client'
 import { sql } from 'drizzle-orm'
 import { createError, defineEventHandler, getRouterParam, getValidatedQuery, setResponseHeader } from 'h3'
+import { BACKEND_TOP_LIMIT } from '../../../../app/composables/useStreamgraphData'
 import {
   assertProjectExists,
   buildDailyDateBounds,
@@ -48,7 +49,7 @@ export default defineEventHandler(async (event) => {
       SELECT contributor
       FROM contributor_totals
       ORDER BY total_commits DESC, contributor ASC
-      LIMIT 49
+      LIMIT ${BACKEND_TOP_LIMIT}
     ),
     classified AS (
       SELECT
