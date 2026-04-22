@@ -8,7 +8,7 @@ import { axisBottom, axisLeft } from 'd3-axis'
 import { brushSelection, brushX as d3BrushX } from 'd3-brush'
 import { scaleLinear, scaleUtc } from 'd3-scale'
 import { pointer as d3Pointer, select } from 'd3-selection'
-import { curveBasis, area as d3Area } from 'd3-shape'
+import { curveBasis, curveLinear, curveMonotoneX, curveNatural, area as d3Area } from 'd3-shape'
 import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useChartTheme } from '~/composables/useChartTheme'
@@ -29,6 +29,8 @@ interface Props {
   colors: Map<string, string>
   monthNames?: string[]
   eventMarkers?: MarkerItem[]
+  /** !fixme Brush curve smoothness: 0 = sharp (linear), 1 = smooth (basis). Default 1. */
+  brushSmoothness?: number
 }
 
 const props = defineProps<Props>()
@@ -39,6 +41,18 @@ const emit = defineEmits<{
   (e: 'hover', event: PointerEvent, payload: { contributor: string, date: string, commits: number, linesAdded: number, linesDeleted: number, filesTouched: number, percentage: number, totalCommits?: number } | null): void
   (e: 'markerHover', event: PointerEvent, marker: MarkerItem | null): void
 }>()
+
+/** Map 0-1 smoothness to D3 curve factory. 0 = linear, 1 = basis (most smooth). */
+const brushCurve = computed(() => {
+  const t = Math.max(0, Math.min(1, props.brushSmoothness ?? 1))
+  if (t < 0.25)
+    return curveLinear
+  if (t < 0.5)
+    return curveMonotoneX
+  if (t < 0.75)
+    return curveNatural
+  return curveBasis
+})
 
 const chartRef = ref<HTMLDivElement | null>(null)
 const { width: svgWidth, height: svgHeight } = useElementSize(chartRef)
@@ -556,9 +570,24 @@ function initSvg() {
 
   brushGroup = brushGroupSel.node() as SVGGElement
 
-  // Style brush handles
+  // Style brush handles — wider with grip dots
   brushGroupSel.selectAll('.selection').attr('fill', colors.value.brushFill).attr('stroke', colors.value.brushStroke)
-  brushGroupSel.selectAll('.handle').attr('fill', colors.value.brushHandle).attr('rx', 2)
+  brushGroupSel.selectAll('.handle')
+    .attr('fill', colors.value.brushHandle)
+    .attr('rx', 2)
+    .attr('width', 10)
+    .attr('y', 0)
+    .attr('height', brushHeight)
+    .each(function () {
+      const handle = select(this)
+      if (handle.selectAll('circle').empty()) {
+        const cx = 5
+        const cyOffsets = [brushHeight / 2 - 6, brushHeight / 2, brushHeight / 2 + 6]
+        for (const cy of cyOffsets) {
+          handle.append('circle').attr('cx', cx).attr('cy', cy).attr('r', 1).attr('fill', 'currentColor').attr('opacity', 0.5)
+        }
+      }
+    })
 }
 
 // -- Zoom handler --
@@ -594,7 +623,7 @@ function handleZoom(event: any) {
   const newX = t.rescaleX(xBase)
   xScale!.domain(newX.domain())
 
-  gXAxisSelection.call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))))
+  gXAxisSelection.call(axisBottom(xScale!).ticks(Math.max(2, Math.floor(chartWidth / 80))).tickFormat(smartTimeFormat))
   gXAxisSelection.call(g => g.select('.domain').attr('stroke', colors.value.axisColor))
   gXAxisSelection.call(g => g.selectAll('.tick line').attr('stroke', colors.value.axisColor))
   gXAxisSelection.call(g => g.selectAll('.tick text').attr('fill', colors.value.tickColor).attr('font-size', '11px').style('paint-order', 'stroke').style('stroke', colors.value.textStroke).style('stroke-width', '3px').style('stroke-linejoin', 'round'))
@@ -954,7 +983,7 @@ function updateLayers() {
     .range([brushHeight - 2, 2])
 
   const brushAreaGen = d3Area<any>()
-    .curve(curveBasis)
+    .curve(brushCurve.value)
     .x((d: any) => xBase!(d.data.date))
     .y0((d: any) => yBrush(d[0]))
     .y1((d: any) => yBrush(d[1]))
@@ -1277,6 +1306,39 @@ watch(monthNames, () => {
   if (svgNode)
     updateScales()
 }, { flush: 'post' })
+
+// -- Re-apply brush curve when smoothness changes --
+watch(brushCurve, () => {
+  if (!svgNode || !series.value.length)
+    return
+  const yBrush = scaleLinear()
+    .domain(yDomain.value)
+    .range([brushHeight - 2, 2])
+  const gen = d3Area<any>()
+    .curve(brushCurve.value)
+    .x((d: any) => xBase!(d.data.date))
+    .y0((d: any) => yBrush(d[0]))
+    .y1((d: any) => yBrush(d[1]))
+  svgSelection!.selectAll('path.brush-layer').attr('d', gen)
+})
+
+// -- Re-apply colors when theme changes --
+watch(() => props.colors, () => {
+  if (!svgSelection)
+    return
+  // Main chart layers
+  svgSelection.selectAll('path.layer-visual')
+    .attr('fill', (d: any) => props.colors.get(d.key) || colors.value.fallback)
+  // Brush mini-chart layers
+  svgSelection.selectAll('path.brush-layer')
+    .attr('fill', (d: any) => props.colors.get(d.key) || colors.value.fallback)
+  // Month detail bars
+  svgSelection.selectAll('.month-bar-rect')
+    .attr('fill', (d: any) => props.colors.get(d?.contributor) || colors.value.fallback)
+  // Contributor legend dots (if any)
+  svgSelection.selectAll('.contributor-dot')
+    .attr('fill', (d: any) => props.colors.get(d?.name) || colors.value.fallback)
+}, { deep: true })
 
 onMounted(() => {
   initSvg()
