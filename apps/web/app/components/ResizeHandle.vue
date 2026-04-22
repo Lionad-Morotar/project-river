@@ -63,7 +63,7 @@ function onKeyDown(event: KeyboardEvent) {
     role="separator"
     tabindex="0"
     :aria-orientation="orientation"
-    class="shrink-0 bg-default hover:bg-accented focus:outline-none focus:bg-sky-500 transition-colors flex items-center justify-center"
+    class="shrink-0 bg-default hover:bg-sky-500/30 focus:outline-none focus:bg-sky-500 transition-colors flex items-center justify-center"
     :class="orientation === 'horizontal'
       ? 'w-full h-3 cursor-row-resize'
       : 'w-3 h-full cursor-col-resize'"
@@ -76,32 +76,32 @@ function onKeyDown(event: KeyboardEvent) {
     <svg
       v-if="orientation === 'horizontal'"
       width="24"
-      height="6"
-      viewBox="0 0 24 6"
+      height="7"
+      viewBox="0 0 24 7"
       fill="none"
       class="text-dimmed"
     >
-      <circle cx="5" cy="1.5" r="1.2" fill="currentColor" />
-      <circle cx="12" cy="1.5" r="1.2" fill="currentColor" />
-      <circle cx="19" cy="1.5" r="1.2" fill="currentColor" />
-      <circle cx="5" cy="4.5" r="1.2" fill="currentColor" />
-      <circle cx="12" cy="4.5" r="1.2" fill="currentColor" />
-      <circle cx="19" cy="4.5" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="2" r="1.2" fill="currentColor" />
+      <circle cx="12" cy="2" r="1.2" fill="currentColor" />
+      <circle cx="19" cy="2" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="5" r="1.2" fill="currentColor" />
+      <circle cx="12" cy="5" r="1.2" fill="currentColor" />
+      <circle cx="19" cy="5" r="1.2" fill="currentColor" />
     </svg>
     <svg
       v-else
-      width="6"
+      width="7"
       height="24"
-      viewBox="0 0 6 24"
+      viewBox="0 0 7 24"
       fill="none"
       class="text-dimmed"
     >
-      <circle cx="1.5" cy="5" r="1.2" fill="currentColor" />
-      <circle cx="1.5" cy="12" r="1.2" fill="currentColor" />
-      <circle cx="1.5" cy="19" r="1.2" fill="currentColor" />
-      <circle cx="4.5" cy="5" r="1.2" fill="currentColor" />
-      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" />
-      <circle cx="4.5" cy="19" r="1.2" fill="currentColor" />
+      <circle cx="2" cy="5" r="1.2" fill="currentColor" />
+      <circle cx="2" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="2" cy="19" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="5" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="12" r="1.2" fill="currentColor" />
+      <circle cx="5" cy="19" r="1.2" fill="currentColor" />
     </svg>
   </div>
 </template>

@@ -44,12 +44,12 @@ function formatDate(dateStr: string): string {
   <div class="flex flex-col h-full">
     <!-- Header -->
     <button
-      class="flex items-center justify-between w-full px-4 py-2.5 border-b border-default hover:bg-elevated/50 transition-colors"
+      class="flex justify-between items-center hover:bg-elevated/50 mt-2.5 px-4 py-2.5 border-default border-b w-full transition-colors"
       @click="isExpanded = !isExpanded"
     >
       <div class="flex items-center gap-2">
         <span
-          class="text-xs font-semibold uppercase tracking-wider"
+          class="font-semibold text-xs uppercase tracking-wider"
           :class="loading ? 'text-dimmed' : 'text-highlighted'"
         >
           <template v-if="loading">
@@ -79,7 +79,7 @@ function formatDate(dateStr: string): string {
     <!-- Loading state -->
     <div
       v-if="loading && isExpanded"
-      class="flex items-center gap-2 px-4 py-4 text-xs text-dimmed"
+      class="flex items-center gap-2 px-4 py-4 text-dimmed text-xs"
     >
       <span class="inline-block bg-sky-400/60 rounded-full w-1.5 h-1.5 animate-pulse" />
       {{ $t('events.panel.loading') }}
@@ -88,30 +88,30 @@ function formatDate(dateStr: string): string {
     <!-- Event list -->
     <div
       v-else-if="isExpanded && events.length > 0"
-      class="flex-1 min-h-0 overflow-y-auto"
+      class="flex-1 min-h-0 overflow-y-auto scrollbar-dim"
     >
       <div
         v-for="event in events"
         :key="event.id"
-        class="flex items-start gap-3 px-4 py-2.5 hover:bg-accented transition-colors border-b border-default/50 last:border-b-0"
+        class="flex items-start gap-3 hover:bg-accented px-4 py-2.5 border-default/50 border-b last:border-b-0 transition-colors"
         @pointerenter="emit('hoverEvent', event)"
         @pointerleave="emit('hoverEvent', null)"
       >
         <span
-          class="mt-1.5 rounded-full w-1.5 h-1.5 flex-shrink-0"
+          class="flex-shrink-0 mt-1.5 rounded-full w-1.5 h-1.5"
           :class="severityDotClass(event.severity)"
         />
         <div class="flex-1 min-w-0">
           <div class="flex items-center gap-2">
-            <span class="text-[10px] text-dimmed tabular-nums">{{ formatDate(event.date) }}</span>
+            <span class="tabular-nums text-[10px] text-dimmed">{{ formatDate(event.date) }}</span>
             <span
-              class="text-[10px] font-medium"
+              class="font-medium text-[10px]"
               :class="severityTextClass(event.severity)"
             >
               {{ $t(event.titleKey) }}
             </span>
           </div>
-          <p class="text-xs text-toned mt-0.5 truncate">
+          <p class="mt-0.5 text-toned text-xs truncate">
             {{ $t(event.descriptionKey, event.params) }}
           </p>
         </div>
@@ -121,9 +121,25 @@ function formatDate(dateStr: string): string {
     <!-- Empty state -->
     <div
       v-else-if="isExpanded"
-      class="px-4 py-4 text-xs text-dimmed text-center"
+      class="px-4 py-4 text-dimmed text-xs text-center"
     >
       {{ $t('events.panel.empty') }}
     </div>
   </div>
 </template>
+
+<style scoped>
+.scrollbar-dim::-webkit-scrollbar {
+  width: 5px;
+}
+.scrollbar-dim::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-dim::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+}
+.scrollbar-dim::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+</style>

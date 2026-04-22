@@ -42,11 +42,11 @@ function select(value: string | null) {
 <template>
   <div class="relative">
     <button
-      class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-toned bg-elevated/80 border border-accented rounded-md hover:bg-elevated hover:text-highlighted hover:border-accented transition-all"
+      class="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-dimmed hover:text-default hover:bg-elevated/60 rounded-md transition-colors"
       @click="toggle"
     >
       <svg
-        class="w-3.5 h-3.5 text-dimmed"
+        class="w-3 h-3 text-dimmed"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -59,7 +59,7 @@ function select(value: string | null) {
         <line x1="8" y1="2" x2="8" y2="6" />
         <line x1="3" y1="10" x2="21" y2="10" />
       </svg>
-      <span class="max-w-[120px] truncate tabular-nums">{{ currentLabel }}</span>
+      <span class="max-w-[100px] truncate tabular-nums">{{ currentLabel }}</span>
       <svg
         class="w-3 h-3 text-dimmed transition-transform"
         :class="{ 'rotate-180': isOpen }"

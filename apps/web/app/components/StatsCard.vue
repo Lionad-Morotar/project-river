@@ -20,7 +20,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="group relative overflow-hidden rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] p-5 transition-all duration-700 backdrop-blur-xl"
+    class="group relative overflow-hidden rounded-xl border border-[var(--glass-border)] bg-[var(--glass-bg)] p-6 transition-all duration-700 backdrop-blur-xl"
     :class="visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'"
     style="box-shadow: var(--glass-inner), 0 4px 24px rgba(0,0,0,0.12);"
   >
@@ -36,7 +36,7 @@ onMounted(() => {
     />
 
     <div class="relative z-10 flex items-baseline gap-1.5">
-      <span class="text-2xl font-semibold text-highlighted tabular-nums tracking-tight">
+      <span class="text-3xl font-semibold text-highlighted tabular-nums tracking-tight">
         <AnimatedCounter
           :target="value"
           :suffix="suffix"
@@ -52,7 +52,7 @@ onMounted(() => {
         {{ trend >= 0 ? '+' : '' }}{{ trend }}%
       </span>
     </div>
-    <p class="relative z-10 mt-1.5 text-xs text-dimmed">
+    <p class="relative z-10 mt-2 text-sm text-dimmed">
       {{ label }}
     </p>
   </div>
