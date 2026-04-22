@@ -27,6 +27,10 @@ const DENSITY = [
   '█',
 ]
 
+const FONT_SIZE = 14
+const COL_WIDTH = 8.4 // monospace char width at 14px
+const ROW_HEIGHT = 16
+
 /* ─── Simple value-noise with smooth interpolation ─── */
 function fract(x: number): number {
   return x - Math.floor(x)
@@ -86,12 +90,12 @@ function riverField(
 
   // Main river path — 蜿蜒的主干
   const pathSeed = 1
-  const pathNoise = fbm(nx * 3 + t * 0.5, ny * 2, 3, pathSeed)
+  const pathNoise = fbm(nx * 3 - t * 0.5, ny * 2, 3, pathSeed)
   const riverCenter = 0.5 + (pathNoise - 0.5) * 0.75
 
   // River width varies along the flow
   const widthSeed = 2
-  const widthNoise = fbm(nx * 2 - t * 0.3, ny * 4, 2, widthSeed)
+  const widthNoise = fbm(nx * 2 + t * 0.3, ny * 4, 2, widthSeed)
   const riverWidth = 0.22 + widthNoise * 0.16
 
   // Distance from river center (normalized)
@@ -100,7 +104,7 @@ function riverField(
 
   // Swirl — 漩涡效果（局部旋转噪声）
   const swirlSeed = 3
-  const angle = Math.atan2(ny - riverCenter, nx - 0.5) * 3 + t * 2
+  const angle = Math.atan2(ny - riverCenter, nx - 0.5) * 3 - t * 2
   const swirlNoise = fbm(
     nx * 5 + Math.cos(angle) * 0.3,
     ny * 5 + Math.sin(angle) * 0.3,
@@ -114,7 +118,7 @@ function riverField(
   if (normalizedDist < 1.0) {
     // Inside river body
     const depthProfile = Math.cos(normalizedDist * Math.PI * 0.5)
-    const flowNoise = fbm(nx * 4 + t, ny * 6, 3, 4)
+    const flowNoise = fbm(nx * 4 - t, ny * 6, 3, 4)
     intensity = depthProfile * 0.7 + flowNoise * 0.3
 
     // Deeper in center, shallower at edges
@@ -123,7 +127,7 @@ function riverField(
   else if (normalizedDist < 2.0) {
     // Shoreline transition — wider fade to fill screen
     const shore = 1 - (normalizedDist - 1.0)
-    intensity = shore * 0.12 * fbm(nx * 6 + t, ny * 8, 2, 5)
+    intensity = shore * 0.12 * fbm(nx * 6 - t, ny * 8, 2, 5)
   }
 
   // Add swirl perturbation
@@ -131,7 +135,7 @@ function riverField(
   intensity = Math.max(0, Math.min(1, intensity))
 
   // Foam detection — high-intensity peaks at surface
-  const foamNoise = fbm(nx * 8 + t * 1.5, ny * 10 - t, 2, 6)
+  const foamNoise = fbm(nx * 8 - t * 1.5, ny * 10 + t, 2, 6)
   const isFoam = intensity > 0.65 && foamNoise > 0.6 && normalizedDist < 0.85
 
   // Swirl factor for color variation
@@ -194,11 +198,91 @@ function getColor(intensity: number, isFoam: boolean, swirl: number, isDark: boo
   }
 }
 
+/* ─── Mouse splash system ─── */
+let mouseX = -1000
+let mouseY = -1000
+let mouseVX = 0
+let mouseVY = 0
+let mouseSpeed = 0
+
+let splashEnergy = new Float32Array(0)
+let splashDirX = new Float32Array(0)
+let splashDirY = new Float32Array(0)
+let splashCols = 0
+let splashRows = 0
+
+function ensureSplashGrid(cols: number, rows: number) {
+  if (cols === splashCols && rows === splashRows)
+    return
+  splashCols = cols
+  splashRows = rows
+  const size = cols * rows
+  splashEnergy = new Float32Array(size)
+  splashDirX = new Float32Array(size)
+  splashDirY = new Float32Array(size)
+}
+
+/** 每帧更新：衰减能量 + 鼠标位置注入新能量 */
+function updateSplash(cols: number, rows: number) {
+  const len = splashEnergy.length
+  for (let i = 0; i < len; i++) {
+    splashEnergy[i] *= 0.86
+    splashDirX[i] *= 0.90
+    splashDirY[i] *= 0.90
+    if (splashEnergy[i] < 0.004) {
+      splashEnergy[i] = 0
+      splashDirX[i] = 0
+      splashDirY[i] = 0
+    }
+  }
+
+  if (mouseSpeed > 1.5) {
+    const mCol = Math.floor(mouseX / COL_WIDTH)
+    const mRow = Math.floor(mouseY / ROW_HEIGHT)
+    const radius = 2 + Math.min(mouseSpeed * 0.08, 6)
+    const rCeil = Math.ceil(radius)
+
+    for (let dr = -rCeil; dr <= rCeil; dr++) {
+      for (let dc = -rCeil; dc <= rCeil; dc++) {
+        const r = mRow + dr
+        const c = mCol + dc
+        if (r < 0 || r >= rows || c < 0 || c >= cols)
+          continue
+
+        const dist = Math.sqrt(dr * dr + dc * dc)
+        if (dist > radius)
+          continue
+
+        const falloff = 1 - dist / radius
+        // 二次衰减让中心更集中
+        const injection = falloff * falloff * Math.min(mouseSpeed * 0.012, 0.7)
+        const idx = r * cols + c
+
+        splashEnergy[idx] = Math.min(splashEnergy[idx] + injection, 1)
+        // 方向沿鼠标运动方向，归一化
+        const spd = Math.max(mouseSpeed, 0.01)
+        splashDirX[idx] += (mouseVX / spd) * injection
+        splashDirY[idx] += (mouseVY / spd) * injection
+      }
+    }
+  }
+
+  // 重置逐帧鼠标速度（无鼠标运动时不注入）
+  mouseVX = 0
+  mouseVY = 0
+  mouseSpeed = 0
+}
+
+function handleMouseMove(e: MouseEvent) {
+  mouseVX = e.clientX - mouseX
+  mouseVY = e.clientY - mouseY
+  mouseX = e.clientX
+  mouseY = e.clientY
+  mouseSpeed = Math.sqrt(mouseVX * mouseVX + mouseVY * mouseVY)
+}
+
 /* ─── Main render loop ─── */
 let lastTime = 0
-const FONT_SIZE = 14
-const COL_WIDTH = 8.4 // monospace char width at 14px
-const ROW_HEIGHT = 16
 
 function render(ctx: CanvasRenderingContext2D, width: number, height: number, time: number) {
   const isDark = document.documentElement.classList.contains('dark')
@@ -216,34 +300,81 @@ function render(ctx: CanvasRenderingContext2D, width: number, height: number, ti
   // Character variation for flowing effect
   const charPhase = Math.floor(time * 0.002) % 3
 
+  // Splash physics update
+  ensureSplashGrid(cols, rows)
+  updateSplash(cols, rows)
+
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const { intensity, isFoam, swirl } = riverField(col, row, cols, rows, time)
+      let { intensity, isFoam, swirl } = riverField(col, row, cols, rows, time)
+      const baseIntensity = intensity // 保存原始流速（石头分流依据）
+
+      // ── Splash perturbation ──
+      const sIdx = row * cols + col
+      const sEnergy = splashEnergy[sIdx] ?? 0
+      const splashFoam = sEnergy > 0.35
+
+      intensity = Math.min(intensity + sEnergy * 0.5, 1)
+
+      // ── Rock deflection — 鼠标位置作为"石头"，纯密度分流 ──
+      const cellX = col * COL_WIDTH
+      const cellY = row * ROW_HEIGHT + 1
+      const rdx = cellX - mouseX
+      const rdy = cellY - mouseY
+      const rDist = Math.sqrt(rdx * rdx + rdy * rdy)
+      const ROCK_R = 35 // 石头影响半径 (px)
+
+      if (rDist < ROCK_R * 3) {
+        const flowFactor = baseIntensity ** 1.5
+        if (flowFactor > 0.02) {
+          if (rDist < ROCK_R * 0.35) {
+            // 石头核心 — 字符消失
+            intensity *= 0.08
+          }
+          else {
+            const df = Math.max(0, Math.min(1, 1 - (rDist - ROCK_R * 0.35) / (ROCK_R * 2.65)))
+            // 横向分量：越偏离水流中轴线，说明是分流通道
+            const lateral = Math.abs(rdy) / (rDist + 0.01)
+
+            if (lateral > 0.45) {
+              // 分流通道 — 压缩区，密度显著升高
+              intensity = Math.min(intensity + df * df * 0.4 * flowFactor, 1)
+            }
+            else if (rdx < 0) {
+              // 上游 — 水流堆积，密度微升
+              intensity = Math.min(intensity + df * df * 0.18 * flowFactor, 1)
+            }
+            else {
+              // 下游中轴 — 尾流区，密度降低
+              intensity *= 1 - df * 0.25 * flowFactor
+            }
+          }
+        }
+      }
 
       if (intensity < 0.015)
-        continue // Skip empty areas
+        continue
 
-      // Map intensity to character index
+      // ── Character selection ──
       let charIdx = Math.floor(intensity * (DENSITY.length - 1))
       charIdx = Math.max(0, Math.min(charIdx, DENSITY.length - 1))
 
-      // Add subtle character variation for flowing feel
-      if (!isFoam && intensity > 0.1 && intensity < 0.7) {
+      const effectiveFoam = isFoam || splashFoam
+      if (!effectiveFoam && intensity > 0.1 && intensity < 0.7) {
         const variation = Math.floor(swirl * 2.5 + charPhase) % 2
         charIdx = Math.max(0, Math.min(charIdx + variation - 1, DENSITY.length - 1))
       }
 
-      // Foam uses higher-density chars
-      if (isFoam) {
+      if (effectiveFoam) {
         charIdx = DENSITY.length - 1 - Math.floor(swirl * 3)
         charIdx = Math.max(DENSITY.length - 4, charIdx)
       }
 
       const char = DENSITY[charIdx]!
-      const color = getColor(intensity, isFoam, swirl, isDark)
+      const color = getColor(intensity, effectiveFoam, swirl, isDark)
 
       ctx.fillStyle = color
-      ctx.fillText(char, col * COL_WIDTH, row * ROW_HEIGHT + 1)
+      ctx.fillText(char, cellX, cellY)
     }
   }
 }
@@ -307,7 +438,7 @@ function animate(time: number) {
   }
   lastTime = time
 
-  render(ctx, window.innerWidth, window.innerHeight, time)
+  render(ctx, window.innerWidth, window.innerHeight, time * 0.5)
   rafId = requestAnimationFrame(animate)
 }
 
@@ -315,6 +446,7 @@ onMounted(() => {
   resize()
   window.addEventListener('resize', resize)
   window.addEventListener('scroll', handleScroll, { passive: true })
+  window.addEventListener('mousemove', handleMouseMove, { passive: true })
   rafId = requestAnimationFrame(animate)
   handleScroll() // Initial blur check
 })
@@ -326,6 +458,7 @@ onUnmounted(() => {
     cancelAnimationFrame(scrollRafId)
   window.removeEventListener('resize', resize)
   window.removeEventListener('scroll', handleScroll)
+  window.removeEventListener('mousemove', handleMouseMove)
 })
 </script>
 

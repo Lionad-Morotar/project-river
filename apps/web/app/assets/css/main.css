@@ -1,6 +1,64 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
+/* ── Plus Jakarta Sans — self-hosted woff2 ── */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-400-normal.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-400-normal.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-400-italic.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-400-italic.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-500-normal.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-500-normal.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: italic;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-500-italic.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-500-italic.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-600-normal.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-600-normal.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-700-normal.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-700-normal.woff') format('woff');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-800-normal.woff2') format('woff2'),
+       url('/fonts/plus-jakarta-sans/plus-jakarta-sans-latin-800-normal.woff') format('woff');
+}
+
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
