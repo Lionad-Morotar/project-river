@@ -248,6 +248,33 @@ function render(ctx: CanvasRenderingContext2D, width: number, height: number, ti
   }
 }
 
+/* ─── Scroll-driven blur ─── */
+let scrollRafId: number | null = null
+let currentBlur = 0
+
+function applyScrollBlur() {
+  const canvas = canvasRef.value
+  if (!canvas)
+    return
+  const vh = window.innerHeight
+  const progress = Math.min(Math.max(window.scrollY / vh, 0), 1)
+  const targetBlur = progress * 6 // 0px → 6px
+  // Smooth interpolation
+  currentBlur += (targetBlur - currentBlur) * 0.15
+  if (Math.abs(currentBlur - targetBlur) < 0.05)
+    currentBlur = targetBlur
+  canvas.style.filter = `blur(${currentBlur.toFixed(2)}px)`
+  if (Math.abs(currentBlur - targetBlur) >= 0.05) {
+    scrollRafId = requestAnimationFrame(applyScrollBlur)
+  }
+}
+
+function handleScroll() {
+  if (scrollRafId)
+    cancelAnimationFrame(scrollRafId)
+  scrollRafId = requestAnimationFrame(applyScrollBlur)
+}
+
 /* ─── Lifecycle ─── */
 let ctx: CanvasRenderingContext2D | null = null
 
@@ -287,13 +314,18 @@ function animate(time: number) {
 onMounted(() => {
   resize()
   window.addEventListener('resize', resize)
+  window.addEventListener('scroll', handleScroll, { passive: true })
   rafId = requestAnimationFrame(animate)
+  handleScroll() // Initial blur check
 })
 
 onUnmounted(() => {
   if (rafId)
     cancelAnimationFrame(rafId)
+  if (scrollRafId)
+    cancelAnimationFrame(scrollRafId)
   window.removeEventListener('resize', resize)
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
