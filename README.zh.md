@@ -94,6 +94,13 @@ bun packages/pipeline/src/cli.ts /path/to/repo owner/repo --force
 - **包管理** — pnpm workspace monorepo
 - **静态部署** — 列式压缩 `.bin` 格式 + pako 解压
 
+## 路线图
+
+- **零配置 CLI** — 在任意本地仓库下运行 `npx @lionad/project-river`，一键分析并启动 Web UI
+- **智能体分析入口** — 基于 commits 分析得到的时间线与里程碑数据，通过 deep-research 生成项目综述
+- **AI-Native 架构** — 引入 MCP 服务器与 Claude Skills，打造原生智能体互操作能力
+- **更多维度** — AI 代码占比、24 小时提交雷达图、代码更新热力图等有趣指标
+
 ## 许可证
 
 [Business Source License 1.1](./LICENSE) — 个人使用免费，商业使用需授权。

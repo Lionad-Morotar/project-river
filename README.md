@@ -94,6 +94,13 @@ Refresh the page after analysis completes to see the Streamgraph.
 - **Package Manager** — pnpm workspace monorepo
 - **Static Deploy** — Columnar-compressed `.bin` format + pako decompression
 
+## Roadmap
+
+- **Zero-config CLI** — `npx @lionad/project-river` inside any local repo to analyze and launch the Web UI instantly
+- **Agent Analysis** — Feed commit-derived timeline & milestone data into deep-research agents for automated project summaries
+- **AI-Native Architecture** — MCP servers and Claude Skills for first-class agent interoperability
+- **More Dimensions** — AI code percentage, 24-hour commit radar, code-churn heatmap, and other insightful metrics
+
 ## License
 
 [Business Source License 1.1](./LICENSE) — Free for personal use; commercial use requires authorization.
