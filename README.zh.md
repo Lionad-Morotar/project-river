@@ -111,4 +111,4 @@ bun packages/pipeline/src/cli.ts /path/to/repo owner/repo --force
 
 1. 受 [The Git Distributed Version Control System](https://git-history.jpalmer.dev/) 启发。
 
-2. 这个项目有个非常有意思的地方，启动的时候我稍微打磨了设计文档，就扔给 kimi-k2.6-code-preview。没有 agent teams，也没有 ralph，它连续跑了四个半小时提交了 96 次代码，把 demo 做出来了。kimi-k2.6 理论上比 preview 更强，官方博客说让 agent 连续工作超 24 小时做项目毫不夸张。我相信往后通过 agentic 长任务优化的模型启动项目，提示词本身会变得重要。
+2. 这个项目有个非常有意思的地方，启动的时候我稍微打磨了设计文档，就扔给 kimi-k2.6-code-preview。没有 agent teams，也没有 ralph，在 gsd 的帮助下，它连续跑了四个半小时提交了 96 次代码，把 demo 做出来了。kimi-k2.6 理论上比 preview 更强，官方博客说让 agent 连续工作超 24 小时做项目毫不夸张。我相信往后通过 agentic 长任务优化的模型启动项目，提示词和 SDD 方法论还有很多潜力可以挖掘。
