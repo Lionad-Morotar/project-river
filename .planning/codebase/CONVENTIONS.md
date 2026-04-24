@@ -1,6 +1,6 @@
 # 编码规范
 
-**分析日期：** 2026-04-09
+**分析日期：** 2026-04-23
 
 ## 项目结构
 
@@ -11,21 +11,21 @@
 ## 命名约定
 
 **文件：**
-- `camelCase.ts` — 源文件（如 `d3Helpers.ts`、`useContributorColors.ts`）
-- `camelCase.test.ts` — 测试文件，位于 `tests/` 或 `test/` 目录
-- `camelCase.get.ts` — Nuxt API 路由文件（后缀表示 HTTP 动词，如 `daily.get.ts`）
-- `PascalCase.vue` — Vue SFC 组件（如 `Streamgraph.vue`、`MonthSelector.vue`）
-- `camelCase.ts` — 以 `use` 为前缀的组合式函数（如 `useContributorColors.ts`）
+- `camelCase.ts` — 源文件（如 `d3Helpers.ts`、`useContributorColors.ts`、`healthRules.ts`）
+- `camelCase.test.ts` / `camelCase.spec.ts` — 测试文件，位于 `tests/`、`test/` 目录或与源文件同目录
+- `camelCase.get.ts` — Nuxt API 路由文件（后缀表示 HTTP 动词，如 `daily.get.ts`、`import.post.ts`）
+- `PascalCase.vue` — Vue SFC 组件（如 `Streamgraph.vue`、`MonthSelector.vue`、`ResizeHandle.vue`）
+- `camelCase.ts` — 以 `use` 为前缀的组合式函数（如 `useContributorColors.ts`、`useStreamgraphData.ts`）
 
 **函数：**
-- `camelCase` — 标准函数（如 `parseLogStream`、`getContributorColor`、`buildStack`）
-- `useXxx` — Vue 组合式函数（如 `useContributorColors`）
+- `camelCase` — 标准函数（如 `parseLogStream`、`getContributorColor`、`buildStack`、`evaluateHealthRules`）
+- `useXxx` — Vue 组合式函数（如 `useContributorColors`、`useProjectData`、`useStaticData`）
 - 异步生成器使用 `async function*`（如 `parseRepo`、`parseLogStream`）
 
 **变量：**
 - `camelCase` — 标准变量（如 `pivotMap`、`colorMap`、`selectedMonth`）
 - 优先使用 `const` 而非 `let`；未观察到 `var`
-- 接口/类型使用 `PascalCase`（如 `ParsedCommit`、`DailyRow`、`FileChange`）
+- 接口/类型使用 `PascalCase`（如 `ParsedCommit`、`DailyRow`、`FileChange`、`HealthSignal`、`HealthStatsInput`）
 
 **数据库列：**
 - Schema 定义中使用 `snake_case`（如 `author_name`、`committer_date`、`project_id`）
@@ -47,7 +47,7 @@
     test: true,
   })
   ```
-- 子包通过 `import config from '../../eslint.config.mjs'` 继承根配置
+- `apps/web` 通过 `import config from '../../eslint.config.mjs'` 继承根配置
 - 规则集包含：Vue 支持、TypeScript 规则、格式化集成、测试文件规则
 
 **格式化：**
@@ -57,22 +57,25 @@
 
 ## TypeScript
 
-**版本：** `5.9.3`
+**版本：** `5.8.3`
 
 **tsconfig — `packages/pipeline`：**
 ```json
 {
   "compilerOptions": {
     "target": "ES2022",
+    "rootDir": ".",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
     "paths": {
       "@project-river/db/client": ["../db/src/client.ts"],
       "@project-river/db/schema": ["../db/src/schema/index.ts"]
-    }
+    },
+    "strict": true,
+    "outDir": "./dist",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
   },
   "include": ["src/**/*", "tests/**/*"]
 }
@@ -80,7 +83,7 @@
 
 **tsconfig — `apps/web`：**
 - 由 Nuxt 管理，引用 `.nuxt/tsconfig.*.json` 生成的文件
-- 路径别名 `~/` 映射到 `./`（应用根目录）
+- 路径别名 `~/` 映射到 `./app`（应用根目录）
 
 **严格模式：** 所有包均启用。
 
@@ -93,7 +96,8 @@
 4. 相对路径或 `~/` 别名的本地导入：`import { buildStack } from '~/utils/d3Helpers'`
 
 **路径别名：**
-- `~/` — 映射到 Nuxt 中的应用根目录（`apps/web/`）
+- `~/` — 映射到 Nuxt 应用中的 `app/` 目录（`apps/web/app/`）
+- `~/components`、`~/composables`、`~/utils` — Vitest 中显式解析的别名
 - `@project-river/db/client` — workspace 别名，解析到 `packages/db/src/client.ts`
 - `@project-river/db/schema` — workspace 别名，解析到 `packages/db/src/schema/index.ts`
 
@@ -122,6 +126,7 @@
 **模式：**
 - `console.error(err.message)` 用于 CLI 错误输出（`packages/pipeline/src/cli.ts`）
 - `console.warn(...)` 用于条件性测试跳过提示
+- `console.warn('[svgExport] No SVG node available')` 用于运行时警告
 - 尚未配置生产级日志框架
 
 ## Git 钩子
@@ -144,12 +149,13 @@
 
 **风格：** Conventional Commits（从 git log 中观察到）
 - 格式：`type(scope): description`
-- 观察到的类型：`chore`、`docs`
-- 观察到的范围：目录引用如 `08-02`、`08-03`
+- 观察到的类型：`chore`、`docs`、`fix`
+- 观察到的范围：`web`（前端相关）、`pipeline`（管线相关）
 - 近期示例：
-  - `chore: archive phase directories from v1.0 milestone`
-  - `docs: update STATE, PROJECT, and RETROSPECTIVE for v1.0 milestone completion`
-  - `docs(08-02): complete project understand documentation plan`
+  - `chore: 清理截图、更新资源文件和 gitignore`
+  - `fix(web): 首页统一 subtitle + 语言切换图标化 + 配色按钮 cursor-pointer`
+  - `fix(web): Streamgraph x 轴层级修复`
+  - `chore: 许可证从 MIT 更改为 BSL 1.1 + README 更新`
 
 **分支风格：** Trunk-based（单一 `main` 分支，无特性分支）
 
@@ -162,14 +168,16 @@
 - Expose 通过 `defineExpose({ ... })` 供父组件访问（如 `Streamgraph.vue` 中的 `getSvg`）
 
 **组合式函数：**
-- 命名 `useXxx`，返回响应式值（`ref`、`computed`）
+- 命名 `useXxx`，返回响应式值（`ref`、`computed`）或纯函数结果
 - 位置：`apps/web/app/composables/`
+- 示例：`useContributorColors.ts`、`useProjectData.ts`、`useStaticData.ts`、`useAppSettings.ts`
 
 **模板模式：**
-- Tailwind CSS 工具类（Unocss 已禁用，但使用 Tailwind 类名）
+- Tailwind CSS 工具类（Unocss 已禁用，使用 Tailwind v4）
 - `v-if`/`v-else-if`/`v-else` 条件渲染
 - `v-model` 双向绑定
 - `@click` / `@hover` 事件处理
+- `role`、`aria-label`、`aria-orientation` 等无障碍属性
 
 ## 函数设计
 
@@ -184,6 +192,12 @@
 - 流式解析操作使用异步生成器（`AsyncGenerator<T>`）
 - 键值查找使用 `Map<K, V>`（如颜色映射）
 
+## 常量与配置
+
+**导出常量：**
+- 使用 `UPPER_SNAKE_CASE` 命名导出常量（如 `OTHERS_LABEL`、`BACKEND_TOP_LIMIT`、`TOP_N_MAX`）
+- 位置：与相关逻辑同文件或同模块
+
 ---
 
-*规范分析：2026-04-09*
+*规范分析：2026-04-23*

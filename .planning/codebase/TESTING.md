@@ -1,12 +1,12 @@
 # 测试模式
 
-**分析日期：** 2026-04-09
+**分析日期：** 2026-04-23
 
 ## 测试框架
 
-**运行器：** Vitest `^3.0.0`
-
-**断言库：** 内置（Vitest 的 `expect`，基于 chai）
+**运行器：**
+- Vitest `^3.0.0`
+- 断言库：内置（Vitest 的 `expect`，基于 chai）
 
 **Workspace 配置：**
 - `vitest.workspace.ts`：
@@ -26,21 +26,31 @@ vitest run             # 运行所有测试一次
 
 ## 测试文件组织
 
-**位置模式：** 测试位于各 workspace 内的专用测试目录：
+**位置模式：** 测试位于各 workspace 内的专用测试目录，或与源文件同目录：
 
 ```
 apps/web/
 ├── test/
 │   ├── setup.ts                        # 全局测试设置（h3 全局变量、dotenv）
+│   ├── components/
+│   │   └── ResizeHandle.spec.ts        # Vue 组件测试（@vue/test-utils 挂载）
 │   ├── composables/
-│   │   └── useContributorColors.test.ts
+│   │   ├── useContributorColors.spec.ts  # 组合式函数测试（新）
+│   │   ├── useContributorColors.test.ts  # 组合式函数测试（旧）
+│   │   └── useStreamgraphData.test.ts    # 组合式函数测试
 │   └── utils/
-│       ├── d3Helpers.test.ts
-│       ├── monthDetailHelpers.test.ts
-│       └── svgExport.test.ts
+│       ├── d3Helpers.test.ts           # 工具函数测试
+│       ├── githubUrl.spec.ts           # GitHub URL 解析测试（新）
+│       ├── healthRules.spec.ts         # 健康规则评估测试（新）
+│       ├── monthDetailHelpers.test.ts  # 月份详情工具测试
+│       ├── svgExport.spec.ts           # SVG 导出测试（新）
+│       └── svgExport.test.ts           # SVG 导出测试（旧）
 ├── server/api/projects/[id]/
 │   ├── daily.get.test.ts               # 与处理器同目录
+│   ├── daily-aggregated.get.test.ts    # 与处理器同目录（新）
 │   └── monthly.get.test.ts             # 与处理器同目录
+├── e2e/
+│   └── docked-panel.spec.ts            # Playwright E2E 测试（新）
 
 packages/pipeline/
 ├── tests/
@@ -48,22 +58,28 @@ packages/pipeline/
 │   ├── cli.test.ts
 │   ├── analyze.test.ts
 │   ├── calcDay.test.ts
+│   ├── gitignore.test.ts               # .gitignore 过滤测试（新）
 │   └── sumDay.test.ts
 ```
 
-**命名：** `{module}.test.ts` — 源文件名加 `.test` 后缀
+**命名：**
+- `{module}.test.ts` — 源文件名加 `.test` 后缀
+- `{module}.spec.ts` — 同样有效，与 `.test.ts` 混用
+- 当前 codebase 中 `.test.ts` 和 `.spec.ts` 并存，无严格区分规则
 
 ## 测试环境
 
 **packages/pipeline：**
 - 环境：`node`（默认）
 - 配置：`packages/pipeline/vitest.config.ts`
+- 解析 workspace 别名 `@project-river/db/client` 和 `@project-river/db/schema`
 
 **apps/web：**
-- 环境：`node`（默认，用于工具函数/组合式函数测试）
-- `jsdom` 用于依赖 DOM 的测试，通过文件头指令：`// @vitest-environment jsdom`
+- 环境：`jsdom`（默认，通过 vitest.config.ts 配置）
 - 自定义 `test/setup.ts` 向 `globalThis` 注入 H3 全局变量（`defineEventHandler`、`getRouterParam` 等）
 - 配置：`apps/web/vitest.config.ts`
+- 解析 `~/` 别名到 `app/` 目录，以及 workspace 别名
+- 使用 `@vitejs/plugin-vue` 支持 Vue SFC 测试
 
 ## 测试结构
 
@@ -126,6 +142,14 @@ describe('daily endpoint', () => {
 })
 ```
 
+**Vitest 条件跳过模式**（`packages/pipeline/tests/gitignore.test.ts`）：
+```typescript
+it.skipIf(!hasDb)('returns chronological gitignore history for repo', async () => {
+  const history = await getGitignoreHistory(repoPath!)
+  expect(history).toHaveLength(2)
+})
+```
+
 ## Mock 策略
 
 **框架：** Vitest 内置 `vi`
@@ -155,13 +179,14 @@ describe('runAnalyze', () => {
     expect(analyzeRepo).toHaveBeenCalledWith('/path/to/repo', undefined, {
       batchSize: 2000,
       force: false,
+      ignore: true,
       incremental: false,
     })
   })
 })
 ```
 
-**模式 — DOM Mock**（`apps/web/test/utils/svgExport.test.ts`）：
+**模式 — DOM Mock**（`apps/web/test/utils/svgExport.spec.ts`）：
 ```typescript
 // @vitest-environment jsdom
 import { vi } from 'vitest'
@@ -205,6 +230,28 @@ function makeCommit(
 }
 ```
 
+**工厂函数**（`apps/web/test/utils/healthRules.spec.ts`）：
+```typescript
+function makeStats(overrides: Partial<HealthStatsInput> = {}): HealthStatsInput {
+  return {
+    totalCommits: 100,
+    totalContributors: 5,
+    topContributors: [
+      { contributor: 'alice', commits: 50 },
+      { contributor: 'bob', commits: 20 },
+    ],
+    lastDate: '2026-04-10',
+    recent90DaysCommits: 40,
+    prior270DaysDailyAvg: 0.5,
+    avgLinesPerCommit: 200,
+    recentQuarterContributors: 5,
+    previousQuarterContributors: 4,
+    daysSinceLastCommit: 7,
+    ...overrides,
+  }
+}
+```
+
 **临时 Git 仓库**（`packages/pipeline/tests/analyze.test.ts`）：
 ```typescript
 function makeTempGitRepo(dates: string[]): string {
@@ -223,6 +270,9 @@ function createMockEvent(params: Record<string, string>, query: Record<string, s
   const url = `http://localhost/api/projects/${params.id}/daily?${new URLSearchParams(query)}`
   const event = createEvent({ url })
   Object.assign(event.context, { params })
+  event.node = event.node || {}
+  event.node.res = event.node.res || {}
+  event.node.res.setHeader = () => event.node!.res!
   return event
 }
 ```
@@ -241,17 +291,30 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 ## 测试类型
 
 **单元测试：**
-- 纯工具函数（`d3Helpers.ts`、`monthDetailHelpers.ts`、`calcDay.ts`）
+- 纯工具函数（`d3Helpers.ts`、`monthDetailHelpers.ts`、`calcDay.ts`、`healthRules.ts`、`githubUrl.ts`）
 - 解析器逻辑（`parser.ts` — 异步生成器的流式解析）
 - CLI 参数解析（`cli.ts` — 通过 Mock 依赖）
-- 组合式函数（`useContributorColors.ts`）
+- 组合式函数（`useContributorColors.ts`、`useStreamgraphData.ts`）
 
 **集成测试：**
 - 数据库操作（`analyze.test.ts` — 完整管线：解析 → 写入 → 查询）
-- API 端点（`daily.get.test.ts`、`monthly.get.test.ts` — 真实 DB 查询 + H3 事件 Mock）
+- API 端点（`daily.get.test.ts`、`daily-aggregated.get.test.ts`、`monthly.get.test.ts` — 真实 DB 查询 + H3 事件 Mock）
 - 累计统计（`sumDay.test.ts` — 插入 daily_stats，验证 sum_day）
+- .gitignore 过滤（`gitignore.test.ts` — 临时 Git 仓库 + 真实 git 命令）
 
-**E2E 测试：** 未使用。未检测到 Playwright、Cypress 或类似工具。
+**组件测试：**
+- Vue SFC 组件挂载测试（`ResizeHandle.spec.ts` — 使用 `@vue/test-utils` 的 `mount`）
+- 断言 DOM 事件发射（`pointerdown`、`pointermove`、`pointerup`、`keydown`）
+- 断言 CSS 类应用
+
+**E2E 测试：**
+- 框架：Playwright `^1.59.1`
+- 配置：`apps/web/playwright.config.ts`
+- 测试目录：`apps/web/e2e/`
+- 测试文件：`docked-panel.spec.ts`
+- 测试场景：拖拽面板到不同边缘、resize、刷新后状态恢复
+- 基础 URL：`http://localhost:10400`
+- 仅 Chromium 浏览器
 
 ## 覆盖率
 
@@ -266,6 +329,7 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 - 输入 → 输出断言
 - 显式测试边界情况（空数组、边界条件、时区处理）
 - 示例：`packages/pipeline/tests/calcDay.test.ts` — 时区边界检测
+- 示例：`apps/web/test/utils/healthRules.spec.ts` — 多规则组合测试
 
 ### 集成测试（数据库）
 - `beforeAll` / `afterAll` 用于设置/清理
@@ -273,22 +337,32 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 - 在 `beforeAll` 中播种数据，在 `afterAll` 中删除
 - 需要时在 `afterEach` 进行逐测试清理
 - 示例：`packages/pipeline/tests/analyze.test.ts` — 完整 git 到数据库管线
+- 示例：`packages/pipeline/tests/sumDay.test.ts` — 逐测试清理模式
 
 ### 集成测试（API 端点）
 - 使用 `createEvent({ url })` 创建 Mock H3 事件
 - 通过 `event.context.params` 注入路由参数
+- 通过 `event.node.res.setHeader` 模拟响应头设置
 - 验证 Zod Schema 拒绝非法参数（400 错误）
 - 示例：`apps/web/server/api/projects/[id]/daily.get.test.ts`
 
-### 组件测试（Vue 组合式函数）
+### 组件测试（Vue SFC）
+- 使用 `@vue/test-utils` 的 `mount` 挂载组件
+- 通过 `wrapper.emitted()` 断言事件发射
+- 通过 `wrapper.classes()` 断言 CSS 类
+- 通过 `wrapper.trigger()` 模拟键盘事件
+- 示例：`apps/web/test/components/ResizeHandle.spec.ts`
+
+### 组合式函数测试
 - 不使用 `@vue/test-utils` 挂载 — 组合式函数直接作为函数测试
 - 调用组合式函数并断言返回值
-- 示例：`apps/web/test/composables/useContributorColors.test.ts`
+- 示例：`apps/web/test/composables/useContributorColors.spec.ts`
+- 示例：`apps/web/test/composables/useStreamgraphData.test.ts`
 
 ### 依赖 DOM 的测试
 - 使用 `// @vitest-environment jsdom` 文件级指令
 - 直接在全局对象上 Mock 浏览器 API
-- 示例：`apps/web/test/utils/svgExport.test.ts`
+- 示例：`apps/web/test/utils/svgExport.spec.ts`
 
 ## 测试生命周期
 
@@ -298,12 +372,54 @@ async function collect<T>(gen: AsyncGenerator<T>): Promise<T[]> {
 **清理：**
 - `afterAll` 调用 `pool.end()` 关闭数据库连接
 - `afterEach` 清理每个测试的播种数据
+- 临时 Git 仓库由 OS 自动清理
 
 ## 超时配置
 
 - 数据库密集型测试使用显式超时：`{ timeout: 30000 }`
 - 单元测试使用 Vitest 默认超时（5 秒）
 
+## E2E 测试详情
+
+**Playwright 配置**（`apps/web/playwright.config.ts`）：
+```typescript
+import { defineConfig, devices } from '@playwright/test'
+
+export default defineConfig({
+  testDir: './e2e',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'list',
+  use: {
+    baseURL: 'http://localhost:10400',
+    trace: 'on-first-retry',
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+})
+```
+
+**E2E 辅助函数**（`apps/web/e2e/docked-panel.spec.ts`）：
+```typescript
+async function dragToEdge(page: any, handleLocator: any, targetX: number, targetY: number) {
+  const box = await handleLocator.boundingBox()
+  expect(box).not.toBeNull()
+  const startX = box!.x + box!.width / 2
+  const startY = box!.y + box!.height / 2
+  await page.mouse.move(startX, startY)
+  await page.mouse.down()
+  await page.mouse.move(targetX, targetY, { steps: 10 })
+  await page.mouse.up()
+  await page.waitForTimeout(300)
+}
+```
+
 ---
 
-*测试分析：2026-04-09*
+*测试分析：2026-04-23*
