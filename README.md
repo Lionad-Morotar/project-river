@@ -2,6 +2,8 @@
 
 English | **[中文](./README.zh.md)**
 
+<a href="https://www.producthunt.com/products/project-river?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-project-river" target="_blank" rel="noopener noreferrer"><img alt="Project River - See how your codebase evolved, contributor by contributor | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1130153&amp;theme=light&amp;t=1776886010561"></a>
+
 Renders Git repository contributor activity as a time-flowing Streamgraph, helping you quickly assess project health, identify core contributors, and understand the evolution rhythm of a codebase.
 
 ![landing](./assets/landing.gif)
