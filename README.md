@@ -109,4 +109,6 @@ Automatically converts to the MIT license on 2029-01-01.
 
 ## Acknowledgements
 
-Inspired by [The Git Distributed Version Control System](https://git-history.jpalmer.dev/).
+1. Inspired by [The Git Distributed Version Control System](https://git-history.jpalmer.dev/).
+
+2. What's fascinating about this project: after polishing the design doc, I handed it to kimi-k2.6-code-preview. No agent teams, no ralph — it ran for four and a half hours straight, made 96 commits, and shipped a demo. The full kimi-k2.6 is theoretically even stronger than the preview; the official blog claims agents can work over 24 hours on a project, which is no exaggeration. I believe prompt engineering will become increasingly important as agentic long-task-optimized models take over project bootstrapping.
