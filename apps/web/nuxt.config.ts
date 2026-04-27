@@ -11,6 +11,8 @@ export default defineNuxtConfig({
     baseURL: process.env.NODE_ENV === 'production' ? '/project-river/' : '/',
   },
   runtimeConfig: {
+    // server-only: NUXT_AGENT_LLM_API_KEY → agentLlmApiKey (auto-mapped by Nuxt)
+    agentLlmApiKey: '',
     public: {
       staticMode: process.env.STATIC_MODE === 'true',
     },
