@@ -143,3 +143,10 @@ ROLLBACK;
 1. 临时索引创建后统计信息尚未完全优化
 2. 数据集大小下 (21,144 rows for vueuse)，现有 `commit_files_project_idx` 已足够高效
 3. Index Only Scan 的额外开销在小数据集上可能抵消收益
+
+## Decision
+
+- **选中方案**: C（不加索引）
+- **理由**: 4a 查询已使用 Index Scan（commit_files_project_idx）+ Filter，Execution Time 仅 0.128ms，在可接受范围。4c 临时索引测试显示实际执行时间从 0.128ms 升至 0.268ms，无显著性能提升。现有索引组合已足够服务 `WHERE project_id = ? AND path LIKE 'prefix%'` 查询模式。
+- **影响**: Phase 2 `queryCommitsByPath` 将使用现有 `commit_files_project_idx` 索引，配合 PostgreSQL 的 Filter 机制处理 `path LIKE 'prefix%'` 条件。
+- **生产环境注意**: 如果未来数据量增长到千万级且 4a 类查询变慢，可考虑添加 `(project_id, path)` 复合索引。大表加索引可能锁表，应使用 `CREATE INDEX CONCURRENTLY`（Drizzle Kit 目前不直接支持，需手动 SQL）。
