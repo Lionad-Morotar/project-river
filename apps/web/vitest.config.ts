@@ -12,14 +12,17 @@ export default defineConfig({
     include: ['test/**/*.spec.ts', 'app/**/*.test.ts'],
   },
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, './app'),
-      '~/': path.resolve(__dirname, './app/'),
-      '~/components': path.resolve(__dirname, './app/components'),
-      '~/composables': path.resolve(__dirname, './app/composables'),
-      '~/utils': path.resolve(__dirname, './app/utils'),
-      '@project-river/db/client': path.resolve(__dirname, '../../packages/db/src/client.ts'),
-      '@project-river/db/schema': path.resolve(__dirname, '../../packages/db/src/schema/index.ts'),
-    },
+    alias: [
+      // Longer/more-specific prefixes MUST come first to avoid shorter ones matching greedily
+      { find: '~/server', replacement: path.resolve(__dirname, './server') },
+      { find: '~/components', replacement: path.resolve(__dirname, './app/components') },
+      { find: '~/composables', replacement: path.resolve(__dirname, './app/composables') },
+      { find: '~/utils', replacement: path.resolve(__dirname, './app/utils') },
+      { find: '~/server/utils', replacement: path.resolve(__dirname, './server/utils') },
+      { find: '~/', replacement: path.resolve(__dirname, './app/') },
+      { find: '~', replacement: path.resolve(__dirname, './app') },
+      { find: '@project-river/db/client', replacement: path.resolve(__dirname, '../../packages/db/src/client.ts') },
+      { find: '@project-river/db/schema', replacement: path.resolve(__dirname, '../../packages/db/src/schema/index.ts') },
+    ],
   },
 })
