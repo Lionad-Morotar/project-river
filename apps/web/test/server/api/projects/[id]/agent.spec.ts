@@ -15,7 +15,7 @@
  *   - globalThis.useRuntimeConfig — Nuxt 自动注入的全局，测试时挂到 globalThis
  */
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // ── Mock factory state ──
 const createProjectAgentMock = vi.fn()
@@ -68,10 +68,22 @@ interface SseMockEvent {
 function createSseMockEvent(opts: { id: string, body: any }): SseMockEvent {
   const writes: string[] = []
   const headers: Record<string, string> = {}
+  const reqListeners: Record<string, Array<() => void>> = {}
   return {
     context: { params: { id: opts.id } },
     node: {
-      req: {},
+      req: {
+        once: (ev: string, cb: () => void) => {
+          (reqListeners[ev] ||= []).push(cb)
+        },
+        off: (ev: string, cb: () => void) => {
+          reqListeners[ev] = (reqListeners[ev] || []).filter(fn => fn !== cb)
+        },
+        // 测试可调用以模拟 client 断开（暂未在 spec 里使用，但保留对称 API）
+        emit: (ev: string) => {
+          for (const cb of reqListeners[ev] || []) cb()
+        },
+      },
       res: {
         write: (chunk: string) => {
           writes.push(chunk)
@@ -81,6 +93,8 @@ function createSseMockEvent(opts: { id: string, body: any }): SseMockEvent {
         setHeader: (k: string, v: string) => {
           headers[k] = v
         },
+        writableEnded: false,
+        destroyed: false,
       },
     },
     _body: opts.body,
@@ -214,7 +228,7 @@ describe('pOST /api/projects/[id]/agent', () => {
     const eventSequence = [
       {
         type: 'message_end',
-        message: { stopReason: 'error', errorMessage: 'rate limit exceeded' },
+        message: { role: 'assistant', stopReason: 'error', errorMessage: 'rate limit exceeded' },
       },
       { type: 'agent_end', messages: [] },
     ]
@@ -229,6 +243,71 @@ describe('pOST /api/projects/[id]/agent', () => {
 
     const parsed = JSON.parse(errorWrite!.replace(/^data: /, '').trim())
     expect(parsed.type).toBe('error')
-    expect(parsed.message).toBe('rate limit exceeded')
+    // 错误消息已归一化为白名单分类（不再透传 raw "rate limit exceeded" 全文，避免泄露上游 URL/key 片段）
+    expect(parsed.message).toBe('LLM API rate limit')
+
+    // 错误事件后 ended=true，agent_end 不应再产生 done
+    const doneWrite = writes.find(w => w.includes('"type":"done"'))
+    expect(doneWrite).toBeUndefined()
+  })
+
+  // FIX 4 — 60s timeout 触发 abort + error event，且不再泄出 done
+  describe('60s timeout', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('aborts agent and pushes timeout error event without leaking subsequent done', async () => {
+      vi.useFakeTimers()
+      assertProjectExistsMock.mockResolvedValue(undefined)
+
+      // stub agent.prompt 永不自然 resolve；abort() 时通过 reject 让 await 解开
+      let abortReject: ((err: Error) => void) | null = null
+      const stubAgent: any = {
+        subscribe: () => () => {},
+        prompt: () => new Promise((_resolve, reject) => {
+          abortReject = reject
+        }),
+        waitForIdle: vi.fn(async () => {}),
+        abort: vi.fn(() => {
+          abortReject?.(new Error('aborted by test'))
+        }),
+      }
+      createProjectAgentMock.mockReturnValue(stubAgent)
+
+      const event = createSseMockEvent({ id: '1', body: { message: 'slow' } })
+      const handlerPromise = handler(event as any)
+
+      // 让 handler 跑过 fail-fast / setHeader / setTimeout 注册
+      await Promise.resolve()
+      await Promise.resolve()
+
+      // 推进时钟 > 60s
+      await vi.advanceTimersByTimeAsync(60_001)
+
+      // handler 已被 timeout/abort 链路解开
+      await handlerPromise
+
+      // 1) abort 被调用
+      expect(stubAgent.abort).toHaveBeenCalled()
+
+      // 2) 推送了 timeout error event
+      const writes = event._writes
+      const errorWrite = writes.find(w => w.includes('"type":"error"'))
+      expect(errorWrite).toBeDefined()
+      const parsed = JSON.parse(errorWrite!.replace(/^data: /, '').trim())
+      expect(parsed.type).toBe('error')
+      expect(parsed.message).toMatch(/timeout/i)
+
+      // 3) 未泄漏 done（ended 守卫生效）
+      const doneWrite = writes.find(w => w.includes('"type":"done"'))
+      expect(doneWrite).toBeUndefined()
+
+      // 4) 仅一个终止事件（error）
+      const terminalWrites = writes.filter(
+        w => w.includes('"type":"error"') || w.includes('"type":"done"'),
+      )
+      expect(terminalWrites).toHaveLength(1)
+    })
   })
 })

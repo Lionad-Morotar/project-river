@@ -254,4 +254,97 @@ describe('agent ReAct loop integration', () => {
     const toolResults = agent.state.messages.filter(m => m.role === 'toolResult')
     expect(toolResults).toHaveLength(0)
   })
+
+  // GAP 1 — 多步 tool calling
+  // 验证 systemPrompt 约束 2 描述的 path-based 问题路径：
+  //   call#1: queryCommitsByPath 锁定相关 commits
+  //   call#2: queryContributors 排序
+  //   call#3: text answer
+  // 这是 ReAct 多步契约（系统提示要求至少 2 个 tool 组合）的核心验证
+  it('multi-step tool calling — chains queryCommitsByPath then queryContributors before answering', async () => {
+    queryCommitsByPathExec.mockResolvedValueOnce({
+      content: [{ type: 'text', text: '[{"sha":"abc","author":"alice"}]' }],
+      details: [{ sha: 'abc', author: 'alice' }],
+    })
+    queryContributorsExec.mockResolvedValueOnce({
+      content: [{ type: 'text', text: '[{"name":"alice","commits":7}]' }],
+      details: [{ name: 'alice', commits: 7 }],
+    })
+
+    // 第 1 轮 — toolUse: queryCommitsByPath
+    const toolCall1 = {
+      type: 'toolCall' as const,
+      id: 'tc-step1',
+      name: 'queryCommitsByPath',
+      arguments: { pathPrefix: 'src/auth/' },
+    }
+    const round1Msg = makeAssistantMessage({
+      content: [toolCall1 as any],
+      stopReason: 'toolUse' as any,
+    })
+
+    // 第 2 轮 — toolUse: queryContributors
+    const toolCall2 = {
+      type: 'toolCall' as const,
+      id: 'tc-step2',
+      name: 'queryContributors',
+      arguments: { sortBy: 'commits', limit: 5 },
+    }
+    const round2Msg = makeAssistantMessage({
+      content: [toolCall2 as any],
+      stopReason: 'toolUse' as any,
+    })
+
+    // 第 3 轮 — text answer
+    const finalMessage = makeAssistantMessage({
+      content: [{ type: 'text', text: 'alice owns src/auth/.' } as any],
+      stopReason: 'stop' as any,
+    })
+
+    streamSimpleMock
+      .mockReturnValueOnce(createEventStream([
+        { type: 'start', partial: round1Msg } as any,
+        { type: 'toolcall_end', contentIndex: 0, toolCall: toolCall1, partial: round1Msg } as any,
+        { type: 'done', reason: 'toolUse', message: round1Msg } as any,
+      ], round1Msg))
+      .mockReturnValueOnce(createEventStream([
+        { type: 'start', partial: round2Msg } as any,
+        { type: 'toolcall_end', contentIndex: 0, toolCall: toolCall2, partial: round2Msg } as any,
+        { type: 'done', reason: 'toolUse', message: round2Msg } as any,
+      ], round2Msg))
+      .mockReturnValueOnce(createEventStream([
+        { type: 'start', partial: finalMessage } as any,
+        { type: 'text_delta', contentIndex: 0, delta: 'alice owns src/auth/.', partial: finalMessage } as any,
+        { type: 'done', reason: 'stop', message: finalMessage } as any,
+      ], finalMessage))
+
+    const agent = createProjectAgent(1, {
+      apiKey: 'sk-test',
+      baseUrl: 'http://mock',
+      streamFn: streamSimpleMock as any,
+    })
+    await agent.prompt('who owns src/auth?')
+    await agent.waitForIdle()
+
+    // ≥3 次 LLM 调用（每个 tool 一轮 + 最终文本）
+    expect(streamSimpleMock.mock.calls.length).toBeGreaterThanOrEqual(3)
+
+    // 两个 tool 都被各调用 1 次
+    expect(queryCommitsByPathExec).toHaveBeenCalledTimes(1)
+    expect(queryContributorsExec).toHaveBeenCalledTimes(1)
+
+    // toolResult messages 顺序与 toolCall 顺序一致
+    const toolResults = agent.state.messages.filter(m => m.role === 'toolResult') as any[]
+    expect(toolResults).toHaveLength(2)
+    expect(toolResults[0].toolName).toBe('queryCommitsByPath')
+    expect(toolResults[0].toolCallId).toBe('tc-step1')
+    expect(toolResults[1].toolName).toBe('queryContributors')
+    expect(toolResults[1].toolCallId).toBe('tc-step2')
+
+    // 最终 assistant 文本回答存在
+    const finalAssistant = agent.state.messages.find(
+      m => m.role === 'assistant' && (m as any).stopReason === 'stop',
+    )
+    expect(finalAssistant).toBeTruthy()
+  })
 })
