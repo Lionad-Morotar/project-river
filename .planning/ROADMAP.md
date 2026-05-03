@@ -70,8 +70,8 @@ Plans:
 **Plans:** 2 plans in 2 waves
 
 Plans:
-- [ ] 03-01-PLAN.md — AGENT-01/02/03/04: systemPrompt + toolAdapters + createAgent + SSE route
-- [ ] 03-02-PLAN.md — TEST-02/03: Agent integration test (mock LLM) + Route test (SSE event sequence)
+- [x] 03-01-PLAN.md — AGENT-01/02/03/04: systemPrompt + toolAdapters + createAgent + SSE route
+- [x] 03-02-PLAN.md — TEST-02/03: Agent integration test (mock LLM) + Route test (SSE event sequence)
 
 **Wave 1:** 03-01 (engine + route 落地)
 **Wave 2:** 03-02 (tests，依赖 03-01 的导出)

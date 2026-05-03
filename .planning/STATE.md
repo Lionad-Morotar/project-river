@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: Agentic QA
-status: verifying
-last_updated: "2026-05-03T04:51:06.438Z"
+status: executing
+last_updated: "2026-05-03T05:39:35.147Z"
 last_activity: 2026-05-03
 progress:
   total_phases: 5
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 3
+  total_plans: 6
+  completed_plans: 6
   percent: 100
 ---
 
@@ -26,9 +26,9 @@ progress:
 
 ## Current Position
 
-Phase: 10 (docked-panel-layout) — COMPLETE
-Plan: 1 of 1
-Status: Phase complete — ready for verification
+Phase: 03 (agent-engine-and-route) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-03
 
 **Progress Bar**: `[████████████████████████████████████] 100%`
@@ -46,6 +46,7 @@ Last activity: 2026-05-03
 | Phase 10-docked-panel-layout P01 | ~45m | 6 tasks | 11 files |
 | Phase 02 P01 | 6min | 2 tasks | 3 files |
 | Phase 02 P02 | 10min | 2 tasks | 8 files |
+| Phase 03 P02 | 22min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Last activity: 2026-05-03
 - [Phase 02]: vitest alias 使用数组格式确保 ~/server 优先于 ~/ 匹配
 - [Phase 02]: queryContributors 使用 sql template tag 聚合 + JS 侧排序/过滤
 - [Phase 02]: agent tool 统一签名: (projectId, params) => Promise<T>
+- [Phase 03]: createProjectAgent 新增可选 streamFn config — 测试通过此注入 mock streamSimple，pnpm symlink 下 module-level mock 不可靠（D-26 实施细节）
 
 ### TODOs
 

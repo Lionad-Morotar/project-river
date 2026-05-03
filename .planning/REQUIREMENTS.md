@@ -51,8 +51,8 @@
 ### Tests
 
 - [x] **TEST-01**: 3 个 tool unit tests（`queryContributors` / `queryProjectEvents` / `queryCommitsByPath`），每个覆盖 happy path + 边界（空结果 / large result truncation / 日期范围越界）。
-- [ ] **TEST-02**: Agent integration test（mock LLM）— 验证 ReAct loop 触发 tool call、聚合结果、tool error 反馈给 LLM 流程。
-- [ ] **TEST-03**: Route test (`agent.post.ts`) — SSE event sequence 正确性。
+- [x] **TEST-02**: Agent integration test（mock LLM）— 验证 ReAct loop 触发 tool call、聚合结果、tool error 反馈给 LLM 流程。
+- [x] **TEST-03**: Route test (`agent.post.ts`) — SSE event sequence 正确性。
 - [ ] **TEST-04**: Component test (`AgentChat.vue`) — UI States 渲染正确性（Vue Test Utils）。
 - [ ] **TEST-05**: Playwright E2E — chip 点击 → streaming 完成 → tool-call card 可展开 → 中英问题切换。
 
@@ -108,8 +108,8 @@
 | AGENT-02 | Phase 3 | Pending |
 | AGENT-03 | Phase 3 | Pending |
 | AGENT-04 | Phase 3 | Pending |
-| TEST-02 | Phase 3 | Pending |
-| TEST-03 | Phase 3 | Pending |
+| TEST-02 | Phase 3 | Complete |
+| TEST-03 | Phase 3 | Complete |
 | UI-05 | Phase 4 | Pending |
 | UI-06 | Phase 4 | Pending |
 | UI-07 | Phase 4 | Pending |
