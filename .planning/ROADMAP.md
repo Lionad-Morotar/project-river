@@ -32,8 +32,8 @@ project-river — interactive Git history Streamgraph visualization.
 **Plans:** 2 plans in 1 wave
 
 Plans:
-- [ ] 01-001-sse-spike-PLAN.md — pi-mono + Nuxt 4 SSE hello-world spike (P0 hard gate)
-- [ ] 01-002-schema-index-PLAN.md — commit_files schema verification + btree index decision
+- [x] 01-001-sse-spike-PLAN.md — pi-mono + Nuxt 4 SSE hello-world spike (P0 hard gate)
+- [x] 01-002-schema-index-PLAN.md — commit_files schema verification + btree index decision
 
 **Wave 1 (parallel):** PRE-01 + INFRA-03 一起跑，互相不 blocking
 **Pivot guard:** PRE-01 是 hard gate — fail 不进入 Phase 2，直接走 Vercel AI SDK 路线
@@ -49,7 +49,14 @@ Plans:
   3. 调用 `queryProjectEvents` 返回 Apr 21 design 的 7 类 `ProjectEvent`，且事件数据与现有 `useProjectEvents` 输出一致
   4. 调用 `queryCommitsByPath` 用 prefix-only LIKE JOIN `commit_files` 拿到 commits（message 截断 200 字符），large result 按 limit 截断
   5. 三个 tool 各有单元测试覆盖 happy path + 空结果 + 截断/越界边界，全部 pass
-**Plans:** TBD
+**Plans:** 2 plans in 2 waves
+
+Plans:
+- [x] 02-01-PLAN.md — INFRA-04: detectProjectEvents 纯函数抽取 + worker 精简 + 纯函数测试
+- [x] 02-02-PLAN.md — TOOL-01/02/03: 3 个 zod-typed tools + barrel registry + TEST-01 单元测试
+
+**Wave 1:** 02-01 (INFRA-04 纯函数抽取)
+**Wave 2:** 02-02 (tools + tests，依赖 02-01 的 detectProjectEvents 导出)
 
 #### Phase 3: Agent 引擎与路由 (Agent Engine)
 **Goal:** pi-mono ReAct loop 通过 SSE route 把 token + tool-call event 推到 client，error graceful degrade
@@ -91,8 +98,8 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pre-flight 与 Schema | 0/2 | Planned | — |
-| 2. Tools 纯函数层 | 0/0 | Not started | — |
+| 1. Pre-flight 与 Schema | 2/2 | Complete   | 2026-04-27 |
+| 2. Tools 纯函数层 | 0/2 | Planning complete | — |
 | 3. Agent 引擎与路由 | 0/0 | Not started | — |
 | 4. 聊天 UI 与 i18n | 0/0 | Not started | — |
 | 5. Eval 验证闸门 | 0/0 | Not started | — |
@@ -128,4 +135,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-04-27 — Phase 1 plans created (2 plans, wave 1 parallel). PRE-01 spike + INFRA-03 schema verification ready for execution.*
+*Last updated: 2026-05-03 — Phase 2 plans created (2 plans, 2 waves). INFRA-04 pure-lib extraction + 3 tools + TEST-01 ready for execution.*

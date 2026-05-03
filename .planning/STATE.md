@@ -1,15 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: milestone
-status: completed
-last_updated: "2026-04-16T15:45:00.000Z"
-last_activity: 2026-04-16
+milestone: v0.2.0
+milestone_name: Agentic QA
+status: verifying
+last_updated: "2026-05-03T04:51:06.438Z"
+last_activity: 2026-05-03
 progress:
-  total_phases: 2
+  total_phases: 5
   completed_phases: 2
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 4
+  completed_plans: 4
+  percent: 100
 ---
 
 # STATE
@@ -27,8 +28,8 @@ progress:
 
 Phase: 10 (docked-panel-layout) — COMPLETE
 Plan: 1 of 1
-Status: Completed
-Last activity: 2026-04-16
+Status: Phase complete — ready for verification
+Last activity: 2026-05-03
 
 **Progress Bar**: `[████████████████████████████████████] 100%`
 
@@ -43,6 +44,8 @@ Last activity: 2026-04-16
 | Phase 09 P01 | 4 | 1 tasks | 2 files |
 | Phase 09-aggregated-streamgraph-contributor-color-rework P02 | 590 | 2 tasks | 7 files |
 | Phase 10-docked-panel-layout P01 | ~45m | 6 tasks | 11 files |
+| Phase 02 P01 | 6min | 2 tasks | 3 files |
+| Phase 02 P02 | 10min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -69,6 +72,10 @@ Last activity: 2026-04-16
 - [Phase 10-docked-panel-layout]: Minimum sizes enforced: chart >=300px, panel >=200px (vertical) / >=160px (horizontal)
 - [Phase 10-docked-panel-layout]: Clamp floating coordinates to viewport bounds on drag end
 - [Phase 10-docked-panel-layout]: Persist docked edge + resize ratios + floating position in localStorage via useStorage
+- [Phase 02]: DayStat 接口保持 internal 不 export，减少公共 API 面
+- [Phase 02]: vitest alias 使用数组格式确保 ~/server 优先于 ~/ 匹配
+- [Phase 02]: queryContributors 使用 sql template tag 聚合 + JS 侧排序/过滤
+- [Phase 02]: agent tool 统一签名: (projectId, params) => Promise<T>
 
 ### TODOs
 
