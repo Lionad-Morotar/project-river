@@ -11,7 +11,7 @@
  * - D-23: convertToLlm = identity passthrough（无 custom AgentMessage 类型）
  */
 
-import type { AgentMessage } from '@mariozechner/pi-agent-core'
+import type { AgentMessage, StreamFn } from '@mariozechner/pi-agent-core'
 import type { Message } from '@mariozechner/pi-ai'
 import { Agent } from '@mariozechner/pi-agent-core'
 import { getModel } from '@mariozechner/pi-ai'
@@ -21,13 +21,18 @@ import { buildTools } from './toolAdapters'
 export interface CreateProjectAgentConfig {
   apiKey: string
   baseUrl: string
+  /**
+   * 可选：注入自定义 streamFn 用于测试隔离（替代 pi-ai streamSimple）。
+   * 生产环境留空，pi-agent-core 默认使用 streamSimple。
+   */
+  streamFn?: StreamFn
 }
 
 /**
  * 创建 project-scoped Agent 实例
  *
  * @param projectId 用于注入 tool 的 projectId（LLM 不可见）
- * @param config    LLM 凭据（apiKey + baseUrl）
+ * @param config    LLM 凭据（apiKey + baseUrl）+ 可选 streamFn（测试注入）
  */
 export function createProjectAgent(
   projectId: number,
@@ -49,5 +54,6 @@ export function createProjectAgent(
     convertToLlm: (messages: AgentMessage[]) => messages as Message[],
     getApiKey: () => config.apiKey,
     toolExecution: 'sequential',
+    ...(config.streamFn ? { streamFn: config.streamFn } : {}),
   })
 }
