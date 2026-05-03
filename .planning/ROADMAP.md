@@ -67,7 +67,14 @@ Plans:
   2. Agent 在 path-based 问题（如 "auth 模块谁接手"）上自动触发 ≥ 2 步 tool calling，符合 P2 修订标准
   3. Tool 抛错时 client 不收到崩溃响应，agent 继续运行并将 error 反馈给 LLM 做 graceful degrade
   4. System prompt（中英双语）已包含 "result too large" 截断约束，integration test mock LLM 验证 ReAct loop 与 tool error 反馈链路
-**Plans:** TBD
+**Plans:** 2 plans in 2 waves
+
+Plans:
+- [ ] 03-01-PLAN.md — AGENT-01/02/03/04: systemPrompt + toolAdapters + createAgent + SSE route
+- [ ] 03-02-PLAN.md — TEST-02/03: Agent integration test (mock LLM) + Route test (SSE event sequence)
+
+**Wave 1:** 03-01 (engine + route 落地)
+**Wave 2:** 03-02 (tests，依赖 03-01 的导出)
 
 #### Phase 4: 聊天 UI 与 i18n (Chat Surface)
 **Goal:** 用户从项目详情页打开 slide-in drawer，问问题、看流式回答、展开 tool-call cards、命中所有 UI States
@@ -100,7 +107,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Pre-flight 与 Schema | 2/2 | Complete   | 2026-04-27 |
 | 2. Tools 纯函数层 | 0/2 | Planning complete | — |
-| 3. Agent 引擎与路由 | 0/0 | Not started | — |
+| 3. Agent 引擎与路由 | 0/2 | Planning complete | — |
 | 4. 聊天 UI 与 i18n | 0/0 | Not started | — |
 | 5. Eval 验证闸门 | 0/0 | Not started | — |
 
@@ -135,4 +142,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-05-03 — Phase 2 plans created (2 plans, 2 waves). INFRA-04 pure-lib extraction + 3 tools + TEST-01 ready for execution.*
+*Last updated: 2026-05-03 — Phase 3 plans created (2 plans, 2 waves). AGENT-01~04 + TEST-02/03 ready for execution.*
