@@ -6,6 +6,10 @@
  * - projectId 从 route 参数注入（LLM 不应也无法传）
  * - execute() 内不 catch — 让原始异常冒泡，pi-agent-core 会自动包装为
  *   `isError: true` 的 ToolResultMessage 反馈给 LLM（graceful degrade by D-15）
+ *
+ * Gap closure (Phase 3 review)：
+ * - JSON.stringify 对 result 中的 bigint 安全降级为 string，避免 commit 计数等
+ *   字段在某些 driver 下抛 `TypeError: Do not know how to serialize a BigInt`
  */
 
 import type { AgentTool, AgentToolResult } from '@mariozechner/pi-agent-core'
@@ -67,6 +71,11 @@ const commitsByPathParams = Type.Object({
   limit: Type.Optional(Type.Number({ minimum: 1, maximum: 500 })),
 })
 
+/** BigInt-safe JSON.stringify replacer — 任意 bigint 字段都退化为 string */
+function bigintSafeReplacer(_key: string, value: unknown): unknown {
+  return typeof value === 'bigint' ? value.toString() : value
+}
+
 /**
  * 通用 adapter — 将 (projectId, params) => Promise<T> 包装为 AgentTool
  *
@@ -94,7 +103,7 @@ function adaptTool<TInput, TOutput>(
       // 不 catch — 抛错由 pi-agent-core 包装为 isError tool result（D-15）
       const result = await exec(projectId, params as TInput)
       return {
-        content: [{ type: 'text', text: JSON.stringify(result) }],
+        content: [{ type: 'text', text: JSON.stringify(result, bigintSafeReplacer) }],
         details: result,
       }
     },
