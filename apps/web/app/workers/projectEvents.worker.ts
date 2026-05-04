@@ -1,7 +1,7 @@
 // Project Events Detection Worker — message handling shell
-// Pure algorithm extracted to ~/server/utils/detectProjectEvents
-import type { DailyRow, EventDetectionConfig, ProjectEvent } from '~/server/utils/detectProjectEvents'
-import { detectEvents } from '~/server/utils/detectProjectEvents'
+// Pure algorithm extracted to server/utils/detectProjectEvents
+import type { DailyRow, EventDetectionConfig, ProjectEvent } from '../../server/utils/detectProjectEvents'
+import { detectEvents } from '../../server/utils/detectProjectEvents'
 
 // Worker message types — 仅 worker 使用，不导出
 interface EventDetectionRequest {

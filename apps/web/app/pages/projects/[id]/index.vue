@@ -596,7 +596,7 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
             <div class="flex items-center gap-2">
               <div class="relative">
                 <button
-                  class="flex items-center gap-1.5 hover:bg-elevated/60 -ml-2 px-2.5 py-1 rounded-md text-highlighted transition-colors"
+                  class="flex items-center gap-1.5 hover:bg-elevated/60 -ml-2 px-2.5 py-1 rounded-md text-highlighted transition-colors anchor-dropdown-trigger"
                   @click="projectSelectorOpen = !projectSelectorOpen"
                 >
                   <h1 class="m-0 p-0 font-semibold text-3xl tracking-tight">
@@ -614,7 +614,7 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
                 >
                   <div
                     v-if="projectSelectorOpen"
-                    class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-56"
+                    class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-56 anchor-dropdown"
                   >
                     <!-- Other projects -->
                     <button
@@ -869,7 +869,7 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
             <!-- Top-N contributor selector -->
             <div class="relative">
               <button
-                class="flex items-center gap-1 hover:bg-elevated/60 px-2 py-1 rounded-md font-medium text-dimmed hover:text-default text-xs transition-colors"
+                class="flex items-center gap-1 hover:bg-elevated/60 px-2 py-1 rounded-md font-medium text-dimmed hover:text-default text-xs transition-colors anchor-dropdown-trigger"
                 :class="topNSelectOpen ? 'text-default bg-elevated/40' : ''"
                 @click="topNSelectOpen = !topNSelectOpen"
               >
@@ -897,7 +897,7 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
               >
                 <div
                   v-if="topNSelectOpen"
-                  class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-36"
+                  class="top-full left-0 z-50 absolute bg-elevated shadow-lg mt-1.5 py-1 border border-default rounded-lg w-36 anchor-dropdown"
                 >
                   <button
                     v-for="opt in topNOptions"

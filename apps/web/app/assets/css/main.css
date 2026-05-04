@@ -153,3 +153,35 @@ html.dark {
 .hero-enter-2 { animation-delay: 650ms; }
 .hero-enter-3 { animation-delay: 800ms; }
 .hero-enter-4 { animation-delay: 950ms; }
+
+/* ═══════════════════════════════════════════════════════════
+   CSS Anchor Positioning — 渐进增强弹出层定位
+   支持的浏览器：Chrome 125+, Edge 125+, Safari 18.2+
+   不支持的浏览器自动回退到原有 absolute/fixed 方案
+   ═══════════════════════════════════════════════════════════ */
+
+@supports (position-anchor: --anchor) {
+  /* ── 通用锚点回退策略：下方空间不足时翻转到上方 ── */
+  @position-try --flip-to-top {
+    position-area: top span-right;
+    margin-block-end: 0;
+    margin-block-start: 6px;
+  }
+
+  /* ── Dropdown 锚定到触发按钮 ── */
+  .anchor-dropdown-trigger {
+    anchor-name: --dropdown-trigger;
+  }
+
+  .anchor-dropdown {
+    position: fixed;
+    position-anchor: --dropdown-trigger;
+    position-area: bottom span-right;
+    inset: auto;
+    top: anchor(bottom);
+    left: anchor(left);
+    margin-block-start: 6px;
+    position-try-fallbacks: --flip-to-top;
+  }
+
+}
