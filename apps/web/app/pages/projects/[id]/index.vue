@@ -1075,6 +1075,9 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
       @confirm="handleDelete"
     />
 
+    <!-- Agent Chat -->
+    <AgentChat :project-id="Number(projectId)" />
+
     <!-- Settings modal -->
     <SettingsModal v-model:open="settingsModalOpen" show-storage />
   </div>
