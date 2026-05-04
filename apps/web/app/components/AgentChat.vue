@@ -17,8 +17,12 @@ const open = computed({
   get: () => displayMode.value === 'drawer',
   set: (v) => { displayMode.value = v ? 'drawer' : 'fab' },
 })
-function minimize() { displayMode.value = 'fab' }
-function expand() { displayMode.value = 'drawer' }
+function minimize() {
+  displayMode.value = 'fab'
+}
+function expand() {
+  displayMode.value = 'drawer'
+}
 
 // ── State machine (D-07) ──
 type AgentPhase = 'idle' | 'streaming' | 'tool-calling' | 'stream-mid-error'
@@ -199,12 +203,8 @@ function startRateLimitCountdown(seconds: number) {
   }, 1000)
 }
 
-// Cleanup
-onBeforeUnmount(() => {
-  abortController?.abort()
-  if (rateLimitTimer)
-    clearInterval(rateLimitTimer)
-})
+// Refs
+const inputRef = ref<HTMLInputElement | null>(null)
 
 // Auto-focus input when drawer opens
 watch(open, (v) => {
@@ -215,7 +215,12 @@ watch(open, (v) => {
   }
 })
 
-const inputRef = ref<HTMLInputElement | null>(null)
+// Cleanup
+onBeforeUnmount(() => {
+  abortController?.abort()
+  if (rateLimitTimer)
+    clearInterval(rateLimitTimer)
+})
 </script>
 
 <template>
@@ -270,7 +275,9 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
             <!-- Empty result -->
             <div v-else-if="phase === 'empty-result'" class="text-center py-8">
-              <p class="text-sm text-muted">{{ t('agent.error.noData') }}</p>
+              <p class="text-sm text-muted">
+                {{ t('agent.error.noData') }}
+              </p>
               <div class="flex flex-wrap gap-2 mt-4 justify-center">
                 <button
                   v-for="(chip, idx) in chips"
@@ -288,7 +295,9 @@ const inputRef = ref<HTMLInputElement | null>(null)
               <!-- User message -->
               <div v-if="msg.role === 'user'" class="flex justify-end">
                 <div class="bg-elevated rounded-lg px-3 py-2 max-w-[85%]">
-                  <p class="text-sm text-default">{{ msg.text }}</p>
+                  <p class="text-sm text-default">
+                    {{ msg.text }}
+                  </p>
                 </div>
               </div>
 
@@ -296,7 +305,9 @@ const inputRef = ref<HTMLInputElement | null>(null)
               <div v-else class="flex justify-start">
                 <div class="max-w-[85%] space-y-2">
                   <div class="bg-default border border-default rounded-lg px-3 py-2">
-                    <p class="text-sm text-default whitespace-pre-wrap">{{ msg.text }}</p>
+                    <p class="text-sm text-default whitespace-pre-wrap">
+                      {{ msg.text }}
+                    </p>
                     <!-- Streaming cursor -->
                     <span v-if="phase === 'streaming' && idx === messages.length - 1" class="inline-block w-0.5 h-4 bg-sky-500 ml-0.5 align-middle animate-pulse" />
                   </div>
@@ -327,7 +338,9 @@ const inputRef = ref<HTMLInputElement | null>(null)
             <!-- Error banner: stream-mid-error -->
             <div v-if="phase === 'stream-mid-error'" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-3">
               <UIcon name="i-lucide-alert-circle" class="w-4 h-4 text-red-400 shrink-0" />
-              <p class="text-xs text-red-400 flex-1">{{ t('agent.error.streamInterrupted') }}</p>
+              <p class="text-xs text-red-400 flex-1">
+                {{ t('agent.error.streamInterrupted') }}
+              </p>
               <button
                 class="px-2 py-1 text-xs rounded bg-elevated text-default hover:bg-elevated/80 transition-colors"
                 @click="retry"
@@ -339,18 +352,24 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
             <!-- Rate limit banner -->
             <div v-if="phase === 'rate-limit'" class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-              <p class="text-xs text-amber-400">{{ t('agent.error.rateLimited', { n: rateLimitSeconds }) }}</p>
+              <p class="text-xs text-amber-400">
+                {{ t('agent.error.rateLimited', { n: rateLimitSeconds }) }}
+              </p>
             </div>
 
             <!-- Cost cap banner -->
             <div v-if="phase === 'cost-cap'" class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
-              <p class="text-xs text-orange-400">{{ t('agent.error.costCap') }}</p>
+              <p class="text-xs text-orange-400">
+                {{ t('agent.error.costCap') }}
+              </p>
             </div>
 
             <!-- API key missing overlay -->
             <div v-if="phase === 'api-key-missing'" class="absolute inset-0 bg-default/90 flex flex-col items-center justify-center p-6 z-10">
               <UIcon name="i-lucide-key-round" class="w-8 h-8 text-muted mb-3" />
-              <p class="text-sm text-muted text-center">{{ t('agent.error.apiKeyMissing') }}</p>
+              <p class="text-sm text-muted text-center">
+                {{ t('agent.error.apiKeyMissing') }}
+              </p>
             </div>
           </div>
 
