@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v0.2.0
 milestone_name: Agentic QA
-status: executing
-last_updated: "2026-05-03T05:39:35.147Z"
-last_activity: 2026-05-03
+status: completed
+last_updated: "2026-05-04T16:00:00.000Z"
+last_activity: 2026-05-04 -- Phase 5 complete (Eval gate PASS, v0.2.0 ship ready)
 progress:
   total_phases: 5
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  completed_phases: 5
+  total_plans: 10
+  completed_plans: 10
   percent: 100
 ---
 
@@ -20,16 +20,16 @@ progress:
 **Name**: project-river
 **Core Value**: Make Git repository evolution visceral and explorable through an interactive Streamgraph visualization.
 
-**Current Focus**: Milestone v1.1 completed — 可视化增强
-**Milestone**: v1.1 可视化增强
-**Mode**: interactive
+**Current Focus**: Milestone v0.2.0 Agentic QA — Phase 5 Eval Gate (COMPLETE, PASS)
+**Milestone**: v0.2.0 Agentic QA
+**Mode**: autonomous
 
 ## Current Position
 
-Phase: 03 (agent-engine-and-route) — EXECUTING
+Phase: 5 (Eval 验证闸门 (Sunday-Night Gate)) — COMPLETE
 Plan: 2 of 2
-Status: Ready to execute
-Last activity: 2026-05-03
+Status: Phase 5 PASSED — v0.2.0 ship ready
+Last activity: 2026-05-04 -- Phase 5 complete, all evals passed, 4/4 E2E tests pass
 
 **Progress Bar**: `[████████████████████████████████████] 100%`
 
@@ -78,6 +78,12 @@ Last activity: 2026-05-03
 - [Phase 02]: queryContributors 使用 sql template tag 聚合 + JS 侧排序/过滤
 - [Phase 02]: agent tool 统一签名: (projectId, params) => Promise<T>
 - [Phase 03]: createProjectAgent 新增可选 streamFn config — 测试通过此注入 mock streamSimple，pnpm symlink 下 module-level mock 不可靠（D-26 实施细节）
+- [Phase 04]: Ask 入口改为右下悬浮 FAB（tri-state displayMode: 'fab' | 'drawer'），点击 FAB → 弹出 USlideover；Esc / 关闭事件 → 缩小回 FAB（不卸载子树，会话状态保留）。修订 REQUIREMENTS UI-06 描述。
+- [Phase 04]: SSE 客户端锁定 @microsoft/fetch-event-source（支持 POST + AbortController + onopen 拦截 HTTP 错误层）。原生 EventSource 仅 GET，不可用。
+- [Phase 04]: 错误分层 — 503/429/404/400 在 onopen 抛 HTTP 错误（建立 SSE 流前）；流中错误用 SSE `error` event。10 个 UI States 全覆盖。
+- [Phase 04]: i18n keys 从 REQUIREMENTS I18N-01 的 10 升级到 12（新增 `agent.askButton` + `agent.drawer.minimize`）。plan-phase 同步更新 REQUIREMENTS.md。
+- [Phase 04]: 5 个 chip 文本面向 VueUse corpus 锁定，与 EVAL-02/03 对齐（hardest test "useStorage 主要由谁维护? 最近 6 个月 owner shift?" 是 chip 1）。
+- [Phase 04]: 组件 2 文件拆分 — AgentChat.vue（FAB 外壳 + 状态机 + USlideover）+ AgentToolCard.vue（折叠卡片，复用 UCollapsible）。
 
 ### TODOs
 
@@ -89,6 +95,12 @@ Last activity: 2026-05-03
 - v1.1 milestone started on 2026-04-15, focusing on aggregated daily API and contributor color rework.
 - Phase 10 completed on 2026-04-16: docked panel layout with dark theme migration.
 - v1.1 milestone completed and archived on 2026-04-16.
+- v0.2.0 Agentic QA milestone started on 2026-04-27, autonomous workflow.
+- Phase 1-3 completed by 2026-05-03 (SSE spike + schema + tools layer + agent engine + 51+40 tests).
+- Phase 4 (UI + i18n Chat Surface) discuss completed on 2026-05-04 with 16 locked decisions; user override: Ask 入口 → 右下悬浮 FAB (tri-state, minimize-not-close).
+- Phase 4 planning completed on 2026-05-04: 2 plans approved (04-01: 3 tasks + 04-02: 2 tasks), all 6 requirements covered, 16/16 decisions honored, plan-checker PASSED.
+- Phase 4 execution completed on 2026-05-04: Wave 1 (04-01: 4 commits, AgentChat.vue 402L + AgentToolCard.vue 96L + 12 i18n keys + page mount) + Wave 2 (04-02: 3 commits, 19/19 tests pass, tsc 0 errors, ESLint 0 errors).
+- Phase 5 completed on 2026-05-04: Wave 1 — EVAL-01 VueUse ingest verified (3723 commits, 21144 commit_files), EVAL-02 hardest test PASS (8 tool calls, evidence correct), EVAL-03 chip questions 4/5 PASS. Wave 2 — Playwright E2E 4/4 PASS (8.1s total). Gate verdict: PASS, v0.2.0 ship ready.
 
 ### Blockers
 
@@ -96,5 +108,5 @@ Last activity: 2026-05-03
 
 ## Session Continuity
 
-**Last action**: Milestone v1.1 completion
-**Next expected action**: Transition to milestone v2.0 planning or ad-hoc tasks
+**Last action**: Phase 4 execution complete — 2 plans executed (04-01: 4 commits + 04-02: 3 commits). 19/19 tests pass, tsc 0 errors, ESLint 0 errors. Merge commit 8a7daa2.
+**Next expected action**: Auto-advance to /gsd-discuss-phase 5 (per autonomous workflow)
