@@ -248,4 +248,34 @@ export default defineI18nLocale(() => ({
     saveLocallyHint: '勾选后，粒度、关键节点等设置将在所有项目间共享。',
     themeHint: '切换主题色将重新计算河流图中贡献者的配色。',
   },
+  agent: {
+    askButton: '问 Agent',
+    drawer: {
+      title: '项目分析助手',
+      placeholder: '问问这个项目的演进...',
+      minimize: '缩小到角落',
+    },
+    chip: {
+      1: 'useStorage 主要由谁维护? 最近 6 个月有 owner shift 吗?',
+      2: 'composables/ 模块谁贡献最多?',
+      3: '项目有哪些里程碑事件?',
+      4: 'core 包近期最活跃?',
+      5: 'shared utils 最近被谁改动?',
+    },
+    error: {
+      noData: '现有数据中查不到',
+      apiKeyMissing: 'API Key 未配置，请在 .env 中设置 NUXT_AGENT_LLM_API_KEY',
+      streamInterrupted: '流中断，请重试',
+      rateLimited: '请求过于频繁，{n} 秒后重试',
+      costCap: '会话 token 接近上限，请刷新页面重新开始',
+      inputTooLong: '500 / {n}',
+      aborted: '已中断',
+    },
+    toolcard: {
+      input: '输入参数',
+      output: '返回结果',
+      step: 'Step {n}',
+      duration: '{n}ms',
+    },
+  },
 }))

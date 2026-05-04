@@ -248,4 +248,34 @@ export default defineI18nLocale(() => ({
     saveLocallyHint: 'When enabled, granularity, key nodes, and other settings are shared across all projects.',
     themeHint: 'Changing the theme color recalculates contributor colors in the streamgraph.',
   },
+  agent: {
+    askButton: 'Ask Agent',
+    drawer: {
+      title: 'Project Analyst',
+      placeholder: 'Ask about this project\'s evolution...',
+      minimize: 'Minimize',
+    },
+    chip: {
+      1: 'Who maintains useStorage? Any owner shift in the last 6 months?',
+      2: 'Who contributed most to the composables/ module?',
+      3: 'What are the project\'s milestone events?',
+      4: 'Which package in core/ is most active recently?',
+      5: 'Who recently changed shared utils?',
+    },
+    error: {
+      noData: 'No data found in current records',
+      apiKeyMissing: 'API Key not configured. Set NUXT_AGENT_LLM_API_KEY in .env',
+      streamInterrupted: 'Stream interrupted. Please retry.',
+      rateLimited: 'Rate limited. Retry in {n}s.',
+      costCap: 'Session token limit approaching. Refresh to restart.',
+      inputTooLong: '500 / {n}',
+      aborted: 'Aborted',
+    },
+    toolcard: {
+      input: 'Input',
+      output: 'Output',
+      step: 'Step {n}',
+      duration: '{n}ms',
+    },
+  },
 }))
