@@ -96,9 +96,9 @@ Refresh the page after analysis completes to see the Streamgraph.
 
 ## Roadmap
 
-- **Zero-config CLI** — `npx @lionad/project-river` inside any local repo to analyze and launch the Web UI instantly
-- **Agent Analysis** — Feed commit-derived timeline & milestone data into deep-research agents for automated project summaries
+- **Agent Analysis (Working)** — Feed commit-derived timeline & milestone data into deep-research agents for automated project summaries
 - **AI-Native Architecture** — MCP servers and Claude Skills for first-class agent interoperability
+- **Zero-config CLI** — `npx @lionad/project-river` inside any local repo to analyze and launch the Web UI instantly
 - **More Dimensions** — AI code percentage, 24-hour commit radar, code-churn heatmap, and other insightful metrics
 
 ## License

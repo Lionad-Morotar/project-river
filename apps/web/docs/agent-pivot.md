@@ -8,24 +8,32 @@
 
 ### 验证通过项
 
-| 检查项 | 结果 | 说明 |
-|--------|------|------|
-| pi-ai 0.70.2 安装 | PASS | `@mariozechner/pi-ai` 和 `@mariozechner/pi-agent-core` 成功安装 |
-| SSE 响应头 | PASS | `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive` |
-| pi-ai API 调用 | PASS | `getModel('anthropic', 'claude-sonnet-4-6')` + `streamSimple()` 工作正常 |
-| 流式事件协议 | PASS | `text_delta` 事件携带 `delta` 字段；`error` 事件携带 `error.errorMessage` |
-| EventSource 连接 | PASS | Client 端 `EventSource('/api/agent/_spike')` 连接正常 |
-| API key 安全 | PASS | `useRuntimeConfig().agentLlmApiKey` server-only，不暴露给 client |
+| 检查项            | 结果 | 说明                                                                                   |
+| ----------------- | ---- | -------------------------------------------------------------------------------------- |
+| pi-ai 0.70.2 安装 | PASS | `@mariozechner/pi-ai` 和 `@mariozechner/pi-agent-core` 成功安装                        |
+| SSE 响应头        | PASS | `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `Connection: keep-alive` |
+| pi-ai API 调用    | PASS | `getModel('anthropic', 'claude-sonnet-4-6')` + `streamSimple()` 工作正常               |
+| 流式事件协议      | PASS | `text_delta` 事件携带 `delta` 字段；`error` 事件携带 `error.errorMessage`              |
+| EventSource 连接  | PASS | Client 端 `EventSource('/api/agent/_spike')` 连接正常                                  |
+| API key 安全      | PASS | `useRuntimeConfig().agentLlmApiKey` server-only，不暴露给 client                       |
+| 自定义 endpoint   | PASS | `runtimeConfig.agentLlmBaseUrl` 支持自定义 LLM endpoint（如 Deepseek）                 |
 
 ### 发现与调整
 
 1. **Nuxt runtimeConfig 需要显式声明**：`NUXT_AGENT_LLM_API_KEY` 不会自动映射到 `useRuntimeConfig().agentLlmApiKey`，必须在 `nuxt.config.ts` 的 `runtimeConfig` 中显式声明 `agentLlmApiKey: ''`。
 
-2. **pi-ai error 事件结构**：`error` 事件的字段是 `ev.error`（不是 `ev.partial`），错误消息在 `ev.error.errorMessage` 中。
+2. **自定义 LLM endpoint 支持**：通过 `runtimeConfig.agentLlmBaseUrl`（环境变量 `NUXT_AGENT_LLM_BASE_URL`）支持自定义 Anthropic-compatible endpoint（如 Deepseek `https://api.deepseek.com/anthropic`）。在代码中覆盖 `model.baseUrl` 即可让 pi-ai 连接到自定义 endpoint。
 
-3. **pi-mono 包不存在**：npm registry 中没有 `@mariozechner/pi-mono`，实际使用的是 `@mariozechner/pi-ai`（LLM API）和 `@mariozechner/pi-agent-core`（agent 框架）。
+3. **pi-ai error 事件结构**：`error` 事件的字段是 `ev.error`（不是 `ev.partial`），错误消息在 `ev.error.errorMessage` 中。
 
-4. **Auth Gate**：当前 `.env` 中的 `NUXT_AGENT_LLM_API_KEY` 是占位符，需要替换为真实的 Anthropic API key 才能进行实际 LLM 调用。pi-ai 返回了正确的 401 错误：`invalid x-api-key`。
+4. **pi-mono 包不存在**：npm registry 中没有 `@mariozechner/pi-mono`，实际使用的是 `@mariozechner/pi-ai`（LLM API）和 `@mariozechner/pi-agent-core`（agent 框架）。
+
+5. **实际 LLM 配置（用户选定）**：
+   - Provider: Deepseek（Anthropic-compatible API）
+   - Endpoint: `https://api.deepseek.com/anthropic`
+   - 模型: `deepseek-v4-flash`
+   - API Key: 用户已配置在 `.env` 的 `NUXT_AGENT_LLM_API_KEY`
+   - Base URL: 用户已配置在 `.env` 的 `NUXT_AGENT_LLM_BASE_URL`
 
 ## Decision Record
 
@@ -37,12 +45,12 @@
 
 ## Mapping: pi-mono → Vercel AI SDK（备用方案）
 
-| pi-mono 概念 | Vercel AI SDK 替代 | 文件影响 |
-|---|---|---|
-| `pi-ai.streamSimple` | `ai/streamText` | `server/api/projects/[id]/agent.post.ts` |
-| `pi-agent-core` ReAct loop | `ai/generateText` + `tools` | `server/api/projects/[id]/agent.post.ts` |
-| pi-mono tool schema | `ai/tool` + zod schema | `server/agent/tools/*.ts`（仅 schema 定义方式） |
-| pi-mono session state | Vue ref 管 messages | `composables/useAgentChat.ts`（新） |
+| pi-mono 概念               | Vercel AI SDK 替代          | 文件影响                                        |
+| -------------------------- | --------------------------- | ----------------------------------------------- |
+| `pi-ai.streamSimple`       | `ai/streamText`             | `server/api/projects/[id]/agent.post.ts`        |
+| `pi-agent-core` ReAct loop | `ai/generateText` + `tools` | `server/api/projects/[id]/agent.post.ts`        |
+| pi-mono tool schema        | `ai/tool` + zod schema      | `server/agent/tools/*.ts`（仅 schema 定义方式） |
+| pi-mono session state      | Vue ref 管 messages         | `composables/useAgentChat.ts`（新）             |
 
 ## 保留不变（无需重写）
 
