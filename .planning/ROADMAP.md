@@ -14,9 +14,9 @@ project-river — interactive Git history Streamgraph visualization.
 
 ### Phases
 
-- [ ] **Phase 1: Pre-flight 与 Schema (Foundation)** — P0 spike + commit_files schema 验证，验证系统能跑 ReAct loop
-- [ ] **Phase 2: Tools 纯函数层 (Tool Layer)** — detectProjectEvents pure-lib 抽离 + 3 个 zod-typed tools + 单元测试
-- [ ] **Phase 3: Agent 引擎与路由 (Agent Engine)** — pi-mono ReAct loop + SSE route + system prompt + integration/route 测试
+- [x] **Phase 1: Pre-flight 与 Schema (Foundation)** — P0 spike + commit_files schema 验证，验证系统能跑 ReAct loop
+- [x] **Phase 2: Tools 纯函数层 (Tool Layer)** — detectProjectEvents pure-lib 抽离 + 3 个 zod-typed tools + 单元测试
+- [x] **Phase 3: Agent 引擎与路由 (Agent Engine)** — pi-mono ReAct loop + SSE route + system prompt + integration/route 测试
 - [ ] **Phase 4: 聊天 UI 与 i18n (Chat Surface)** — AgentChat USlideover + UI States + 5 chip + 中英 i18n + component 测试
 - [ ] **Phase 5: Eval 验证闸门 (Sunday-Night Gate)** — VueUse ingest + hardest test + chip eval + Playwright E2E
 
@@ -81,13 +81,19 @@ Plans:
 **Depends on:** Phase 3 (SSE route contract stable)
 **Requirements:** UI-05, UI-06, UI-07, UI-08, I18N-01, TEST-04
 **Success Criteria** (what must be TRUE):
-  1. 用户点击 ProjectLayout 头部 "Ask" 按钮，能从右侧 slide in 一个 40% 宽 drawer（mobile 全屏 fallback），关闭/重开状态保持
+  1. 用户点击常驻右下 FAB 按钮，能从右侧 slide in 一个 40% 宽 drawer（mobile 全屏 fallback），minimize 后状态保持
   2. 用户可以点击 5 个中英 chip questions 任一个自动填充并发送，drawer 中流式渲染 token，tool-call cards 默认折叠、可展开看 input/output JSON
   3. 用户在 idle/streaming/tool-calling/stream-mid-error/abort/rate-limit/cost-cap/input-too-long/api-key-missing/empty-result 任一状态下都能看到明确反馈
   4. 用户切换中英 locale 时 drawer 标题、placeholder、5 chip、error、tool-card 标签全部跟随翻译
   5. AgentChat 组件测试覆盖所有 UI States 渲染分支，全部 pass
-**Plans:** TBD
-**UI hint:** yes
+**Plans:** 2 plans in 2 waves
+
+Plans:
+- [ ] 04-01-PLAN.md — UI-05/06/07/08 + I18N-01: AgentChat.vue + AgentToolCard.vue + i18n 12 key + 页面挂载
+- [ ] 04-02-PLAN.md — TEST-04: AgentChat.spec.ts + AgentToolCard.spec.ts 组件测试
+
+**Wave 1:** 04-01 (组件 + i18n + 挂载)
+**Wave 2:** 04-02 (组件测试，依赖 04-01 的组件文件)
 
 #### Phase 5: Eval 验证闸门 (Sunday-Night Gate)
 **Goal:** 在真实 corpus (VueUse) 上验证 agent 答得对、证据正确、≥ 2 tool calls 命中，决定 ship 或 pivot
@@ -106,9 +112,9 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pre-flight 与 Schema | 2/2 | Complete   | 2026-04-27 |
-| 2. Tools 纯函数层 | 0/2 | Planning complete | — |
-| 3. Agent 引擎与路由 | 0/2 | Planning complete | — |
-| 4. 聊天 UI 与 i18n | 0/0 | Not started | — |
+| 2. Tools 纯函数层 | 2/2 | Complete | 2026-05-03 |
+| 3. Agent 引擎与路由 | 2/2 | Complete | 2026-05-03 |
+| 4. 聊天 UI 与 i18n | 0/2 | In progress | — |
 | 5. Eval 验证闸门 | 0/0 | Not started | — |
 
 ### Coverage
@@ -142,4 +148,4 @@ Plans:
 
 ---
 
-*Last updated: 2026-05-03 — Phase 3 plans created (2 plans, 2 waves). AGENT-01~04 + TEST-02/03 ready for execution.*
+*Last updated: 2026-05-03 — Phase 3 complete (Agent Engine + SSE route + 40 tests). Ready to start Phase 4 (Chat Surface UI).*

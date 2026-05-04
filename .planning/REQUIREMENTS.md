@@ -34,13 +34,13 @@
 ### UI Surface
 
 - [ ] **UI-05**: `apps/web/app/components/AgentChat.vue` 用 Nuxt UI v4 `<USlideover>` 包装；slide-in 40% 视口宽，mobile 全屏 fallback。
-- [ ] **UI-06**: 5 个 chip questions（中英 i18n）+ 项目详情页 `ProjectLayout` 头部右侧 "Ask" 按钮触发 drawer。
+- [ ] **UI-06**: 5 个 chip questions（中英 i18n）+ 常驻右下 FAB 悬浮按钮触发 drawer（可缩小回 FAB，不卸载子树）。
 - [ ] **UI-07**: SSE streaming token 实时渲染 + collapsible tool-call cards（默认折叠，展开看 input/output JSON）+ step progress 指示（6-9s 延迟可见性）。
 - [ ] **UI-08**: 完整 UI States — idle / streaming / tool-calling / stream-mid-error / abort / rate-limit (429 + retry-after) / cost-cap (50K session token soft 上限) / input-too-long (>500 字符) / api-key-missing / empty-result。
 
 ### i18n
 
-- [ ] **I18N-01**: 新增 10 个 i18n 键值（中英双语）— `agent.drawer.title` / `agent.drawer.placeholder` / 5 个 chip / `agent.error.no_data` / `agent.error.api_key_missing` / `agent.toolcard.input` / `agent.toolcard.output`。
+- [ ] **I18N-01**: 新增 12 个 i18n 键值（中英双语）— `agent.drawer.title` / `agent.drawer.placeholder` / `agent.askButton` / `agent.drawer.minimize` / 5 个 chip / `agent.error.no_data` / `agent.error.api_key_missing` / `agent.toolcard.input` / `agent.toolcard.output`。
 
 ### Eval & Validation Gate
 
