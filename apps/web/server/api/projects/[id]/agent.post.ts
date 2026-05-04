@@ -25,9 +25,9 @@
 
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import type { AssistantMessage, Message } from '@mariozechner/pi-ai'
+import { createProjectAgent } from '#server/agent/createAgent'
+import { assertProjectExists } from '#server/utils/projectStats'
 import { createError, defineEventHandler, getRouterParam, readBody, setHeader } from 'h3'
-import { createProjectAgent } from '~/server/agent/createAgent'
-import { assertProjectExists } from '~/server/utils/projectStats'
 
 /** SSE event JSON 形态（type 字段区分种类，对应 D-07） */
 type SseEventType = 'text' | 'tool-call' | 'tool-result' | 'done' | 'error'

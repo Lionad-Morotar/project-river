@@ -13,6 +13,7 @@
 
 import type { AgentMessage, StreamFn } from '@mariozechner/pi-agent-core'
 import type { Message } from '@mariozechner/pi-ai'
+import process from 'node:process'
 import { Agent } from '@mariozechner/pi-agent-core'
 import { getModel } from '@mariozechner/pi-ai'
 import { AGENT_SYSTEM_PROMPT } from './systemPrompt'
@@ -41,8 +42,24 @@ export function createProjectAgent(
   // DeepSeek API 通过 Anthropic-compatible endpoint 提供。
   // Phase 1 spike 验证：getModel('anthropic', 'claude-sonnet-4-6') 后覆盖 baseUrl。
   // 用 spread 创建新对象避免改写共享 model 实例。
+  // FIX 1: Anthropic SDK 0.90.0 + dangerouslyAllowBrowser: true 时不自动发 x-api-key header，
+  //        通过 model.headers 强制注入，经 pi-ai mergeHeaders 流入 defaultHeaders。
+  // FIX 2: model.id 必须改为 DeepSeek model ID，reasoning 必须关闭，否则 buildParams
+  //        会生成 thinking / output_config 等 DeepSeek 不支持的参数导致 400。
+  // FIX 3: Claude Code 运行环境注入 ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED 和
+  //        ANTHROPIC_BASE_URL=http://127.0.0.1:15721，Anthropic SDK 会读取这些变量
+  //        并发送错误的 Authorization header，覆盖正确的 X-Api-Key。清除之。
+  delete (process.env as Record<string, string>).ANTHROPIC_AUTH_TOKEN
+  delete (process.env as Record<string, string>).ANTHROPIC_BASE_URL
+
   const baseModel = getModel('anthropic', 'claude-sonnet-4-6')
-  const model = { ...baseModel, baseUrl: config.baseUrl }
+  const model = {
+    ...baseModel,
+    id: 'deepseek-v4-flash',
+    baseUrl: config.baseUrl,
+    headers: { 'x-api-key': config.apiKey },
+    reasoning: false,
+  }
 
   return new Agent({
     initialState: {

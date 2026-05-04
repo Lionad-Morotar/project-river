@@ -1,7 +1,7 @@
+import { assertProjectExists } from '#server/utils/projectStats'
 import { db } from '@project-river/db/client'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { assertProjectExists } from '~/server/utils/projectStats'
 
 /** queryCommitsByPath zod schema — 入参校验 */
 export const queryCommitsByPathSchema = z.object({

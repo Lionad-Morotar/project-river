@@ -1,9 +1,9 @@
-import type { DailyRow, ProjectEvent } from '~/server/utils/detectProjectEvents'
+import type { DailyRow, ProjectEvent } from '#server/utils/detectProjectEvents'
+import { detectEvents } from '#server/utils/detectProjectEvents'
+import { assertProjectExists, buildDailyDateBounds } from '#server/utils/projectStats'
 import { db } from '@project-river/db/client'
 import { sql } from 'drizzle-orm'
 import { z } from 'zod'
-import { detectEvents } from '~/server/utils/detectProjectEvents'
-import { assertProjectExists, buildDailyDateBounds } from '~/server/utils/projectStats'
 
 /** queryProjectEvents zod schema — 入参校验 */
 export const queryProjectEventsSchema = z.object({
