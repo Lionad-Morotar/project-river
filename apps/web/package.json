@@ -18,6 +18,7 @@
   "dependencies": {
     "@mariozechner/pi-agent-core": "0.70.2",
     "@mariozechner/pi-ai": "0.70.2",
+    "@microsoft/fetch-event-source": "2.0.1",
     "@project-river/db": "workspace:*",
     "@project-river/pipeline": "workspace:*",
     "d3-array": "^3.2.4",
@@ -29,8 +30,10 @@
     "d3-time-format": "^4.1.0",
     "d3-zoom": "^3.0.0",
     "nuxt": "^4.4.2",
+    "nuxt-llms": "^0.2.0",
     "pako": "^2.1.0",
     "vue": "^3.5.32",
+    "vue-i18n": "^11.4.0",
     "vue-router": "^5.0.4",
     "zod": "^3.24.0"
   },
