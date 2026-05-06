@@ -24,6 +24,9 @@ const zhMessages = {
       4: 'Chip 4',
       5: 'Chip 5',
     },
+    context: {
+      lengthAndPercent: '{len} tokens / {pct}%',
+    },
     error: {
       noData: 'No data',
       streamInterrupted: 'Stream interrupted',

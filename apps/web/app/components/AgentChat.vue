@@ -9,8 +9,23 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { useStorage, watchThrottled } from '@vueuse/core'
 import AgentToolCard from './AgentToolCard.vue'
 
-const props = defineProps<{ projectId: number }>()
+const props = defineProps<{
+  projectId: number
+  projectName?: string
+}>()
 const { t } = useI18n()
+
+/** 上下文窗口 token 上限（deepseek-v4-flash = 1M tokens） */
+const CONTEXT_WINDOW_TOKENS = 1_000_000
+
+/** 累计已消耗的精确 token 数（由后端 usage 事件提供） */
+const totalTokensConsumed = ref(0)
+
+/** 当前对话上下文占用百分比 */
+const contextPercent = computed(() => {
+  const pct = (totalTokensConsumed.value / CONTEXT_WINDOW_TOKENS) * 100
+  return Math.min(pct, 100).toFixed(1)
+})
 
 // ── Display mode: 'fab' | 'open' ──
 const displayMode = ref<'fab' | 'open'>('fab')
@@ -98,10 +113,17 @@ interface ToolCallItem {
   duration?: number
 }
 
+/** 消息片段：text 或 tool，按事件顺序排列 */
+type Part
+  = | { type: 'text', content: string }
+    | { type: 'tool', toolCall: ToolCallItem }
+
 interface AgentMessage {
   role: 'user' | 'assistant'
   text: string
   toolCalls?: ToolCallItem[]
+  /** 按事件顺序排列的片段（text/tool 交错），渲染时优先使用 */
+  parts?: Part[]
 }
 
 const phase = ref<AgentPhase>('idle')
@@ -114,9 +136,24 @@ const storageKey = computed(() => `agent-chat-${props.projectId}`)
 const storedMessages = useStorage<AgentMessage[]>(storageKey, [])
 
 const messages = reactive<AgentMessage[]>([])
+
+/** 将旧格式（text + toolCalls[] 分离）迁移为 parts 数组 */
+function migrateMessage(msg: AgentMessage): AgentMessage {
+  if (!msg.parts && msg.role === 'assistant') {
+    const parts: Part[] = []
+    if (msg.text)
+      parts.push({ type: 'text', content: msg.text })
+    if (msg.toolCalls?.length) {
+      for (const tc of msg.toolCalls) parts.push({ type: 'tool', toolCall: tc })
+    }
+    return { ...msg, parts }
+  }
+  return msg
+}
+
 // Restore from storage on mount
 if (storedMessages.value.length > 0) {
-  messages.push(...storedMessages.value)
+  messages.push(...storedMessages.value.map(migrateMessage))
 }
 // Sync to storage (throttled to avoid excessive writes during streaming)
 watchThrottled(
@@ -132,6 +169,7 @@ function clearConversation() {
   storedMessages.value = []
   phase.value = 'idle'
   sessionTokens.value = 0
+  totalTokensConsumed.value = 0
 }
 
 const inputTooLong = computed(() => inputValue.value.length > 500)
@@ -169,11 +207,13 @@ async function submit(text: string) {
     role: 'assistant',
     text: '',
     toolCalls: [],
+    parts: [],
   })
   messages.push(assistant)
 
   const toolStartTimes = new Map<string, number>()
   let toolIndex = 0
+  let currentTextPart: Part | null = null
 
   try {
     await fetchEventSource(`/api/projects/${props.projectId}/agent`, {
@@ -204,17 +244,26 @@ async function submit(text: string) {
       onmessage(ev) {
         const payload = JSON.parse(ev.data)
         switch (payload.type) {
-          case 'text':
+          case 'text': {
             assistant.text += payload.token
             sessionTokens.value += 1
             if (sessionTokens.value > 50_000)
               phase.value = 'cost-cap'
+            // 追加到当前 text part，或新建一个
+            if (!currentTextPart) {
+              currentTextPart = { type: 'text', content: payload.token }
+              assistant.parts!.push(currentTextPart)
+            }
+            else {
+              currentTextPart.content += payload.token
+            }
             break
-          case 'tool-call':
+          }
+          case 'tool-call': {
             phase.value = 'tool-calling'
             toolStartTimes.set(payload.id, Date.now())
             toolIndex += 1
-            assistant.toolCalls!.push({
+            const tc: ToolCallItem = {
               id: payload.id,
               name: payload.name,
               input: payload.args,
@@ -222,8 +271,13 @@ async function submit(text: string) {
               isError: false,
               status: 'running',
               index: toolIndex,
-            })
+            }
+            assistant.toolCalls!.push(tc)
+            // text part 结束后开始 tool part
+            currentTextPart = null
+            assistant.parts!.push({ type: 'tool', toolCall: tc })
             break
+          }
           case 'tool-result': {
             const tc = assistant.toolCalls!.find(t => t.id === payload.id)
             if (tc) {
@@ -235,6 +289,11 @@ async function submit(text: string) {
                 tc.duration = Date.now() - start
             }
             phase.value = 'streaming'
+            break
+          }
+          case 'usage': {
+            // 精确 token 计数（由后端 LLM API usage 提供）
+            totalTokensConsumed.value += payload.total || 0
             break
           }
           case 'done':
@@ -403,31 +462,58 @@ onBeforeUnmount(() => {
             <!-- Assistant message -->
             <div v-else class="flex justify-start">
               <div class="max-w-[85%] space-y-2">
-                <div class="bg-default border border-default rounded-lg px-3 py-2">
-                  <MarkdownRender
-                    :content="msg.text"
-                    :max-live-nodes="0"
-                    :final="!(phase === 'streaming' && idx === messages.length - 1)"
-                    class="text-sm text-default"
-                  />
-                  <!-- Streaming cursor -->
-                  <span v-if="phase === 'streaming' && idx === messages.length - 1" class="inline-block w-0.5 h-4 bg-sky-500 ml-0.5 align-middle animate-pulse" />
-                </div>
-
-                <!-- Tool cards -->
-                <div v-if="msg.toolCalls?.length" class="space-y-2">
-                  <AgentToolCard
-                    v-for="tc in msg.toolCalls"
-                    :key="tc.id"
-                    :name="tc.name"
-                    :input="tc.input"
-                    :output="tc.output"
-                    :is-error="tc.isError"
-                    :status="tc.status"
-                    :index="tc.index"
-                    :duration="tc.duration"
-                  />
-                </div>
+                <!-- Parts: text / tool 按事件顺序交错渲染 -->
+                <template v-if="msg.parts?.length">
+                  <template v-for="(part, pIdx) in msg.parts" :key="pIdx">
+                    <!-- Text part -->
+                    <div v-if="part.type === 'text'" class="bg-default border border-default rounded-lg px-3 py-2">
+                      <MarkdownRender
+                        :content="part.content"
+                        :max-live-nodes="0"
+                        :final="!(phase === 'streaming' && idx === messages.length - 1 && pIdx === msg.parts!.length - 1)"
+                        class="text-sm text-default"
+                      />
+                      <!-- Streaming cursor on last text part of last message -->
+                      <span v-if="phase === 'streaming' && idx === messages.length - 1 && pIdx === msg.parts!.length - 1" class="inline-block w-0.5 h-4 bg-sky-500 ml-0.5 align-middle animate-pulse" />
+                    </div>
+                    <!-- Tool part -->
+                    <AgentToolCard
+                      v-else
+                      :name="part.toolCall.name"
+                      :input="part.toolCall.input"
+                      :output="part.toolCall.output"
+                      :is-error="part.toolCall.isError"
+                      :status="part.toolCall.status"
+                      :index="part.toolCall.index"
+                      :duration="part.toolCall.duration"
+                    />
+                  </template>
+                </template>
+                <!-- Fallback: 旧格式无 parts，按原逻辑渲染 -->
+                <template v-else>
+                  <div class="bg-default border border-default rounded-lg px-3 py-2">
+                    <MarkdownRender
+                      :content="msg.text"
+                      :max-live-nodes="0"
+                      :final="!(phase === 'streaming' && idx === messages.length - 1)"
+                      class="text-sm text-default"
+                    />
+                    <span v-if="phase === 'streaming' && idx === messages.length - 1" class="inline-block w-0.5 h-4 bg-sky-500 ml-0.5 align-middle animate-pulse" />
+                  </div>
+                  <div v-if="msg.toolCalls?.length" class="space-y-2">
+                    <AgentToolCard
+                      v-for="tc in msg.toolCalls"
+                      :key="tc.id"
+                      :name="tc.name"
+                      :input="tc.input"
+                      :output="tc.output"
+                      :is-error="tc.isError"
+                      :status="tc.status"
+                      :index="tc.index"
+                      :duration="tc.duration"
+                    />
+                  </div>
+                </template>
 
                 <!-- Abort badge -->
                 <div v-if="phase === 'abort' && idx === messages.length - 1" class="text-xs text-muted">
@@ -477,6 +563,16 @@ onBeforeUnmount(() => {
 
         <!-- Composer -->
         <div class="border-t border-default p-3 shrink-0">
+          <!-- 上下文信息栏 -->
+          <div v-if="projectName || messages.length > 0" class="flex items-center gap-3 mb-2 text-[10px] text-muted">
+            <span v-if="projectName" class="truncate max-w-[140px]" :title="projectName">
+              {{ projectName }}
+            </span>
+            <span v-if="projectName && messages.length > 0" class="text-muted/30">|</span>
+            <span v-if="messages.length > 0" class="tabular-nums">
+              {{ t('agent.context.lengthAndPercent', { len: totalTokensConsumed.toLocaleString(), pct: contextPercent }) }}
+            </span>
+          </div>
           <div class="flex items-end gap-2">
             <div class="flex-1 relative">
               <input

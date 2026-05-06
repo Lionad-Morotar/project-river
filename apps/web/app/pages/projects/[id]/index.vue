@@ -1076,7 +1076,10 @@ function onMarkerHover(pointerEvent: PointerEvent, marker: { id: string } | null
     />
 
     <!-- Agent Chat -->
-    <AgentChat :project-id="Number(projectId)" />
+    <AgentChat
+      :project-id="Number(projectId)"
+      :project-name="displayLabel(projectMeta?.fullName ?? null, projectMeta?.name ?? String(projectId))"
+    />
 
     <!-- Settings modal -->
     <SettingsModal v-model:open="settingsModalOpen" show-storage />

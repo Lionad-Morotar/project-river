@@ -272,6 +272,9 @@ export default defineI18nLocale(() => ({
       inputTooLong: '{n} / 500',
       aborted: 'Aborted',
     },
+    context: {
+      lengthAndPercent: '{len} tokens / {pct}%',
+    },
     toolcard: {
       input: 'Input',
       output: 'Output',
