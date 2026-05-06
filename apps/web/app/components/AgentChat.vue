@@ -6,6 +6,7 @@
  * 支持 SSE 流式 token、tool-call 卡片、5 个 chip 快捷提问、10 类 UI 状态。
  */
 import { fetchEventSource } from '@microsoft/fetch-event-source'
+import { useStorage, watchThrottled } from '@vueuse/core'
 import AgentToolCard from './AgentToolCard.vue'
 
 const props = defineProps<{ projectId: number }>()
@@ -47,10 +48,34 @@ interface AgentMessage {
 }
 
 const phase = ref<AgentPhase>('idle')
-const messages = reactive<AgentMessage[]>([])
 const inputValue = ref('')
 const sessionTokens = ref(0)
 let abortController: AbortController | null = null
+
+// ── LocalStorage persistence per project ──
+const storageKey = computed(() => `agent-chat-${props.projectId}`)
+const storedMessages = useStorage<AgentMessage[]>(storageKey, [])
+
+const messages = reactive<AgentMessage[]>([])
+// Restore from storage on mount
+if (storedMessages.value.length > 0) {
+  messages.push(...storedMessages.value)
+}
+// Sync to storage (throttled to avoid excessive writes during streaming)
+watchThrottled(
+  messages,
+  (newVal) => {
+    storedMessages.value = [...newVal]
+  },
+  { deep: true, throttle: 1000 },
+)
+
+function clearConversation() {
+  messages.length = 0
+  storedMessages.value = []
+  phase.value = 'idle'
+  sessionTokens.value = 0
+}
 
 const inputTooLong = computed(() => inputValue.value.length > 500)
 
@@ -247,13 +272,23 @@ onBeforeUnmount(() => {
           <h3 class="text-base font-semibold text-highlighted">
             {{ t('agent.drawer.title') }}
           </h3>
-          <button
-            class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-default transition-colors"
-            :aria-label="t('agent.drawer.minimize')"
-            @click="minimize"
-          >
-            <UIcon name="i-lucide-chevrons-down-up" class="w-4 h-4" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              v-if="messages.length > 0"
+              class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-red-400 transition-colors"
+              :aria-label="t('agent.drawer.clear')"
+              @click="clearConversation"
+            >
+              <UIcon name="i-lucide-trash-2" class="w-4 h-4" />
+            </button>
+            <button
+              class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-default transition-colors"
+              :aria-label="t('agent.drawer.minimize')"
+              @click="minimize"
+            >
+              <UIcon name="i-lucide-chevrons-down-up" class="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </template>
 

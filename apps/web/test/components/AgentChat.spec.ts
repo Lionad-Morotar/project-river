@@ -16,7 +16,7 @@ const zhMessages = {
   common: { cancel: '取消', confirm: '确认', retry: '重试' },
   agent: {
     askButton: 'Ask Agent',
-    drawer: { title: 'Project Analyst', placeholder: 'Ask about...', minimize: 'Minimize' },
+    drawer: { title: 'Project Analyst', placeholder: 'Ask about...', minimize: 'Minimize', clear: 'Clear' },
     chip: {
       1: 'Chip 1',
       2: 'Chip 2',
@@ -56,6 +56,8 @@ describe('agentChat', () => {
   })
 
   function mountComponent(props = { projectId: 1 }) {
+    // Isolate localStorage per test to avoid useStorage pollution
+    localStorage.clear()
     const i18n = createI18nPlugin('zh-CN')
     return mount(AgentChat, {
       props,
