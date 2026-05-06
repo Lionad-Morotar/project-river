@@ -100,7 +100,7 @@ export async function queryContributors(
       c.author_email AS "authorEmail"
     FROM commits c
     WHERE c.project_id = ${projectId}
-      AND c.author_name = ANY(${contributorNames})
+      AND c.author_name IN ${contributorNames}
     ORDER BY c.author_name, c.committer_date DESC
   `)
   const emailMap = new Map<string, string>()
@@ -120,7 +120,7 @@ export async function queryContributors(
     FROM commit_files cf
     JOIN commits c ON c.id = cf.commit_id
     WHERE cf.project_id = ${projectId}
-      AND c.author_name = ANY(${contributorNames})
+      AND c.author_name IN ${contributorNames}
     GROUP BY c.author_name, "pathPrefix"
     ORDER BY c.author_name, cnt DESC
   `)
