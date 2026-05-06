@@ -31,7 +31,7 @@ import { assertProjectExists } from '#server/utils/projectStats'
 import { createError, defineEventHandler, getRouterParam, readBody, setHeader } from 'h3'
 
 /** SSE event JSON 形态（type 字段区分种类，对应 D-07） */
-type SseEventType = 'text' | 'tool-call' | 'tool-result' | 'done' | 'error'
+type SseEventType = 'text' | 'tool-call' | 'tool-result' | 'usage' | 'done' | 'error'
 
 interface SseEvent {
   type: SseEventType
@@ -199,9 +199,20 @@ export default defineEventHandler(async (event) => {
       case 'message_end': {
         // D-10/D-16: LLM API error → SSE error event
         const msg = agentEvent.message
-        if (isAssistantMessage(msg) && msg.stopReason === 'error') {
-          ended = true
-          pushSse(res, { type: 'error', message: normalizeLlmError(msg.errorMessage) })
+        if (isAssistantMessage(msg)) {
+          // 转发精确的 token usage（input/output 分离，便于前端展示）
+          if (msg.usage) {
+            pushSse(res, {
+              type: 'usage',
+              input: msg.usage.input,
+              output: msg.usage.output,
+              total: msg.usage.totalTokens,
+            })
+          }
+          if (msg.stopReason === 'error') {
+            ended = true
+            pushSse(res, { type: 'error', message: normalizeLlmError(msg.errorMessage) })
+          }
         }
         break
       }
