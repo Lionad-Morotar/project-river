@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * AgentChat — FAB + USlideover drawer + 10 状态机 + SSE 消费
+ * AgentChat — FAB + 可拖拽/可缩放浮动面板 + 10 状态机 + SSE 消费
  *
- * 用户与 Agent 交互的唯一入口。右下悬浮 FAB 点击后展开 USlideover drawer，
+ * 用户与 Agent 交互的唯一入口。右下悬浮 FAB 点击后展开浮动面板，
  * 支持 SSE 流式 token、tool-call 卡片、5 个 chip 快捷提问、10 类 UI 状态。
  */
 import { fetchEventSource } from '@microsoft/fetch-event-source'
@@ -12,20 +12,77 @@ import AgentToolCard from './AgentToolCard.vue'
 const props = defineProps<{ projectId: number }>()
 const { t } = useI18n()
 
-// ── Display mode: 'fab' | 'drawer' (D-02) ──
-const displayMode = ref<'fab' | 'drawer'>('fab')
-const open = computed({
-  get: () => displayMode.value === 'drawer',
-  set: (v) => { displayMode.value = v ? 'drawer' : 'fab' },
-})
+// ── Display mode: 'fab' | 'open' ──
+const displayMode = ref<'fab' | 'open'>('fab')
+const isOpen = computed(() => displayMode.value === 'open')
 function minimize() {
   displayMode.value = 'fab'
 }
 function expand() {
-  displayMode.value = 'drawer'
+  displayMode.value = 'open'
 }
 
-// ── State machine (D-07) ──
+// ── Panel position & size (draggable + resizable) ──
+const MIN_WIDTH = 360
+const MIN_HEIGHT = 400
+const DEFAULT_WIDTH = 480
+const DEFAULT_HEIGHT = 640
+
+const panelPos = useStorage('agent-panel-pos', { x: 0, y: 0 })
+const panelSize = useStorage('agent-panel-size', { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT })
+
+onMounted(() => {
+  // Set default position on first open (bottom-right with margin)
+  if (panelPos.value.x === 0 && panelPos.value.y === 0) {
+    panelPos.value = {
+      x: Math.max(window.innerWidth - DEFAULT_WIDTH - 24, 24),
+      y: Math.max(window.innerHeight - DEFAULT_HEIGHT - 24, 24),
+    }
+  }
+})
+
+function startDrag(e: MouseEvent) {
+  const startX = e.clientX
+  const startY = e.clientY
+  const initialX = panelPos.value.x
+  const initialY = panelPos.value.y
+
+  function onMouseMove(ev: MouseEvent) {
+    panelPos.value.x = initialX + (ev.clientX - startX)
+    panelPos.value.y = initialY + (ev.clientY - startY)
+  }
+
+  function onMouseUp() {
+    window.removeEventListener('mousemove', onMouseMove)
+    window.removeEventListener('mouseup', onMouseUp)
+  }
+
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+
+function startResize(e: MouseEvent) {
+  e.preventDefault()
+  const startX = e.clientX
+  const startY = e.clientY
+  const initialW = panelSize.value.width
+  const initialH = panelSize.value.height
+
+  function onMouseMove(ev: MouseEvent) {
+    panelSize.value.width = Math.max(MIN_WIDTH, initialW + (ev.clientX - startX))
+    panelSize.value.height = Math.max(MIN_HEIGHT, initialH + (ev.clientY - startY))
+  }
+
+  function onMouseUp() {
+    window.removeEventListener('mousemove', onMouseMove)
+    window.removeEventListener('mouseup', onMouseUp)
+  }
+
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+
+// ── State machine ──
 type AgentPhase = 'idle' | 'streaming' | 'tool-calling' | 'stream-mid-error'
   | 'abort' | 'rate-limit' | 'cost-cap' | 'input-too-long'
   | 'api-key-missing' | 'empty-result'
@@ -85,7 +142,7 @@ watch(inputTooLong, (v) => {
     phase.value = 'idle'
 })
 
-// Chip definitions (D-14)
+// Chip definitions
 const chips = computed(() => [
   t('agent.chip.1'),
   t('agent.chip.2'),
@@ -231,8 +288,8 @@ function startRateLimitCountdown(seconds: number) {
 // Refs
 const inputRef = ref<HTMLInputElement | null>(null)
 
-// Auto-focus input when drawer opens
-watch(open, (v) => {
+// Auto-focus input when panel opens
+watch(isOpen, (v) => {
   if (v) {
     nextTick(() => {
       inputRef.value?.focus()
@@ -250,7 +307,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div>
-    <!-- FAB Button (D-01, D-02) -->
+    <!-- FAB Button -->
     <button
       v-show="displayMode === 'fab'"
       class="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-sky-500 text-white shadow-lg shadow-black/30 flex items-center justify-center hover:bg-sky-400 transition-colors"
@@ -260,44 +317,67 @@ onBeforeUnmount(() => {
       <UIcon name="i-lucide-message-circle-question" class="w-6 h-6" />
     </button>
 
-    <!-- USlideover Drawer (D-03, UI-05) -->
-    <USlideover
-      v-model:open="open"
-      side="right"
-      :dismissible="false"
-      class="w-[40vw] max-md:w-full"
+    <!-- Draggable & Resizable Floating Panel -->
+    <div
+      v-show="displayMode === 'open'"
+      data-testid="agent-panel"
+      class="fixed z-50 bg-default border border-default rounded-lg shadow-xl shadow-black/20 flex flex-col overflow-hidden"
+      :style="{
+        left: `${panelPos.x}px`,
+        top: `${panelPos.y}px`,
+        width: `${panelSize.width}px`,
+        height: `${panelSize.height}px`,
+      }"
     >
-      <template #header>
-        <div class="flex items-center justify-between w-full">
-          <h3 class="text-base font-semibold text-highlighted">
-            {{ t('agent.drawer.title') }}
-          </h3>
-          <div class="flex items-center gap-1">
+      <!-- Draggable Header -->
+      <div
+        class="flex items-center justify-between px-4 py-3 border-b border-default cursor-move select-none bg-elevated/30"
+        @mousedown="startDrag"
+      >
+        <h3 class="text-base font-semibold text-highlighted">
+          {{ t('agent.drawer.title') }}
+        </h3>
+        <div class="flex items-center gap-1">
+          <button
+            v-if="messages.length > 0"
+            class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-red-400 transition-colors"
+            :aria-label="t('agent.drawer.clear')"
+            @click="clearConversation"
+          >
+            <UIcon name="i-lucide-trash-2" class="w-4 h-4" />
+          </button>
+          <button
+            class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-default transition-colors"
+            :aria-label="t('agent.drawer.minimize')"
+            @click="minimize"
+          >
+            <UIcon name="i-lucide-chevrons-down-up" class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="flex flex-col flex-1 min-h-0">
+        <!-- Message list -->
+        <div class="flex-1 overflow-y-auto space-y-4 p-4 min-h-0">
+          <!-- Idle: chips -->
+          <div v-if="phase === 'idle' && messages.length === 0" class="flex flex-wrap gap-2">
             <button
-              v-if="messages.length > 0"
-              class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-red-400 transition-colors"
-              :aria-label="t('agent.drawer.clear')"
-              @click="clearConversation"
+              v-for="(chip, idx) in chips"
+              :key="idx"
+              class="px-3 py-1.5 text-xs rounded-full border border-default bg-elevated/30 text-dimmed hover:border-sky-500 hover:bg-sky-500/10 hover:text-default transition-all"
+              @click="handleChipClick(chip)"
             >
-              <UIcon name="i-lucide-trash-2" class="w-4 h-4" />
-            </button>
-            <button
-              class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-default transition-colors"
-              :aria-label="t('agent.drawer.minimize')"
-              @click="minimize"
-            >
-              <UIcon name="i-lucide-chevrons-down-up" class="w-4 h-4" />
+              {{ chip }}
             </button>
           </div>
-        </div>
-      </template>
 
-      <template #body>
-        <div class="flex flex-col h-full">
-          <!-- Message list -->
-          <div class="flex-1 overflow-y-auto space-y-4 p-4 min-h-0">
-            <!-- Idle: chips -->
-            <div v-if="phase === 'idle' && messages.length === 0" class="flex flex-wrap gap-2">
+          <!-- Empty result -->
+          <div v-else-if="phase === 'empty-result'" class="text-center py-8">
+            <p class="text-sm text-muted">
+              {{ t('agent.error.noData') }}
+            </p>
+            <div class="flex flex-wrap gap-2 mt-4 justify-center">
               <button
                 v-for="(chip, idx) in chips"
                 :key="idx"
@@ -307,150 +387,144 @@ onBeforeUnmount(() => {
                 {{ chip }}
               </button>
             </div>
-
-            <!-- Empty result -->
-            <div v-else-if="phase === 'empty-result'" class="text-center py-8">
-              <p class="text-sm text-muted">
-                {{ t('agent.error.noData') }}
-              </p>
-              <div class="flex flex-wrap gap-2 mt-4 justify-center">
-                <button
-                  v-for="(chip, idx) in chips"
-                  :key="idx"
-                  class="px-3 py-1.5 text-xs rounded-full border border-default bg-elevated/30 text-dimmed hover:border-sky-500 hover:bg-sky-500/10 hover:text-default transition-all"
-                  @click="handleChipClick(chip)"
-                >
-                  {{ chip }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Messages -->
-            <template v-for="(msg, idx) in messages" :key="idx">
-              <!-- User message -->
-              <div v-if="msg.role === 'user'" class="flex justify-end">
-                <div class="bg-elevated rounded-lg px-3 py-2 max-w-[85%]">
-                  <p class="text-sm text-default">
-                    {{ msg.text }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- Assistant message -->
-              <div v-else class="flex justify-start">
-                <div class="max-w-[85%] space-y-2">
-                  <div class="bg-default border border-default rounded-lg px-3 py-2">
-                    <p class="text-sm text-default whitespace-pre-wrap">
-                      {{ msg.text }}
-                    </p>
-                    <!-- Streaming cursor -->
-                    <span v-if="phase === 'streaming' && idx === messages.length - 1" class="inline-block w-0.5 h-4 bg-sky-500 ml-0.5 align-middle animate-pulse" />
-                  </div>
-
-                  <!-- Tool cards -->
-                  <div v-if="msg.toolCalls?.length" class="space-y-2">
-                    <AgentToolCard
-                      v-for="tc in msg.toolCalls"
-                      :key="tc.id"
-                      :name="tc.name"
-                      :input="tc.input"
-                      :output="tc.output"
-                      :is-error="tc.isError"
-                      :status="tc.status"
-                      :index="tc.index"
-                      :duration="tc.duration"
-                    />
-                  </div>
-
-                  <!-- Abort badge -->
-                  <div v-if="phase === 'abort' && idx === messages.length - 1" class="text-xs text-muted">
-                    {{ t('agent.error.aborted') }}
-                  </div>
-                </div>
-              </div>
-            </template>
-
-            <!-- Error banner: stream-mid-error -->
-            <div v-if="phase === 'stream-mid-error'" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-3">
-              <UIcon name="i-lucide-alert-circle" class="w-4 h-4 text-red-400 shrink-0" />
-              <p class="text-xs text-red-400 flex-1">
-                {{ t('agent.error.streamInterrupted') }}
-              </p>
-              <button
-                class="px-2 py-1 text-xs rounded bg-elevated text-default hover:bg-elevated/80 transition-colors"
-                @click="retry"
-              >
-                <UIcon name="i-lucide-refresh-cw" class="w-3 h-3 inline mr-1" />
-                {{ t('common.retry') }}
-              </button>
-            </div>
-
-            <!-- Rate limit banner -->
-            <div v-if="phase === 'rate-limit'" class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-              <p class="text-xs text-amber-400">
-                {{ t('agent.error.rateLimited', { n: rateLimitSeconds }) }}
-              </p>
-            </div>
-
-            <!-- Cost cap banner -->
-            <div v-if="phase === 'cost-cap'" class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
-              <p class="text-xs text-orange-400">
-                {{ t('agent.error.costCap') }}
-              </p>
-            </div>
-
-            <!-- API key missing overlay -->
-            <div v-if="phase === 'api-key-missing'" class="absolute inset-0 bg-default/90 flex flex-col items-center justify-center p-6 z-10">
-              <UIcon name="i-lucide-key-round" class="w-8 h-8 text-muted mb-3" />
-              <p class="text-sm text-muted text-center">
-                {{ t('agent.error.apiKeyMissing') }}
-              </p>
-            </div>
           </div>
 
-          <!-- Composer -->
-          <div class="border-t border-default p-3 shrink-0">
-            <div class="flex items-end gap-2">
-              <div class="flex-1 relative">
-                <input
-                  ref="inputRef"
-                  v-model="inputValue"
-                  type="text"
-                  class="w-full bg-elevated border border-default rounded-lg px-3 py-2 text-sm text-default placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-sky-500/30"
-                  :placeholder="t('agent.drawer.placeholder')"
-                  :disabled="phase === 'streaming' || phase === 'tool-calling' || phase === 'rate-limit' || phase === 'cost-cap' || phase === 'api-key-missing'"
-                  @keyup.enter="submit(inputValue)"
-                >
-                <span
-                  class="absolute right-2 bottom-2 text-[10px] tabular-nums"
-                  :class="inputTooLong ? 'text-red-400' : 'text-muted'"
-                >
-                  {{ t('agent.error.inputTooLong', { n: inputValue.length }) }}
-                </span>
+          <!-- Messages -->
+          <template v-for="(msg, idx) in messages" :key="idx">
+            <!-- User message -->
+            <div v-if="msg.role === 'user'" class="flex justify-end">
+              <div class="bg-elevated rounded-lg px-3 py-2 max-w-[85%]">
+                <p class="text-sm text-default">
+                  {{ msg.text }}
+                </p>
               </div>
-
-              <!-- Submit / Stop button -->
-              <button
-                v-if="phase === 'streaming' || phase === 'tool-calling'"
-                class="w-9 h-9 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors shrink-0"
-                :aria-label="t('common.cancel')"
-                @click="abort"
-              >
-                <UIcon name="i-lucide-square" class="w-4 h-4" />
-              </button>
-              <button
-                v-else
-                class="w-9 h-9 rounded-lg bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0"
-                :disabled="!inputValue.trim() || inputTooLong"
-                :aria-label="t('common.confirm')"
-                @click="submit(inputValue)"
-              >
-                <UIcon name="i-lucide-send" class="w-4 h-4" />
-              </button>
             </div>
+
+            <!-- Assistant message -->
+            <div v-else class="flex justify-start">
+              <div class="max-w-[85%] space-y-2">
+                <div class="bg-default border border-default rounded-lg px-3 py-2">
+                  <MarkdownRender
+                    :content="msg.text"
+                    :max-live-nodes="0"
+                    :final="!(phase === 'streaming' && idx === messages.length - 1)"
+                    class="text-sm text-default"
+                  />
+                  <!-- Streaming cursor -->
+                  <span v-if="phase === 'streaming' && idx === messages.length - 1" class="inline-block w-0.5 h-4 bg-sky-500 ml-0.5 align-middle animate-pulse" />
+                </div>
+
+                <!-- Tool cards -->
+                <div v-if="msg.toolCalls?.length" class="space-y-2">
+                  <AgentToolCard
+                    v-for="tc in msg.toolCalls"
+                    :key="tc.id"
+                    :name="tc.name"
+                    :input="tc.input"
+                    :output="tc.output"
+                    :is-error="tc.isError"
+                    :status="tc.status"
+                    :index="tc.index"
+                    :duration="tc.duration"
+                  />
+                </div>
+
+                <!-- Abort badge -->
+                <div v-if="phase === 'abort' && idx === messages.length - 1" class="text-xs text-muted">
+                  {{ t('agent.error.aborted') }}
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <!-- Error banner: stream-mid-error -->
+          <div v-if="phase === 'stream-mid-error'" class="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-3">
+            <UIcon name="i-lucide-alert-circle" class="w-4 h-4 text-red-400 shrink-0" />
+            <p class="text-xs text-red-400 flex-1">
+              {{ t('agent.error.streamInterrupted') }}
+            </p>
+            <button
+              class="px-2 py-1 text-xs rounded bg-elevated text-default hover:bg-elevated/80 transition-colors"
+              @click="retry"
+            >
+              <UIcon name="i-lucide-refresh-cw" class="w-3 h-3 inline mr-1" />
+              {{ t('common.retry') }}
+            </button>
+          </div>
+
+          <!-- Rate limit banner -->
+          <div v-if="phase === 'rate-limit'" class="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+            <p class="text-xs text-amber-400">
+              {{ t('agent.error.rateLimited', { n: rateLimitSeconds }) }}
+            </p>
+          </div>
+
+          <!-- Cost cap banner -->
+          <div v-if="phase === 'cost-cap'" class="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3">
+            <p class="text-xs text-orange-400">
+              {{ t('agent.error.costCap') }}
+            </p>
+          </div>
+
+          <!-- API key missing overlay -->
+          <div v-if="phase === 'api-key-missing'" class="absolute inset-0 bg-default/90 flex flex-col items-center justify-center p-6 z-10">
+            <UIcon name="i-lucide-key-round" class="w-8 h-8 text-muted mb-3" />
+            <p class="text-sm text-muted text-center">
+              {{ t('agent.error.apiKeyMissing') }}
+            </p>
           </div>
         </div>
-      </template>
-    </USlideover>
+
+        <!-- Composer -->
+        <div class="border-t border-default p-3 shrink-0">
+          <div class="flex items-end gap-2">
+            <div class="flex-1 relative">
+              <input
+                ref="inputRef"
+                v-model="inputValue"
+                type="text"
+                class="w-full bg-elevated border border-default rounded-lg px-3 py-2 text-sm text-default placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-sky-500/30"
+                :placeholder="t('agent.drawer.placeholder')"
+                :disabled="phase === 'streaming' || phase === 'tool-calling' || phase === 'rate-limit' || phase === 'cost-cap' || phase === 'api-key-missing'"
+                @keyup.enter="submit(inputValue)"
+              >
+              <span
+                class="absolute right-2 bottom-2 text-[10px] tabular-nums"
+                :class="inputTooLong ? 'text-red-400' : 'text-muted'"
+              >
+                {{ t('agent.error.inputTooLong', { n: inputValue.length }) }}
+              </span>
+            </div>
+
+            <!-- Submit / Stop button -->
+            <button
+              v-if="phase === 'streaming' || phase === 'tool-calling'"
+              class="w-9 h-9 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 flex items-center justify-center transition-colors shrink-0"
+              :aria-label="t('common.cancel')"
+              @click="abort"
+            >
+              <UIcon name="i-lucide-square" class="w-4 h-4" />
+            </button>
+            <button
+              v-else
+              class="w-9 h-9 rounded-lg bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0"
+              :disabled="!inputValue.trim() || inputTooLong"
+              :aria-label="t('common.confirm')"
+              @click="submit(inputValue)"
+            >
+              <UIcon name="i-lucide-send" class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resize Handle -->
+      <div
+        class="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-10"
+        @mousedown="startResize"
+      >
+        <div class="absolute bottom-1 right-1 w-2 h-2 border-r-2 border-b-2 border-muted/40 rounded-br-sm" />
+      </div>
+    </div>
   </div>
 </template>
