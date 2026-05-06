@@ -120,7 +120,7 @@ export function buildTools(projectId: number): AgentTool[] {
   return [
     adaptTool<QueryContributorsInput, unknown>(
       'queryContributors',
-      'Query contributor rankings, activity windows, and module associations. Sort by commits, recency, or span. Returns name, email, commits count, first/last commit dates, and top modules.',
+      'Query contributor rankings, activity windows, and module associations. Sort by commits, recency, or span. Returns { totalCount, contributors[] } where totalCount is the total number of matching contributors (unaffected by limit), and each contributor has name, email, commits count, first/last commit dates, and top modules.',
       contributorsParams,
       queryContributors,
       projectId,

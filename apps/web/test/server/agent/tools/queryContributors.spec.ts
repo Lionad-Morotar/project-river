@@ -32,150 +32,179 @@ describe('queryContributors', () => {
 
   it('happy path — sortBy commits：按 totalCommits DESC 排序', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
-      { contributor: 'bob', totalCommits: 50, firstDate: '2025-02-01', lastDate: '2025-06-01' },
-      { contributor: 'carol', totalCommits: 200, firstDate: '2025-01-15', lastDate: '2025-05-01' },
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
+      { contributor: 'bob@example.com', totalCommits: 50, firstDate: '2025-02-01', lastDate: '2025-06-01' },
+      { contributor: 'carol@example.com', totalCommits: 200, firstDate: '2025-01-15', lastDate: '2025-05-01' },
     ]
     mockSequence([
-      { rows: aggRows }, // contributor 聚合
-      { rows: aggRows.map(r => ({ authorName: r.contributor, authorEmail: `${r.contributor}@test.com` })) }, // email
-      { rows: aggRows.flatMap(r => [{ authorName: r.contributor, pathPrefix: 'src/core', cnt: '10' }]) }, // modules
+      { rows: aggRows }, // contributor 聚合（contributor 字段是 email）
+      { rows: [
+        { authorEmail: 'alice@example.com', authorName: 'Alice' },
+        { authorEmail: 'bob@example.com', authorName: 'Bob' },
+        { authorEmail: 'carol@example.com', authorName: 'Carol' },
+      ] },
+      { rows: aggRows.flatMap(r => [{ authorEmail: r.contributor, pathPrefix: 'src/core', cnt: '10' }]) }, // modules
     ])
 
     const result = await queryContributors(1, { sortBy: 'commits', limit: 20 })
-    expect(result).toHaveLength(3)
-    expect(result[0]!.name).toBe('carol')
-    expect(result[1]!.name).toBe('alice')
-    expect(result[2]!.name).toBe('bob')
-    expect(result[0]!.commits).toBe(200)
+    expect(result.totalCount).toBe(3)
+    expect(result.contributors).toHaveLength(3)
+    expect(result.contributors[0]!.name).toBe('Carol')
+    expect(result.contributors[1]!.name).toBe('Alice')
+    expect(result.contributors[2]!.name).toBe('Bob')
+    expect(result.contributors[0]!.commits).toBe(200)
+    expect(result.contributors[0]!.email).toBe('carol@example.com')
   })
 
   it('happy path — sortBy recency：按 lastCommit DESC 排序', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-03-01' },
-      { contributor: 'bob', totalCommits: 50, firstDate: '2025-02-01', lastDate: '2025-06-01' },
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-03-01' },
+      { contributor: 'bob@example.com', totalCommits: 50, firstDate: '2025-02-01', lastDate: '2025-06-01' },
     ]
     mockSequence([
       { rows: aggRows },
-      { rows: aggRows.map(r => ({ authorName: r.contributor, authorEmail: `${r.contributor}@test.com` })) },
+      { rows: [
+        { authorEmail: 'alice@example.com', authorName: 'Alice' },
+        { authorEmail: 'bob@example.com', authorName: 'Bob' },
+      ] },
       { rows: [] },
     ])
 
     const result = await queryContributors(1, { sortBy: 'recency', limit: 20 })
-    expect(result[0]!.name).toBe('bob')
-    expect(result[1]!.name).toBe('alice')
+    expect(result.contributors[0]!.name).toBe('Bob')
+    expect(result.contributors[1]!.name).toBe('Alice')
   })
 
   it('happy path — sortBy span：按活跃天数 DESC 排序', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' }, // 151 天
-      { contributor: 'bob', totalCommits: 50, firstDate: '2025-05-01', lastDate: '2025-05-15' }, // 14 天
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' }, // 151 天
+      { contributor: 'bob@example.com', totalCommits: 50, firstDate: '2025-05-01', lastDate: '2025-05-15' }, // 14 天
     ]
     mockSequence([
       { rows: aggRows },
-      { rows: aggRows.map(r => ({ authorName: r.contributor, authorEmail: `${r.contributor}@test.com` })) },
+      { rows: [
+        { authorEmail: 'alice@example.com', authorName: 'Alice' },
+        { authorEmail: 'bob@example.com', authorName: 'Bob' },
+      ] },
       { rows: [] },
     ])
 
     const result = await queryContributors(1, { sortBy: 'span', limit: 20 })
-    expect(result[0]!.name).toBe('alice')
-    expect(result[1]!.name).toBe('bob')
+    expect(result.contributors[0]!.name).toBe('Alice')
+    expect(result.contributors[1]!.name).toBe('Bob')
   })
 
   it('modules 提取：返回 top 5 前缀路径段', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
     ]
     const moduleRows = [
-      { authorName: 'alice', pathPrefix: 'packages/core', cnt: '50' },
-      { authorName: 'alice', pathPrefix: 'src/utils', cnt: '30' },
-      { authorName: 'alice', pathPrefix: 'src/components', cnt: '20' },
-      { authorName: 'alice', pathPrefix: 'apps/web', cnt: '15' },
-      { authorName: 'alice', pathPrefix: 'packages/pipeline', cnt: '10' },
-      { authorName: 'alice', pathPrefix: 'other/path', cnt: '5' }, // 超过 top 5
+      { authorEmail: 'alice@example.com', pathPrefix: 'packages/core', cnt: '50' },
+      { authorEmail: 'alice@example.com', pathPrefix: 'src/utils', cnt: '30' },
+      { authorEmail: 'alice@example.com', pathPrefix: 'src/components', cnt: '20' },
+      { authorEmail: 'alice@example.com', pathPrefix: 'apps/web', cnt: '15' },
+      { authorEmail: 'alice@example.com', pathPrefix: 'packages/pipeline', cnt: '10' },
+      { authorEmail: 'alice@example.com', pathPrefix: 'other/path', cnt: '5' }, // 超过 top 5
     ]
     mockSequence([
       { rows: aggRows },
-      { rows: [{ authorName: 'alice', authorEmail: 'alice@test.com' }] },
+      { rows: [{ authorEmail: 'alice@example.com', authorName: 'Alice' }] },
       { rows: moduleRows },
     ])
 
     const result = await queryContributors(1, { sortBy: 'commits', limit: 20 })
-    expect(result[0]!.modules).toHaveLength(5)
-    expect(result[0]!.modules).toContain('packages/core')
-    expect(result[0]!.modules).not.toContain('other/path')
+    expect(result.contributors[0]!.modules).toHaveLength(5)
+    expect(result.contributors[0]!.modules).toContain('packages/core')
+    expect(result.contributors[0]!.modules).not.toContain('other/path')
   })
 
   it('filter — activeAfter 过滤', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-03-01' },
-      { contributor: 'bob', totalCommits: 50, firstDate: '2025-02-01', lastDate: '2025-06-01' },
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-03-01' },
+      { contributor: 'bob@example.com', totalCommits: 50, firstDate: '2025-02-01', lastDate: '2025-06-01' },
     ]
     mockSequence([
       { rows: aggRows },
-      { rows: [{ authorName: 'bob', authorEmail: 'bob@test.com' }] },
+      { rows: [{ authorEmail: 'bob@example.com', authorName: 'Bob' }] },
       { rows: [] },
     ])
 
     const result = await queryContributors(1, { filter: { activeAfter: '2025-05-01' }, sortBy: 'commits', limit: 20 })
-    expect(result).toHaveLength(1)
-    expect(result[0]!.name).toBe('bob')
+    expect(result.totalCount).toBe(1)
+    expect(result.contributors).toHaveLength(1)
+    expect(result.contributors[0]!.name).toBe('Bob')
   })
 
   it('filter — activeBefore 过滤', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
-      { contributor: 'bob', totalCommits: 50, firstDate: '2025-03-01', lastDate: '2025-06-01' },
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
+      { contributor: 'bob@example.com', totalCommits: 50, firstDate: '2025-03-01', lastDate: '2025-06-01' },
     ]
     mockSequence([
       { rows: aggRows },
-      { rows: [{ authorName: 'alice', authorEmail: 'alice@test.com' }] },
+      { rows: [{ authorEmail: 'alice@example.com', authorName: 'Alice' }] },
       { rows: [] },
     ])
 
     const result = await queryContributors(1, { filter: { activeBefore: '2025-02-01' }, sortBy: 'commits', limit: 20 })
-    expect(result).toHaveLength(1)
-    expect(result[0]!.name).toBe('alice')
+    expect(result.totalCount).toBe(1)
+    expect(result.contributors[0]!.name).toBe('Alice')
   })
 
   it('filter — minCommits 过滤', async () => {
     const aggRows = [
-      { contributor: 'alice', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
-      { contributor: 'bob', totalCommits: 10, firstDate: '2025-03-01', lastDate: '2025-06-01' },
+      { contributor: 'alice@example.com', totalCommits: 100, firstDate: '2025-01-01', lastDate: '2025-06-01' },
+      { contributor: 'bob@example.com', totalCommits: 10, firstDate: '2025-03-01', lastDate: '2025-06-01' },
     ]
     mockSequence([
       { rows: aggRows },
-      { rows: [{ authorName: 'alice', authorEmail: 'alice@test.com' }] },
+      { rows: [{ authorEmail: 'alice@example.com', authorName: 'Alice' }] },
       { rows: [] },
     ])
 
     const result = await queryContributors(1, { filter: { minCommits: 50 }, sortBy: 'commits', limit: 20 })
-    expect(result).toHaveLength(1)
-    expect(result[0]!.name).toBe('alice')
+    expect(result.totalCount).toBe(1)
+    expect(result.contributors[0]!.name).toBe('Alice')
   })
 
   it('空结果：mock DB 返回空', async () => {
     mockSequence([{ rows: [] }])
 
     const result = await queryContributors(1, { sortBy: 'commits', limit: 20 })
-    expect(result).toEqual([])
+    expect(result).toEqual({ totalCount: 0, contributors: [] })
   })
 
-  it('limit 截断：只返回 limit 条', async () => {
+  it('limit 截断：只返回 limit 条，但 totalCount 保留总数', async () => {
     const aggRows = Array.from({ length: 30 }, (_, i) => ({
-      contributor: `user${i}`,
+      contributor: `user${i}@example.com`,
       totalCommits: 30 - i,
       firstDate: '2025-01-01',
       lastDate: '2025-06-01',
     }))
     mockSequence([
       { rows: aggRows },
-      { rows: aggRows.slice(0, 10).map(r => ({ authorName: r.contributor, authorEmail: `${r.contributor}@test.com` })) },
+      { rows: aggRows.slice(0, 10).map(r => ({ authorEmail: r.contributor, authorName: r.contributor.split('@')[0] })) },
       { rows: [] },
     ])
 
     const result = await queryContributors(1, { sortBy: 'commits', limit: 10 })
-    expect(result).toHaveLength(10)
+    expect(result.totalCount).toBe(30)
+    expect(result.contributors).toHaveLength(10)
+  })
+
+  it('email→name 映射缺失时 fallback 到 email', async () => {
+    const aggRows = [
+      { contributor: 'unknown@example.com', totalCommits: 5, firstDate: '2025-01-01', lastDate: '2025-01-01' },
+    ]
+    mockSequence([
+      { rows: aggRows },
+      { rows: [] }, // commits 表无匹配
+      { rows: [] },
+    ])
+
+    const result = await queryContributors(1, { sortBy: 'commits', limit: 20 })
+    expect(result.contributors[0]!.name).toBe('unknown@example.com')
+    expect(result.contributors[0]!.email).toBe('unknown@example.com')
   })
 
   it('zod schema 校验：limit > 50 被 reject', () => {
