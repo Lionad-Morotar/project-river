@@ -254,6 +254,7 @@ export default defineI18nLocale(() => ({
       title: '项目分析助手',
       placeholder: '问问这个项目的演进...',
       minimize: '缩小到角落',
+      clear: '清空对话',
     },
     chip: {
       1: 'useStorage 主要由谁维护? 最近 6 个月有 owner shift 吗?',
@@ -268,7 +269,7 @@ export default defineI18nLocale(() => ({
       streamInterrupted: '流中断，请重试',
       rateLimited: '请求过于频繁，{n} 秒后重试',
       costCap: '会话 token 接近上限，请刷新页面重新开始',
-      inputTooLong: '500 / {n}',
+      inputTooLong: '{n} / 500',
       aborted: '已中断',
     },
     toolcard: {

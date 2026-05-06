@@ -254,6 +254,7 @@ export default defineI18nLocale(() => ({
       title: 'Project Analyst',
       placeholder: 'Ask about this project\'s evolution...',
       minimize: 'Minimize',
+      clear: 'Clear conversation',
     },
     chip: {
       1: 'Who maintains useStorage? Any owner shift in the last 6 months?',
@@ -268,7 +269,7 @@ export default defineI18nLocale(() => ({
       streamInterrupted: 'Stream interrupted. Please retry.',
       rateLimited: 'Rate limited. Retry in {n}s.',
       costCap: 'Session token limit approaching. Refresh to restart.',
-      inputTooLong: '500 / {n}',
+      inputTooLong: '{n} / 500',
       aborted: 'Aborted',
     },
     toolcard: {
