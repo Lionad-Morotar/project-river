@@ -26,6 +26,7 @@
 import type { AgentEvent } from '@mariozechner/pi-agent-core'
 import type { AssistantMessage, Message } from '@mariozechner/pi-ai'
 import { createProjectAgent } from '#server/agent/createAgent'
+import { createChatLogger } from '#server/utils/chatLogger'
 import { assertProjectExists } from '#server/utils/projectStats'
 import { createError, defineEventHandler, getRouterParam, readBody, setHeader } from 'h3'
 
@@ -131,6 +132,8 @@ export default defineEventHandler(async (event) => {
   // ── 3. 创建 Agent（D-01/D-02/D-19~D-21） ──
   const baseUrl = (config.agentLlmBaseUrl as string | undefined) ?? ''
   const agent = createProjectAgent(projectId, { apiKey, baseUrl })
+  const logger = createChatLogger(projectId)
+  logger.log('user-message', { message })
   const res = event.node.res as SseSink
   const req = event.node.req as { once?: (ev: string, cb: () => void) => void, off?: (ev: string, cb: () => void) => void }
 
@@ -160,6 +163,8 @@ export default defineEventHandler(async (event) => {
   agent.subscribe((agentEvent: AgentEvent) => {
     if (ended)
       return
+
+    logger.log(`agent-${agentEvent.type}`, agentEvent)
 
     switch (agentEvent.type) {
       case 'message_update': {
@@ -236,6 +241,7 @@ export default defineEventHandler(async (event) => {
   finally {
     clearTimeout(timeout)
     req.off?.('close', onClientClose)
+    logger.close()
     if (!res.writableEnded && !res.destroyed) {
       try {
         res.end?.()
