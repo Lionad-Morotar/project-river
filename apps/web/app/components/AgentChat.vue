@@ -18,8 +18,8 @@ const { t } = useI18n()
 /** 上下文窗口 token 上限（deepseek-v4-flash = 1M tokens） */
 const CONTEXT_WINDOW_TOKENS = 1_000_000
 
-/** 累计已消耗的精确 token 数（由后端 usage 事件提供） */
-const totalTokensConsumed = ref(0)
+/** 累计已消耗的精确 token 数（由后端 usage 事件提供），按项目持久化 */
+const totalTokensConsumed = useStorage(`agent-chat-tokens-${props.projectId}`, 0)
 
 /** 当前对话上下文占用百分比 */
 const contextPercent = computed(() => {
