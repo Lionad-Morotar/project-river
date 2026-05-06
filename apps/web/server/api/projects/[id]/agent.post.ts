@@ -99,7 +99,7 @@ function normalizeLlmError(raw: string | undefined): string {
   return 'LLM API error'
 }
 
-const TIMEOUT_MS = 60_000
+const TIMEOUT_MS = 300_000 // 5 分钟
 
 export default defineEventHandler(async (event) => {
   // ── 1. Fail-fast 校验（D-06 / D-18 / T-03-01） ──
