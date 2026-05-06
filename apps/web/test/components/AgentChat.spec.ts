@@ -1,7 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 // @vitest-environment jsdom
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { createI18n, useI18n } from 'vue-i18n'
 
 // Mock fetch-event-source before importing component
@@ -53,6 +53,7 @@ describe('agentChat', () => {
     vi.stubGlobal('watch', watch)
     vi.stubGlobal('nextTick', nextTick)
     vi.stubGlobal('onBeforeUnmount', onBeforeUnmount)
+    vi.stubGlobal('onMounted', onMounted)
   })
 
   function mountComponent(props = { projectId: 1 }) {
@@ -65,14 +66,9 @@ describe('agentChat', () => {
         plugins: [i18n],
         stubs: {
           UIcon: true,
-          USlideover: {
-            props: ['open', 'side', 'dismissible'],
-            template: `
-              <div v-show="open" data-testid="slideover">
-                <slot name="header" />
-                <slot name="body" />
-              </div>
-            `,
+          MarkdownRender: {
+            props: ['content', 'maxLiveNodes', 'final'],
+            template: '<div data-testid="markdown-render">{{ content }}</div>',
           },
           AgentToolCard: {
             props: ['name', 'input', 'output', 'isError', 'status', 'index', 'duration'],
@@ -90,19 +86,19 @@ describe('agentChat', () => {
     expect(fab.isVisible()).toBe(true)
   })
 
-  it('expands drawer when FAB is clicked', async () => {
+  it('expands panel when FAB is clicked', async () => {
     const wrapper = mountComponent()
     await wrapper.find('button[aria-label="Ask Agent"]').trigger('click')
-    const slideover = wrapper.find('[data-testid="slideover"]')
-    expect(slideover.isVisible()).toBe(true)
+    const panel = wrapper.find('[data-testid="agent-panel"]')
+    expect(panel.isVisible()).toBe(true)
   })
 
-  it('minimizes drawer when minimize button is clicked', async () => {
+  it('minimizes panel when minimize button is clicked', async () => {
     const wrapper = mountComponent()
     await wrapper.find('button[aria-label="Ask Agent"]').trigger('click')
     await wrapper.find('button[aria-label="Minimize"]').trigger('click')
-    const slideover = wrapper.find('[data-testid="slideover"]')
-    expect(slideover.isVisible()).toBe(false)
+    const panel = wrapper.find('[data-testid="agent-panel"]')
+    expect(panel.isVisible()).toBe(false)
   })
 
   it('shows 5 chip buttons when idle and no messages', () => {
