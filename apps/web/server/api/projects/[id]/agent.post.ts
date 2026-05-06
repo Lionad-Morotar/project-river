@@ -1,19 +1,19 @@
 /**
  * POST /api/projects/[id]/agent — Agent SSE Route
  *
- * 实现 AGENT-02：将 pi-agent-core Agent 的 lifecycle event 映射为 SSE JSON 推送。
+ * 将 pi-agent-core Agent 的 lifecycle event 映射为 SSE JSON 推送。
  *
- * SSE 事件合约（D-07~D-10，与 Phase 1 spike 一致）：
+ * SSE 事件合约：
  *   data: {"type":"text","token":"..."}
  *   data: {"type":"tool-call","id":"...","name":"...","args":{...}}
  *   data: {"type":"tool-result","id":"...","name":"...","result":{...},"isError":false}
  *   data: {"type":"done"}
  *   data: {"type":"error","message":"..."}
  *
- * Fail-fast（D-18）：project ID 非法 / API key 缺失 / message 缺失
+ * Fail-fast：project ID 非法 / API key 缺失 / message 缺失
  * 在 SSE headers 之前抛 createError，返回标准 HTTP 4xx/5xx。
  *
- * Timeout（D-17）：60s AbortController + agent.abort()。
+ * Timeout：60s AbortController + agent.abort()。
  *
  * Gap closure (Phase 3 review)：
  *   - 监听 req 'close' → agent.abort()，client 断开后立即停止消耗 LLM token / DB 连接
@@ -30,7 +30,7 @@ import { createChatLogger } from '#server/utils/chatLogger'
 import { assertProjectExists } from '#server/utils/projectStats'
 import { createError, defineEventHandler, getRouterParam, readBody, setHeader } from 'h3'
 
-/** SSE event JSON 形态（type 字段区分种类，对应 D-07） */
+/** SSE event JSON 形态（type 字段区分种类） */
 type SseEventType = 'text' | 'tool-call' | 'tool-result' | 'usage' | 'done' | 'error'
 
 interface SseEvent {
@@ -47,7 +47,7 @@ interface SseSink {
 }
 
 /**
- * 写一行 SSE data:行（JSON 编码避免响应分裂攻击 — T-03-02）
+ * 写一行 SSE data:行（JSON 编码避免响应分裂攻击）
  *
  * 双重防御：
  *   1) 写前检查 res.writableEnded / destroyed（client 已断开时直接丢弃）
@@ -102,7 +102,7 @@ function normalizeLlmError(raw: string | undefined): string {
 const TIMEOUT_MS = 300_000 // 5 分钟
 
 export default defineEventHandler(async (event) => {
-  // ── 1. Fail-fast 校验（D-06 / D-18 / T-03-01） ──
+  // ── 1. Fail-fast 校验 ──
   const projectId = Number(getRouterParam(event, 'id'))
   if (!Number.isFinite(projectId)) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid project ID' })
@@ -124,12 +124,12 @@ export default defineEventHandler(async (event) => {
   // 项目存在性 — 不存在抛 404（fail fast，不进入 SSE 流）
   await assertProjectExists(projectId)
 
-  // ── 2. SSE headers（D-07，与 Phase 1 spike 一致） ──
+  // ── 2. SSE headers ──
   setHeader(event, 'Content-Type', 'text/event-stream')
   setHeader(event, 'Cache-Control', 'no-cache')
   setHeader(event, 'Connection', 'keep-alive')
 
-  // ── 3. 创建 Agent（D-01/D-02/D-19~D-21） ──
+  // ── 3. 创建 Agent ──
   const baseUrl = (config.agentLlmBaseUrl as string | undefined) ?? ''
   const agent = createProjectAgent(projectId, { apiKey, baseUrl })
   const logger = createChatLogger(projectId)
@@ -146,7 +146,7 @@ export default defineEventHandler(async (event) => {
    */
   let ended = false
 
-  // ── 4. Client disconnect → abort agent（FIX 1） ──
+  // ── 4. Client disconnect → abort agent ──
   // chrome 中断 / fetch.abort() 会触发 req 'close'。此时停止 agent 避免继续吃 LLM token / DB。
   const onClientClose = (): void => {
     ended = true
@@ -159,7 +159,7 @@ export default defineEventHandler(async (event) => {
   }
   req.once?.('close', onClientClose)
 
-  // ── 5. 订阅 lifecycle event → 推 SSE（D-07~D-10/D-16） ──
+  // ── 5. 订阅 lifecycle event → 推 SSE ──
   agent.subscribe((agentEvent: AgentEvent) => {
     if (ended)
       return
@@ -168,7 +168,7 @@ export default defineEventHandler(async (event) => {
 
     switch (agentEvent.type) {
       case 'message_update': {
-        // D-08: 仅转发 text_delta 增量（toolcall_* 由 tool_execution_* 覆盖）
+        // 仅转发 text_delta 增量
         const ev = agentEvent.assistantMessageEvent
         if (ev.type === 'text_delta') {
           pushSse(res, { type: 'text', token: ev.delta })
@@ -176,7 +176,7 @@ export default defineEventHandler(async (event) => {
         break
       }
       case 'tool_execution_start': {
-        // D-09: tool-call event
+        // tool-call event
         pushSse(res, {
           type: 'tool-call',
           id: agentEvent.toolCallId,
@@ -186,7 +186,7 @@ export default defineEventHandler(async (event) => {
         break
       }
       case 'tool_execution_end': {
-        // D-09: tool-result event（含 isError 标记，graceful degrade by D-15）
+        // tool-result event
         pushSse(res, {
           type: 'tool-result',
           id: agentEvent.toolCallId,
@@ -197,7 +197,7 @@ export default defineEventHandler(async (event) => {
         break
       }
       case 'message_end': {
-        // D-10/D-16: LLM API error → SSE error event
+        // LLM API error → SSE error event
         const msg = agentEvent.message
         if (isAssistantMessage(msg)) {
           // 转发精确的 token usage（input/output 分离，便于前端展示）
@@ -217,7 +217,7 @@ export default defineEventHandler(async (event) => {
         break
       }
       case 'agent_end': {
-        // D-10: done event（最后一个事件）
+        // done event（最后一个事件）
         ended = true
         pushSse(res, { type: 'done' })
         break
@@ -225,7 +225,7 @@ export default defineEventHandler(async (event) => {
     }
   })
 
-  // ── 6. 启动 + 60s timeout（D-17） ──
+  // ── 6. 启动 + timeout ──
   const timeout = setTimeout(() => {
     if (ended)
       return

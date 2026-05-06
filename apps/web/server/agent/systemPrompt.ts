@@ -1,5 +1,5 @@
 /**
- * Agent system prompt (D-13 + D-14) — 中英双语 prompt
+ * Agent system prompt — 中英双语 prompt
  *
  * 中文主体 + 英文工具名/术语：
  * - 中文降低中文用户提问与回答的语义损耗

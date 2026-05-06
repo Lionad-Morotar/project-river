@@ -1,14 +1,14 @@
 /**
- * TEST-03 — POST /api/projects/[id]/agent SSE route test
+ * POST /api/projects/[id]/agent SSE route test
  *
- * 验证 D-25 描述的 5 类断言：
+ * 验证 5 类断言：
  *   1. POST body validation: 空/缺失/非字符串 message → 400
  *   2. project not found: assertProjectExists 抛 404 → 404
  *   3. API key missing: useRuntimeConfig.agentLlmApiKey 缺失 → 503
  *   4. SSE happy path: text → tool-call → tool-result → done 顺序
  *   5. error event: message_end 且 stopReason='error' → SSE error event
  *
- * 隔离策略（D-26）：
+ * 隔离策略：
  *   - vi.doMock '~/server/agent/createAgent' — 注入 stub Agent（控制事件序列）
  *   - vi.doMock '~/server/utils/projectStats' — 控制 assertProjectExists 行为
  *   - vi.doMock 'h3' — 控制 readBody / setHeader / getRouterParam（注入 mock event）
@@ -218,7 +218,7 @@ describe('pOST /api/projects/[id]/agent', () => {
     expect(toolResultEvent.isError).toBe(false)
     expect(toolResultEvent.result).toEqual([{ name: 'alice' }])
 
-    // text event 用 token 字段（D-08 / 实现合约）
+    // text event 用 token 字段
     const firstText = JSON.parse(writes[0]!.replace(/^data: /, '').trim())
     expect(firstText.token).toBe('Searching')
   })
@@ -251,7 +251,7 @@ describe('pOST /api/projects/[id]/agent', () => {
     expect(doneWrite).toBeUndefined()
   })
 
-  // FIX 4 — 60s timeout 触发 abort + error event，且不再泄出 done
+  // 60s timeout 触发 abort + error event，且不再泄出 done
   describe('60s timeout', () => {
     afterEach(() => {
       vi.useRealTimers()

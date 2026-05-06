@@ -1,11 +1,10 @@
 /**
  * Tool adapters — 将 Phase 2 的纯函数 tool 包装为 pi-agent-core `AgentTool` 接口
  *
- * 设计要点（D-11/D-12/D-15）：
  * - 直接手写 typebox schema（与 zod schema 语义等价），不引入 zod→typebox 桥接
  * - projectId 从 route 参数注入（LLM 不应也无法传）
  * - execute() 内不 catch — 让原始异常冒泡，pi-agent-core 会自动包装为
- *   `isError: true` 的 ToolResultMessage 反馈给 LLM（graceful degrade by D-15）
+ *   `isError: true` 的 ToolResultMessage 反馈给 LLM（graceful degrade）
  *
  * Gap closure (Phase 3 review)：
  * - JSON.stringify 对 result 中的 bigint 安全降级为 string，避免 commit 计数等
@@ -100,7 +99,7 @@ function adaptTool<TInput, TOutput>(
       _toolCallId: string,
       params: unknown,
     ): Promise<AgentToolResult<TOutput>> => {
-      // 不 catch — 抛错由 pi-agent-core 包装为 isError tool result（D-15）
+      // 不 catch — 抛错由 pi-agent-core 包装为 isError tool result
       const result = await exec(projectId, params as TInput)
       return {
         content: [{ type: 'text', text: JSON.stringify(result, bigintSafeReplacer) }],

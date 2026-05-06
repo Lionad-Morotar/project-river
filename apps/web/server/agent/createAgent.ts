@@ -1,14 +1,10 @@
 /**
  * createProjectAgent — pi-agent-core Agent 工厂
  *
- * 按 D-01 / D-02 / D-03 / D-19~D-23 实现：
- * - D-01: 使用 `Agent` 类（高层 API），不使用 agentLoop
- * - D-02: 每次调用返回新实例（session-scoped，不复用）
- * - D-03: toolExecution = 'sequential'（DB 串行 + SSE 顺序可预测）
- * - D-19/D-20: DeepSeek via Anthropic-compatible endpoint —
- *             先 getModel('anthropic',...) 再覆盖 baseUrl
- * - D-22: 不设 maxIterations（pi-agent-core 无此参数，由 LLM stopReason 决定）
- * - D-23: convertToLlm = identity passthrough（无 custom AgentMessage 类型）
+ * 使用 pi-agent-core Agent 类，session-scoped 实例不复用，
+ * toolExecution 串行（DB 串行 + SSE 顺序可预测）。
+ * DeepSeek 通过 Anthropic-compatible endpoint — 先 getModel('anthropic',...) 再覆盖 baseUrl。
+ * convertToLlm 为 identity passthrough（无 custom AgentMessage 类型）。
  */
 
 import type { AgentMessage, StreamFn } from '@mariozechner/pi-agent-core'
@@ -40,15 +36,15 @@ export function createProjectAgent(
   config: CreateProjectAgentConfig,
 ): Agent {
   // DeepSeek API 通过 Anthropic-compatible endpoint 提供。
-  // Phase 1 spike 验证：getModel('anthropic', 'claude-sonnet-4-6') 后覆盖 baseUrl。
+  // getModel('anthropic', 'claude-sonnet-4-6') 后覆盖 baseUrl。
   // 用 spread 创建新对象避免改写共享 model 实例。
-  // FIX 1: Anthropic SDK 0.90.0 + dangerouslyAllowBrowser: true 时不自动发 x-api-key header，
-  //        通过 model.headers 强制注入，经 pi-ai mergeHeaders 流入 defaultHeaders。
-  // FIX 2: model.id 必须改为 DeepSeek model ID，reasoning 必须关闭，否则 buildParams
-  //        会生成 thinking / output_config 等 DeepSeek 不支持的参数导致 400。
-  // FIX 3: Claude Code 运行环境注入 ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED 和
-  //        ANTHROPIC_BASE_URL=http://127.0.0.1:15721，Anthropic SDK 会读取这些变量
-  //        并发送错误的 Authorization header，覆盖正确的 X-Api-Key。清除之。
+  // Anthropic SDK 0.90.0 + dangerouslyAllowBrowser: true 时不自动发 x-api-key header，
+  // 通过 model.headers 强制注入，经 pi-ai mergeHeaders 流入 defaultHeaders。
+  // model.id 必须改为 DeepSeek model ID，reasoning 必须关闭，否则 buildParams
+  // 会生成 thinking / output_config 等 DeepSeek 不支持的参数导致 400。
+  // Claude Code 运行环境注入 ANTHROPIC_AUTH_TOKEN=PROXY_MANAGED 和
+  // ANTHROPIC_BASE_URL=http://127.0.0.1:15721，Anthropic SDK 会读取这些变量
+  // 并发送错误的 Authorization header，覆盖正确的 X-Api-Key。清除之。
   delete (process.env as Record<string, string>).ANTHROPIC_AUTH_TOKEN
   delete (process.env as Record<string, string>).ANTHROPIC_BASE_URL
 
@@ -67,7 +63,7 @@ export function createProjectAgent(
       model,
       tools: buildTools(projectId),
     },
-    // identity passthrough — 当前场景 AgentMessage 等价于 Message（D-23）
+    // identity passthrough — 当前场景 AgentMessage 等价于 Message
     convertToLlm: (messages: AgentMessage[]) => messages as Message[],
     getApiKey: () => config.apiKey,
     toolExecution: 'sequential',

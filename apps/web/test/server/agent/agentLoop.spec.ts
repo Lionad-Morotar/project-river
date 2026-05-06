@@ -1,12 +1,12 @@
 /**
- * TEST-02 — Agent ReAct loop integration test
+ * Agent ReAct loop integration test
  *
- * 验证 D-24 描述的 3 类断言：
+ * 验证 3 类断言：
  *   1. happy path: LLM 返回 tool call → tool 执行 → result 反馈给 LLM
  *   2. graceful degrade: tool 抛错 → isError tool result 反馈给 LLM
  *   3. plain text path: LLM 直接返回文本（无 tool call）
  *
- * 隔离策略（D-26）：
+ * 隔离策略：
  *   - vi.doMock '~/server/agent/toolAdapters' — 注入测试 tool（避免真实 DB 查询）
  *   - vi.doMock '@mariozechner/pi-ai' — 提供轻量 stub（实际 stream 通过 streamFn 注入）
  *   - 通过 createProjectAgent 的 streamFn option 注入 mock streamSimple
@@ -168,7 +168,7 @@ describe('agent ReAct loop integration', () => {
   })
 
   it('graceful degrade — tool error fed back to LLM as isError tool result', async () => {
-    // tool 抛错 → pi-agent-core 自动包装为 isError=true 的 ToolResultMessage（D-15）
+    // tool 抛错 → pi-agent-core 自动包装为 isError=true 的 ToolResultMessage
     queryCommitsByPathExec.mockRejectedValueOnce(new Error('database connection lost'))
 
     const toolCall = {
@@ -255,7 +255,7 @@ describe('agent ReAct loop integration', () => {
     expect(toolResults).toHaveLength(0)
   })
 
-  // GAP 1 — 多步 tool calling
+  // 多步 tool calling
   // 验证 systemPrompt 约束 2 描述的 path-based 问题路径：
   //   call#1: queryCommitsByPath 锁定相关 commits
   //   call#2: queryContributors 排序
