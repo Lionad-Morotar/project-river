@@ -474,6 +474,8 @@ onBeforeUnmount(() => {
                       <MarkdownRender
                         :content="part.content"
                         :max-live-nodes="0"
+                        :render-batch-size="16"
+                        :render-batch-delay="8"
                         :final="!(phase === 'streaming' && idx === messages.length - 1 && pIdx === msg.parts!.length - 1)"
                         class="text-sm text-default"
                       />
@@ -499,6 +501,8 @@ onBeforeUnmount(() => {
                     <MarkdownRender
                       :content="msg.text"
                       :max-live-nodes="0"
+                      :render-batch-size="16"
+                      :render-batch-delay="8"
                       :final="!(phase === 'streaming' && idx === messages.length - 1)"
                       class="text-sm text-default"
                     />
