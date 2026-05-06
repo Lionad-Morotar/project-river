@@ -202,6 +202,7 @@ async function submit(text: string) {
   if (!text.trim() || inputTooLong.value)
     return
 
+  inputValue.value = ''
   abortController = new AbortController()
   phase.value = 'streaming'
   messages.push({ role: 'user', text: text.trim() })
