@@ -180,14 +180,17 @@ watch(inputTooLong, (v) => {
     phase.value = 'idle'
 })
 
-// Chip definitions
-const chips = computed(() => [
-  t('agent.chip.1'),
-  t('agent.chip.2'),
-  t('agent.chip.3'),
-  t('agent.chip.4'),
-  t('agent.chip.5'),
-])
+// Chip definitions — 通用问题，支持项目名插值
+const chips = computed(() => {
+  const name = props.projectName || t('agent.drawer.title')
+  return [
+    t('agent.chip.1', { name }),
+    t('agent.chip.2'),
+    t('agent.chip.3'),
+    t('agent.chip.4'),
+    t('agent.chip.5'),
+  ]
+})
 
 function handleChipClick(text: string) {
   inputValue.value = text

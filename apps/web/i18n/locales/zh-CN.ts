@@ -257,11 +257,11 @@ export default defineI18nLocale(() => ({
       clear: '清空对话',
     },
     chip: {
-      1: 'useStorage 主要由谁维护? 最近 6 个月有 owner shift 吗?',
-      2: 'composables/ 模块谁贡献最多?',
-      3: '项目有哪些里程碑事件?',
-      4: 'core 包近期最活跃?',
-      5: 'shared utils 最近被谁改动?',
+      1: '{name} 的核心贡献者有哪些？',
+      2: '哪些模块或目录最活跃？',
+      3: '项目演进中有哪些关键节点？',
+      4: '近期代码活跃度趋势如何？',
+      5: '贡献者的活跃度有何变化？',
     },
     error: {
       noData: '现有数据中查不到',

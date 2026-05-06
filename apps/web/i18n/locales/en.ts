@@ -257,11 +257,11 @@ export default defineI18nLocale(() => ({
       clear: 'Clear conversation',
     },
     chip: {
-      1: 'Who maintains useStorage? Any owner shift in the last 6 months?',
-      2: 'Who contributed most to the composables/ module?',
-      3: 'What are the project\'s milestone events?',
-      4: 'Which package in core/ is most active recently?',
-      5: 'Who recently changed shared utils?',
+      1: 'Who are the core contributors to {name}?',
+      2: 'Which modules or directories are most active?',
+      3: 'What are the key milestones in this project\'s evolution?',
+      4: 'What is the recent code activity trend?',
+      5: 'How has contributor activity changed over time?',
     },
     error: {
       noData: 'No data found in current records',
