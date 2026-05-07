@@ -263,6 +263,11 @@ export default defineI18nLocale(() => ({
       4: '近期代码活跃度趋势如何？',
       5: '贡献者的活跃度有何变化？',
     },
+    static: {
+      placeholder: '静态演示模式，Agent 能力需本地部署',
+      banner: '当前为静态演示，是从开发环境截取的内容',
+      githubButton: '查看源码',
+    },
     error: {
       noData: '现有数据中查不到',
       apiKeyMissing: 'API Key 未配置，请在 .env 中设置 NUXT_AGENT_LLM_API_KEY',

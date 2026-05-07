@@ -7,6 +7,7 @@
  */
 import { fetchEventSource } from '@microsoft/fetch-event-source'
 import { useStorage, watchThrottled } from '@vueuse/core'
+import { agentDemoMessages } from '~/data/agentDemo'
 import AgentToolCard from './AgentToolCard.vue'
 
 const props = defineProps<{
@@ -15,11 +16,14 @@ const props = defineProps<{
 }>()
 const { t } = useI18n()
 
+/** 静态模式（GitHub Pages 部署，无后端 Agent 能力） */
+const isStaticMode = useRuntimeConfig().public.staticMode
+
 /** 上下文窗口 token 上限（deepseek-v4-flash = 1M tokens） */
 const CONTEXT_WINDOW_TOKENS = 1_000_000
 
-/** 累计已消耗的精确 token 数（由后端 usage 事件提供），按项目持久化 */
-const totalTokensConsumed = useStorage(`agent-chat-tokens-${props.projectId}`, 0)
+/** 累计已消耗的精确 token 数（由后端 usage 事件提供），按项目持久化（静态模式跳过） */
+const totalTokensConsumed = isStaticMode ? ref(0) : useStorage(`agent-chat-tokens-${props.projectId}`, 0)
 
 /** 当前对话上下文占用百分比 */
 const contextPercent = computed(() => {
@@ -137,6 +141,11 @@ const storedMessages = useStorage<AgentMessage[]>(storageKey, [])
 
 const messages = reactive<AgentMessage[]>([])
 
+// 静态模式：直接加载预置演示对话
+if (isStaticMode) {
+  messages.push(...(agentDemoMessages as unknown as AgentMessage[]).map(migrateMessage))
+}
+
 /** 将旧格式（text + toolCalls[] 分离）迁移为 parts 数组 */
 function migrateMessage(msg: AgentMessage): AgentMessage {
   if (!msg.parts && msg.role === 'assistant') {
@@ -151,20 +160,24 @@ function migrateMessage(msg: AgentMessage): AgentMessage {
   return msg
 }
 
-// Restore from storage on mount
-if (storedMessages.value.length > 0) {
+// Restore from storage on mount（静态模式跳过）
+if (!isStaticMode && storedMessages.value.length > 0) {
   messages.push(...storedMessages.value.map(migrateMessage))
 }
-// Sync to storage (throttled to avoid excessive writes during streaming)
-watchThrottled(
-  messages,
-  (newVal) => {
-    storedMessages.value = [...newVal]
-  },
-  { deep: true, throttle: 1000 },
-)
+// Sync to storage（静态模式跳过）
+if (!isStaticMode) {
+  watchThrottled(
+    messages,
+    (newVal) => {
+      storedMessages.value = [...newVal]
+    },
+    { deep: true, throttle: 1000 },
+  )
+}
 
 function clearConversation() {
+  if (isStaticMode)
+    return
   messages.length = 0
   storedMessages.value = []
   phase.value = 'idle'
@@ -258,7 +271,7 @@ async function submit(text: string) {
               currentTextPart = { type: 'text', content: payload.token }
               assistant.parts!.push(currentTextPart)
             }
-            else {
+            else if ('content' in currentTextPart) {
               currentTextPart.content += payload.token
             }
             break
@@ -402,7 +415,7 @@ onBeforeUnmount(() => {
         </h3>
         <div class="flex items-center gap-1">
           <button
-            v-if="messages.length > 0"
+            v-if="!isStaticMode && messages.length > 0"
             class="hover:bg-elevated/60 p-1.5 rounded text-muted hover:text-red-400 transition-colors"
             :aria-label="t('agent.drawer.clear')"
             @click="clearConversation"
@@ -423,8 +436,15 @@ onBeforeUnmount(() => {
       <div class="flex flex-col flex-1 min-h-0">
         <!-- Message list -->
         <div class="flex-1 overflow-y-auto space-y-4 p-4 min-h-0">
+          <!-- Static demo banner -->
+          <div v-if="isStaticMode" class="bg-sky-500/10 border border-sky-500/20 rounded-lg p-2.5">
+            <p class="text-xs text-sky-400">
+              {{ t('agent.static.banner') }}
+            </p>
+          </div>
+
           <!-- Idle: chips -->
-          <div v-if="phase === 'idle' && messages.length === 0" class="flex flex-wrap gap-2">
+          <div v-if="!isStaticMode && phase === 'idle' && messages.length === 0" class="flex flex-wrap gap-2">
             <button
               v-for="(chip, idx) in chips"
               :key="idx"
@@ -436,7 +456,7 @@ onBeforeUnmount(() => {
           </div>
 
           <!-- Empty result -->
-          <div v-else-if="phase === 'empty-result'" class="text-center py-8">
+          <div v-else-if="!isStaticMode && phase === 'empty-result'" class="text-center py-8">
             <p class="text-sm text-muted">
               {{ t('agent.error.noData') }}
             </p>
@@ -588,8 +608,8 @@ onBeforeUnmount(() => {
                 v-model="inputValue"
                 type="text"
                 class="w-full bg-elevated border border-default rounded-lg px-3 py-2 text-sm text-default placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-sky-500/30"
-                :placeholder="t('agent.drawer.placeholder')"
-                :disabled="phase === 'streaming' || phase === 'tool-calling' || phase === 'rate-limit' || phase === 'cost-cap' || phase === 'api-key-missing'"
+                :placeholder="isStaticMode ? t('agent.static.placeholder') : t('agent.drawer.placeholder')"
+                :disabled="isStaticMode || phase === 'streaming' || phase === 'tool-calling' || phase === 'rate-limit' || phase === 'cost-cap' || phase === 'api-key-missing'"
                 @keyup.enter="submit(inputValue)"
               >
               <span
@@ -609,6 +629,15 @@ onBeforeUnmount(() => {
             >
               <UIcon name="i-lucide-square" class="w-4 h-4" />
             </button>
+            <a
+              v-else-if="isStaticMode"
+              href="https://github.com/Lionad-Morotar/project-river"
+              target="_blank"
+              class="w-9 h-9 rounded-lg bg-elevated text-default hover:bg-elevated/80 flex items-center justify-center transition-colors shrink-0"
+              :aria-label="t('agent.static.githubButton')"
+            >
+              <UIcon name="i-lucide-github" class="w-4 h-4" />
+            </a>
             <button
               v-else
               class="w-9 h-9 rounded-lg bg-sky-500 text-white hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shrink-0"

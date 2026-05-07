@@ -263,6 +263,11 @@ export default defineI18nLocale(() => ({
       4: 'What is the recent code activity trend?',
       5: 'How has contributor activity changed over time?',
     },
+    static: {
+      placeholder: 'Static demo — Agent requires local deployment',
+      banner: 'Static demo: content captured from development environment',
+      githubButton: 'View source',
+    },
     error: {
       noData: 'No data found in current records',
       apiKeyMissing: 'API Key not configured. Set NUXT_AGENT_LLM_API_KEY in .env',
