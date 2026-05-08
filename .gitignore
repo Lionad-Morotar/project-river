@@ -1,4 +1,5 @@
 .planning/
+.claude/worktrees/
 node_modules
 .DS_Store
 /data/
