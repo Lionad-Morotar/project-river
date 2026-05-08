@@ -7,8 +7,8 @@ import { z } from 'zod'
 export const queryCommitsByPathSchema = z.object({
   pathPrefix: z.string().min(1),
   dateRange: z.object({
-    start: z.string(),
-    end: z.string(),
+    start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   }).optional(),
   limit: z.number().int().min(1).max(500).default(100),
 })
@@ -64,7 +64,7 @@ export async function queryCommitsByPath(
     JOIN commit_files cf ON cf.commit_id = c.id
     WHERE c.project_id = ${projectId}
       AND cf.project_id = ${projectId}
-      AND cf.path LIKE ${`${pathPrefix}%`}
+      AND starts_with(cf.path, ${pathPrefix})
       ${dateCondition}
     GROUP BY c.hash, c.committer_date, c.author_name, c.message
     ORDER BY c.committer_date DESC

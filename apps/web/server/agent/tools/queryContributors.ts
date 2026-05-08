@@ -116,6 +116,7 @@ export async function queryContributors(
       c.author_name AS "authorName"
     FROM commits c
     WHERE c.project_id = ${projectId}
+      -- drizzle-orm sql 模板自动将数组展开为参数化列表（$1, $2, ...）
       AND c.author_email IN ${contributorEmails}
     ORDER BY c.author_email, c.committer_date DESC
   `)
@@ -126,26 +127,30 @@ export async function queryContributors(
 
   // ── 6. Modules 提取 — 从 commit_files 取每个 email 的 top 5 路径段 ──
   const moduleRows = await db.execute<{ authorEmail: string, pathPrefix: string, cnt: string }>(sql`
-    SELECT
-      c.author_email AS "authorEmail",
-      CASE WHEN array_length(string_to_array(cf.path, '/'), 1) >= 2
-        THEN split_part(cf.path, '/', 1) || '/' || split_part(cf.path, '/', 2)
-        ELSE cf.path
-      END AS "pathPrefix",
-      COUNT(*) AS cnt
-    FROM commit_files cf
-    JOIN commits c ON c.id = cf.commit_id
-    WHERE cf.project_id = ${projectId}
-      AND c.author_email IN ${contributorEmails}
-    GROUP BY c.author_email, "pathPrefix"
-    ORDER BY c.author_email, cnt DESC
+    SELECT "authorEmail", "pathPrefix", cnt
+    FROM (
+      SELECT
+        c.author_email AS "authorEmail",
+        CASE WHEN array_length(string_to_array(cf.path, '/'), 1) >= 2
+          THEN split_part(cf.path, '/', 1) || '/' || split_part(cf.path, '/', 2)
+          ELSE cf.path
+        END AS "pathPrefix",
+        COUNT(*) AS cnt,
+        ROW_NUMBER() OVER (PARTITION BY c.author_email ORDER BY COUNT(*) DESC) AS rn
+      FROM commit_files cf
+      JOIN commits c ON c.id = cf.commit_id
+      WHERE cf.project_id = ${projectId}
+        AND c.author_email IN ${contributorEmails}
+      GROUP BY c.author_email, "pathPrefix"
+    ) t
+    WHERE rn <= 5
+    ORDER BY "authorEmail", cnt DESC
   `)
 
   const modulesMap = new Map<string, string[]>()
   for (const mr of moduleRows.rows) {
     const existing = modulesMap.get(mr.authorEmail) ?? []
-    if (existing.length < 5)
-      existing.push(mr.pathPrefix)
+    existing.push(mr.pathPrefix)
     modulesMap.set(mr.authorEmail, existing)
   }
 
