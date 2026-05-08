@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AgentMessage, AgentPhase, Part, ToolCallItem } from '~/types/agent'
 /**
  * AgentChat — FAB + 可拖拽/可缩放浮动面板 + 10 状态机 + SSE 消费
  *
@@ -102,34 +103,6 @@ function startResize(e: MouseEvent) {
 }
 
 // ── State machine ──
-type AgentPhase = 'idle' | 'streaming' | 'tool-calling' | 'stream-mid-error'
-  | 'abort' | 'rate-limit' | 'cost-cap' | 'input-too-long'
-  | 'api-key-missing' | 'empty-result'
-
-interface ToolCallItem {
-  id: string
-  name: string
-  input: unknown
-  output?: unknown
-  isError: boolean
-  status: 'running' | 'done'
-  index: number
-  duration?: number
-}
-
-/** 消息片段：text 或 tool，按事件顺序排列 */
-type Part
-  = | { type: 'text', content: string }
-    | { type: 'tool', toolCall: ToolCallItem }
-
-interface AgentMessage {
-  role: 'user' | 'assistant'
-  text: string
-  toolCalls?: ToolCallItem[]
-  /** 按事件顺序排列的片段（text/tool 交错），渲染时优先使用 */
-  parts?: Part[]
-}
-
 const phase = ref<AgentPhase>('idle')
 const inputValue = ref('')
 const sessionTokens = ref(0)
@@ -143,7 +116,7 @@ const messages = reactive<AgentMessage[]>([])
 
 // 静态模式：直接加载预置演示对话
 if (isStaticMode) {
-  messages.push(...(agentDemoMessages as unknown as AgentMessage[]).map(migrateMessage))
+  messages.push(...(agentDemoMessages as AgentMessage[]).map(migrateMessage))
 }
 
 /** 将旧格式（text + toolCalls[] 分离）迁移为 parts 数组 */
@@ -259,7 +232,14 @@ async function submit(text: string) {
         }
       },
       onmessage(ev) {
-        const payload = JSON.parse(ev.data)
+        let payload: SseEvent
+        try {
+          payload = JSON.parse(ev.data)
+        }
+        catch {
+          phase.value = 'stream-mid-error'
+          return
+        }
         switch (payload.type) {
           case 'text': {
             assistant.text += payload.token
@@ -290,7 +270,7 @@ async function submit(text: string) {
               index: toolIndex,
             }
             assistant.toolCalls!.push(tc)
-            // text part 结束后开始 tool part
+            // text part 结束后开始 tool part；tool-result 后的下一个 text 事件会自然创建新 part
             currentTextPart = null
             assistant.parts!.push({ type: 'tool', toolCall: tc })
             break
@@ -349,8 +329,10 @@ const rateLimitSeconds = ref(0)
 let rateLimitTimer: ReturnType<typeof setInterval> | null = null
 function startRateLimitCountdown(seconds: number) {
   rateLimitSeconds.value = seconds
-  if (rateLimitTimer)
+  if (rateLimitTimer) {
     clearInterval(rateLimitTimer)
+    rateLimitTimer = null
+  }
   rateLimitTimer = setInterval(() => {
     rateLimitSeconds.value -= 1
     if (rateLimitSeconds.value <= 0) {
