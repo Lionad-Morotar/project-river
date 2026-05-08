@@ -17,6 +17,14 @@ Renders Git repository contributor activity as a time-flowing Streamgraph, helpi
 
 ![project-detail](./assets/project-detail.png)
 
+### Agent Analysis (Experimental)
+
+The built-in AI agent can analyze project contributor patterns and generate narrative summaries based on the Streamgraph data.
+
+![agent](./assets/agent.png)
+
+> **Note:** The agent feature is still in early exploration — capabilities have not yet been fully realized and will continue to evolve.
+
 ## Live Demo
 
 Visit the [GitHub Pages](https://lionad-morotar.github.io/project-river/) demo.
@@ -52,7 +60,11 @@ Create a `.env` file in the project root:
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/river
+NUXT_AGENT_LLM_API_KEY=sk-xxx
+NUXT_AGENT_LLM_BASE_URL=https://api.deepseek.com/anthropic
 ```
+
+> `NUXT_AGENT_LLM_API_KEY` is required to enable the Agent Analysis feature. `NUXT_AGENT_LLM_BASE_URL` defaults to Anthropic's API if omitted.
 
 ### 3. Install Dependencies & Run Migrations
 

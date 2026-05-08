@@ -17,6 +17,14 @@
 
 ![project-detail](./assets/project-detail.png)
 
+### 智能体分析（实验性）
+
+内置 AI 智能体可以基于河流图数据分析项目贡献者模式，生成叙事性项目综述。
+
+![agent](./assets/agent.png)
+
+> **注意：** 智能体功能仍处于早期探索阶段，能力尚未充分释放，后续将持续演进。
+
 ## 在线体验
 
 推荐直接访问 [GitHub Pages](https://lionad-morotar.github.io/project-river/) 在线体验。
@@ -52,7 +60,11 @@ docker compose up -d
 
 ```bash
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/river
+NUXT_AGENT_LLM_API_KEY=sk-xxx
+NUXT_AGENT_LLM_BASE_URL=https://api.deepseek.com/anthropic
 ```
+
+> 启用智能体分析功能需要配置 `NUXT_AGENT_LLM_API_KEY`。`NUXT_AGENT_LLM_BASE_URL` 留空时默认使用 Anthropic API。
 
 ### 3. 安装依赖 & 运行迁移
 
