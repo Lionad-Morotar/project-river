@@ -120,6 +120,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'message is required' })
   }
   const message = rawMessage.trim()
+  if (message.length > 500) {
+    throw createError({ statusCode: 413, statusMessage: 'message too long' })
+  }
 
   // 项目存在性 — 不存在抛 404（fail fast，不进入 SSE 流）
   await assertProjectExists(projectId)

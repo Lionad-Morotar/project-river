@@ -129,6 +129,8 @@ export function computeSlidingWindow(
 export function daysBetween(a: string, b: string): number {
   const da = new Date(a)
   const db = new Date(b)
+  if (Number.isNaN(da.getTime()) || Number.isNaN(db.getTime()))
+    return Number.NaN
   return Math.floor((db.getTime() - da.getTime()) / (1000 * 60 * 60 * 24))
 }
 
