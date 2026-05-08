@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-08
+
+![agent-analysis](./assets/agent.png)
+
+### Added
+
+- **AI Agent 分析助手** — 基于 ReAct 循环的智能体引擎，支持工具调用（查询项目事件、贡献者、提交统计），通过 SSE 流式返回分析结果
+- **Agent Chat UI** — 可拖拽/可缩放的浮动面板，支持 Markdown 渲染、工具调用卡片、交错式流输出，适配 GitHub Pages 静态模式
+- **markstream-vue 流式渲染** — 逐 token 打字机动画，零布局抖动
+- **聊天日志本地记录** — server 端按日期归档到 `logs/local/YYYY-MM-DD/*.jsonl`
+- **Agent Chat E2E 测试** — Playwright 覆盖完整对话链路
+- **nuxt-llms 集成** — 自动生成 `/llms.txt` 供 AI 智能体消费项目上下文
+- **i18n 扩展** — Agent 相关文案 12 key，覆盖中英双语
+- **SVG 导出优化** — 修复导出尺寸与深色背景适配
+
+### Changed
+
+- `.env.example` 从根目录迁移至 `apps/web/`，新增 `NUXT_AGENT_LLM_API_KEY` / `NUXT_AGENT_LLM_BASE_URL` 配置项
+- 流式超时从 60s 延长至 5min
+- 工具参数日期格式统一校验，SQL 查询优化（starts_with + ROW_NUMBER 窗口函数）
+- 系统提示词增加英文约束段，支持中英双语输出
+
+### Fixed
+
+- markstream-vue 流式渲染卡顿
+- SSE route client disconnect 保护与重复事件守卫
+- Agent SSE 路由 Anthropic SDK auth 冲突
+- queryContributors SQL 错误（ANY → IN）与 email/name 映射修复
+- 发送消息后输入框未清空、字符计数器显示顺序
+- totalTokensConsumed 持久化到 LocalStorage
+
 ## [0.1.0] - 2026-04-24
 
 ### Added
